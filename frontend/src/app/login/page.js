@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { authAPI, saveAuthToken } from '@/utils/api'
+import { authAPI, saveAuthToken, saveUserData } from '@/utils/api'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -32,15 +32,16 @@ export default function LoginPage() {
       console.log('Respuesta del servidor:', response)
 
       if (response.success) {
-        // Guardar token
+        // Guardar token y datos del usuario
         saveAuthToken(response.token)
+        saveUserData(response.user)
         
         // Mostrar mensaje de éxito
         setSuccess('¡Login exitoso! Redirigiendo...')
         
         // Redirigir después de 1 segundo
         setTimeout(() => {
-          router.push('/dashboard') // Cambia esta ruta según tu app
+          router.push('/dashboard')
         }, 1000)
       }
     } catch (error) {

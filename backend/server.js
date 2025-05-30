@@ -12,6 +12,7 @@ const servicesRoutes = require('./routes/services')
 const appointmentsRoutes = require('./routes/appointments')
 const paymentsRoutes = require('./routes/payments')
 const schedulesRoutes = require('./routes/schedules')
+const publicRoutes = require('./routes/public')
 
 const app = express()
 
@@ -47,6 +48,7 @@ app.use('/api/services', servicesRoutes)
 app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/payments', paymentsRoutes)
 app.use('/api/schedules', schedulesRoutes)
+app.use('/api/public', publicRoutes)
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

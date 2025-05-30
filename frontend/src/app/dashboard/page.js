@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import api from '@/utils/api'
+import api, { getUserData, getAuthToken, clearAuthData } from '@/utils/api'
 
 const Dashboard = () => {
   const router = useRouter()
@@ -15,57 +15,99 @@ const Dashboard = () => {
   })
   const [loading, setLoading] = useState(true)
   const [todayAppointments, setTodayAppointments] = useState([])
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const handleLoadData = async () => {
       try {
         setLoading(true)
+        setError('')
+        
+        // Verificar si hay token de autenticación
+        const token = getAuthToken()
+        if (!token) {
+          router.push('/login')
+          return
+        }
         
         // Obtener datos del usuario del localStorage
-        const userData = localStorage.getItem('user')
+        const userData = getUserData()
         if (userData) {
-          setUser(JSON.parse(userData))
+          setUser(userData)
+        } else {
+          // Si no hay datos del usuario, redirigir al login
+          router.push('/login')
+          return
         }
 
         // Obtener estadísticas de citas
-        const appointmentStats = await api.get('/appointments/stats/summary')
-        if (appointmentStats.success) {
-          setStats(prev => ({
-            ...prev,
-            appointments: appointmentStats.stats,
-            revenue: { monthlyRevenue: appointmentStats.stats.monthlyRevenue }
-          }))
+        try {
+          const appointmentStats = await api.get('/appointments/stats/summary')
+          if (appointmentStats.success) {
+            setStats(prev => ({
+              ...prev,
+              appointments: appointmentStats.stats,
+              revenue: { monthlyRevenue: appointmentStats.stats.monthlyRevenue || 0 }
+            }))
+          }
+        } catch (error) {
+          console.error('Error obteniendo estadísticas de citas:', error)
+          if (error.message.includes('Token') || error.message.includes('401')) {
+            handleAuthError()
+            return
+          }
         }
 
         // Obtener estadísticas de servicios
-        const serviceStats = await api.get('/services/stats/summary')
-        if (serviceStats.success) {
-          setStats(prev => ({
-            ...prev,
-            services: serviceStats.stats
-          }))
+        try {
+          const serviceStats = await api.get('/services/stats/summary')
+          if (serviceStats.success) {
+            setStats(prev => ({
+              ...prev,
+              services: serviceStats.stats
+            }))
+          }
+        } catch (error) {
+          console.error('Error obteniendo estadísticas de servicios:', error)
+          if (error.message.includes('Token') || error.message.includes('401')) {
+            handleAuthError()
+            return
+          }
         }
 
         // Obtener citas de hoy
-        const todayData = await api.get('/appointments/today')
-        if (todayData.success) {
-          setTodayAppointments(todayData.appointments)
+        try {
+          const todayData = await api.get('/appointments/today')
+          if (todayData.success) {
+            setTodayAppointments(todayData.appointments || [])
+          }
+        } catch (error) {
+          console.error('Error obteniendo citas de hoy:', error)
+          if (error.message.includes('Token') || error.message.includes('401')) {
+            handleAuthError()
+            return
+          }
         }
 
       } catch (error) {
-        console.error('Error cargando dashboard:', error)
+        console.error('Error general en dashboard:', error)
+        setError('Error al cargar los datos del dashboard')
       } finally {
         setLoading(false)
       }
     }
 
     handleLoadData()
-  }, [])
+  }, [router])
+
+  const handleAuthError = () => {
+    clearAuthData()
+    router.push('/login')
+  }
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
+    clearAuthData()
+    router.push('/')
   }
 
   if (loading) {

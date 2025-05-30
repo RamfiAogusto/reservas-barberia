@@ -37,9 +37,20 @@ export default function LandingPage() {
             <Link href="/register" className="btn-primary text-lg px-8 py-3">
               Comenzar Gratis
             </Link>
-            <Link href="#demo" className="btn-secondary text-lg px-8 py-3">
-              Ver Demo
+            <Link href="/ramfi_aog" className="btn-secondary text-lg px-8 py-3">
+              🏪 Ver Perfil Demo
             </Link>
+          </div>
+        </div>
+
+        {/* Demo Notice */}
+        <div className="mt-8 text-center">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+            <p className="text-blue-800 text-sm">
+              <span className="font-semibold">💡 Prueba el perfil público:</span><br/>
+              Ve cómo los clientes verán tu salón visitando el 
+              <Link href="/ramfi_aog" className="underline font-medium">perfil demo</Link>
+            </p>
           </div>
         </div>
 

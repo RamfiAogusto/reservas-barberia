@@ -33,6 +33,49 @@ const makeRequest = async (endpoint, options = {}) => {
   }
 }
 
+// API object con métodos HTTP
+const api = {
+  // Métodos HTTP generales
+  get: (endpoint) => makeRequest(endpoint, { method: 'GET' }),
+  post: (endpoint, data) => makeRequest(endpoint, { 
+    method: 'POST', 
+    body: JSON.stringify(data) 
+  }),
+  put: (endpoint, data) => makeRequest(endpoint, { 
+    method: 'PUT', 
+    body: JSON.stringify(data) 
+  }),
+  delete: (endpoint) => makeRequest(endpoint, { method: 'DELETE' }),
+
+  // Servicios
+  services: {
+    getAll: () => api.get('/services'),
+    getById: (id) => api.get(`/services/${id}`),
+    create: (data) => api.post('/services', data),
+    update: (id, data) => api.put(`/services/${id}`, data),
+    delete: (id) => api.delete(`/services/${id}`),
+    getStats: () => api.get('/services/stats/summary')
+  },
+
+  // Citas
+  appointments: {
+    getAll: () => api.get('/appointments'),
+    getById: (id) => api.get(`/appointments/${id}`),
+    create: (data) => api.post('/appointments', data),
+    update: (id, data) => api.put(`/appointments/${id}`, data),
+    delete: (id) => api.delete(`/appointments/${id}`),
+    getStats: () => api.get('/appointments/stats/summary'),
+    getToday: () => api.get('/appointments/today'),
+    updateStatus: (id, status) => api.put(`/appointments/${id}/status`, { status })
+  },
+
+  // Usuarios
+  users: {
+    getProfile: () => api.get('/users/profile'),
+    updateProfile: (data) => api.put('/users/profile', data)
+  }
+}
+
 // Funciones específicas para autenticación
 export const authAPI = {
   // Registro de usuario
@@ -74,4 +117,23 @@ export const removeAuthToken = () => {
   localStorage.removeItem('authToken')
 }
 
-export default makeRequest 
+// Función para guardar información del usuario
+export const saveUserData = (user) => {
+  localStorage.setItem('user', JSON.stringify(user))
+}
+
+// Función para obtener información del usuario
+export const getUserData = () => {
+  const userData = localStorage.getItem('user')
+  return userData ? JSON.parse(userData) : null
+}
+
+// Función para limpiar todos los datos de autenticación
+export const clearAuthData = () => {
+  localStorage.removeItem('authToken')
+  localStorage.removeItem('user')
+}
+
+// Exportar tanto el objeto api como makeRequest
+export default api
+export { makeRequest } 
