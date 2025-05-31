@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       count: services.length,
-      services
+      data: services
     })
   } catch (error) {
     console.error('Error obteniendo servicios:', error)
@@ -44,7 +44,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({
       success: true,
-      service
+      data: service
     })
   } catch (error) {
     console.error('Error obteniendo servicio:', error)
@@ -136,7 +136,7 @@ router.post('/', [
     res.status(201).json({
       success: true,
       message: 'Servicio creado exitosamente',
-      service: newService
+      data: newService
     })
   } catch (error) {
     console.error('Error creando servicio:', error)
@@ -244,7 +244,7 @@ router.put('/:id', [
     res.json({
       success: true,
       message: 'Servicio actualizado exitosamente',
-      service
+      data: service
     })
   } catch (error) {
     console.error('Error actualizando servicio:', error)

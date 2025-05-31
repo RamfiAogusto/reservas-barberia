@@ -3,6 +3,9 @@ const router = express.Router()
 const User = require('../models/User')
 const Service = require('../models/Service')
 const Appointment = require('../models/Appointment')
+const BusinessHours = require('../models/BusinessHours')
+const RecurringBreak = require('../models/RecurringBreak')
+const ScheduleException = require('../models/ScheduleException')
 const { body, validationResult } = require('express-validator')
 
 // GET /api/public/salon/:username - Obtener perfil público del salón
@@ -175,45 +178,12 @@ router.get('/salon/:username/availability', async (req, res) => {
       })
     }
 
-    // Obtener citas existentes para esa fecha
-    const existingAppointments = await Appointment.find({
-      userId: user._id,
-      date: requestedDate,
-      status: { $nin: ['cancelada', 'no_asistio'] }
-    }).select('time')
+    const dayOfWeek = requestedDate.getDay()
 
-    // Horarios base (esto debería venir de una configuración)
-    // Por ahora usaremos horarios fijos: 9:00 AM - 6:00 PM
-    const startHour = 9
-    const endHour = 18
-    const slotDuration = 30 // minutos por slot
-
-    // Generar todos los slots posibles
-    const allSlots = []
-    for (let hour = startHour; hour < endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += slotDuration) {
-        const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-        allSlots.push(timeSlot)
-      }
-    }
-
-    // Filtrar slots ocupados
-    const occupiedTimes = existingAppointments.map(apt => apt.time)
-    const availableSlots = allSlots.filter(slot => !occupiedTimes.includes(slot))
-
-    // Si la fecha es hoy, filtrar horarios que ya pasaron
-    if (requestedDate.getTime() === today.getTime()) {
-      const now = new Date()
-      const currentHour = now.getHours()
-      const currentMinute = now.getMinutes()
-      
-      const filteredSlots = availableSlots.filter(slot => {
-        const [slotHour, slotMinute] = slot.split(':').map(Number)
-        if (slotHour > currentHour) return true
-        if (slotHour === currentHour && slotMinute > currentMinute + 30) return true // 30 min buffer
-        return false
-      })
-      
+    // 1. Verificar horarios base del día
+    const businessHours = await BusinessHours.getByUserAndDay(user._id, dayOfWeek)
+    
+    if (!businessHours || !businessHours.isActive) {
       return res.json({
         success: true,
         data: {
@@ -223,10 +193,64 @@ router.get('/salon/:username/availability', async (req, res) => {
             duration: service.duration,
             price: service.price
           },
-          availableSlots: filteredSlots
+          isBusinessDay: false,
+          availableSlots: [],
+          reason: 'Día no laborable'
         }
       })
     }
+
+    // 2. Verificar excepciones para esta fecha
+    const exceptions = await ScheduleException.getByUserAndDate(user._id, requestedDate)
+    
+    // Si hay excepción de día libre
+    const dayOffException = exceptions.find(ex => ex.isDayOff)
+    if (dayOffException) {
+      return res.json({
+        success: true,
+        data: {
+          date: requestedDate.toISOString().split('T')[0],
+          service: {
+            name: service.name,
+            duration: service.duration,
+            price: service.price
+          },
+          isBusinessDay: false,
+          availableSlots: [],
+          reason: `${dayOffException.typeDescription}: ${dayOffException.name}`
+        }
+      })
+    }
+
+    // 3. Determinar horarios efectivos (normal o especial)
+    let effectiveStartTime = businessHours.startTime
+    let effectiveEndTime = businessHours.endTime
+
+    const specialHoursException = exceptions.find(ex => ex.hasSpecialHours)
+    if (specialHoursException) {
+      effectiveStartTime = specialHoursException.specialStartTime
+      effectiveEndTime = specialHoursException.specialEndTime
+    }
+
+    // 4. Obtener descansos que aplican este día
+    const breaks = await RecurringBreak.getByUserAndDay(user._id, dayOfWeek)
+
+    // 5. Obtener citas existentes
+    const existingAppointments = await Appointment.find({
+      userId: user._id,
+      date: requestedDate,
+      status: { $nin: ['cancelada', 'no_asistio'] }
+    }).select('time')
+
+    // 6. Generar slots disponibles usando el motor avanzado
+    const slots = generateAdvancedSlotsPublic({
+      startTime: effectiveStartTime,
+      endTime: effectiveEndTime,
+      breaks,
+      existingAppointments,
+      slotDuration: 30, // TODO: hacer configurable por servicio
+      targetDate: requestedDate
+    })
 
     res.json({
       success: true,
@@ -237,7 +261,14 @@ router.get('/salon/:username/availability', async (req, res) => {
           duration: service.duration,
           price: service.price
         },
-        availableSlots
+        isBusinessDay: true,
+        businessHours: {
+          start: effectiveStartTime,
+          end: effectiveEndTime,
+          isSpecial: !!specialHoursException
+        },
+        availableSlots: slots,
+        totalSlots: slots.length
       }
     })
 
@@ -249,6 +280,67 @@ router.get('/salon/:username/availability', async (req, res) => {
     })
   }
 })
+
+// Función helper para generar slots avanzados (versión pública)
+function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppointments, slotDuration, targetDate }) {
+  // Convertir horarios a minutos
+  const [startHour, startMin] = startTime.split(':').map(Number)
+  const [endHour, endMin] = endTime.split(':').map(Number)
+  
+  const startMinutes = startHour * 60 + startMin
+  const endMinutes = endHour * 60 + endMin
+  
+  // Crear array de todos los slots posibles
+  const allSlots = []
+  for (let minutes = startMinutes; minutes < endMinutes; minutes += slotDuration) {
+    const hour = Math.floor(minutes / 60)
+    const min = minutes % 60
+    const timeString = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
+    allSlots.push(timeString)
+  }
+  
+  // Filtrar slots ocupados por citas
+  const occupiedTimes = existingAppointments.map(apt => apt.time)
+  let availableSlots = allSlots.filter(slot => !occupiedTimes.includes(slot))
+  
+  // Filtrar slots ocupados por descansos
+  breaks.forEach(breakItem => {
+    if (breakItem.appliesOnDay(targetDate.getDay())) {
+      const [breakStartHour, breakStartMin] = breakItem.startTime.split(':').map(Number)
+      const [breakEndHour, breakEndMin] = breakItem.endTime.split(':').map(Number)
+      
+      const breakStartMinutes = breakStartHour * 60 + breakStartMin
+      const breakEndMinutes = breakEndHour * 60 + breakEndMin
+      
+      availableSlots = availableSlots.filter(slot => {
+        const [slotHour, slotMin] = slot.split(':').map(Number)
+        const slotMinutes = slotHour * 60 + slotMin
+        
+        // El slot no debe estar dentro del rango del descanso
+        return !(slotMinutes >= breakStartMinutes && slotMinutes < breakEndMinutes)
+      })
+    }
+  })
+  
+  // Si es hoy, filtrar horarios que ya pasaron
+  const now = new Date()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  if (targetDate.getTime() === today.getTime()) {
+    const currentHour = now.getHours()
+    const currentMinute = now.getMinutes()
+    
+    availableSlots = availableSlots.filter(slot => {
+      const [slotHour, slotMinute] = slot.split(':').map(Number)
+      if (slotHour > currentHour) return true
+      if (slotHour === currentHour && slotMinute > currentMinute + 30) return true // 30 min buffer
+      return false
+    })
+  }
+  
+  return availableSlots
+}
 
 // POST /api/public/salon/:username/book - Crear una nueva reserva
 router.post('/salon/:username/book', [

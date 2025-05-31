@@ -150,7 +150,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Navigation Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Link href="/dashboard/services" className="group">
             <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 group-hover:border-blue-300">
               <div className="flex items-center">
@@ -195,6 +195,31 @@ const Dashboard = () => {
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
                     {stats.appointments.today} citas hoy
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          <Link href="/dashboard/schedules" className="group">
+            <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 group-hover:border-purple-300">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="ml-4 flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600">
+                    Configurar Horarios
+                  </h3>
+                  <p className="text-gray-600">
+                    Gestiona horarios, descansos y días libres
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Horarios avanzados
                   </p>
                 </div>
               </div>

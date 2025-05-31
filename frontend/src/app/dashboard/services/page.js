@@ -29,7 +29,7 @@ const ServicesPage = () => {
         setLoading(true)
         const response = await api.get('/services')
         if (response.success) {
-          setServices(response.services)
+          setServices(response.data || [])
         }
       } catch (error) {
         console.error('Error cargando servicios:', error)
@@ -108,10 +108,10 @@ const ServicesPage = () => {
         // Actualizar lista de servicios
         if (editingService) {
           setServices(prev => prev.map(service => 
-            service._id === editingService._id ? response.service : service
+            service._id === editingService._id ? response.data : service
           ))
         } else {
-          setServices(prev => [...prev, response.service])
+          setServices(prev => [...prev, response.data])
         }
 
         handleCloseModal()
@@ -188,6 +188,17 @@ const ServicesPage = () => {
     setShowModal(true)
   }
 
+  // Función para formatear duración
+  const formatDuration = (minutes) => {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    
+    if (hours > 0) {
+      return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`
+    }
+    return `${mins}min`
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -223,7 +234,7 @@ const ServicesPage = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {services.length === 0 ? (
+        {!services || services.length === 0 ? (
           <div className="text-center py-12">
             <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.415-3.414l5-5A2 2 0 009 8.172V5L8 4z" />
@@ -267,7 +278,7 @@ const ServicesPage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {services.map((service) => (
+                  {services && Array.isArray(services) && services.map((service) => (
                     <tr key={service._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
@@ -286,7 +297,7 @@ const ServicesPage = () => {
                         ${service.price}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {service.formattedDuration}
+                        {service.formattedDuration ? service.formattedDuration : formatDuration(service.duration)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {service.requiresPayment ? (

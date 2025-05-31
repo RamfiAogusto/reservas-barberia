@@ -62,7 +62,7 @@ router.get('/', [
     res.json({
       success: true,
       count: appointments.length,
-      appointments
+      data: appointments
     })
   } catch (error) {
     console.error('Error obteniendo citas:', error)
@@ -82,7 +82,7 @@ router.get('/today', async (req, res) => {
     res.json({
       success: true,
       count: appointments.length,
-      appointments
+      data: appointments
     })
   } catch (error) {
     console.error('Error obteniendo citas de hoy:', error)
@@ -111,7 +111,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({
       success: true,
-      appointment
+      data: appointment
     })
   } catch (error) {
     console.error('Error obteniendo cita:', error)
@@ -232,7 +232,7 @@ router.post('/', [
     res.status(201).json({
       success: true,
       message: 'Cita creada exitosamente',
-      appointment: newAppointment
+      data: newAppointment
     })
   } catch (error) {
     console.error('Error creando cita:', error)
@@ -370,7 +370,7 @@ router.put('/:id', [
     res.json({
       success: true,
       message: 'Cita actualizada exitosamente',
-      appointment
+      data: appointment
     })
   } catch (error) {
     console.error('Error actualizando cita:', error)

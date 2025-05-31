@@ -19,18 +19,63 @@ const app = express()
 // Middleware de seguridad
 app.use(helmet())
 
-// Rate limiting
+// Rate limiting - Configuración más permisiva para desarrollo
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100 // límite de 100 requests por IP cada 15 minutos
+  max: 1000, // límite de 1000 requests por IP cada 15 minutos (más permisivo)
+  message: {
+    error: 'Demasiadas requests desde esta IP, intenta nuevamente en 15 minutos.'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 })
 app.use(limiter)
 
-// CORS
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}))
+// Rate limiting más permisivo para rutas públicas
+const publicLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 2000, // Más permisivo para rutas públicas
+  message: {
+    error: 'Demasiadas requests, intenta nuevamente en unos minutos.'
+  }
+})
+
+// CORS - Configuración mejorada
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permitir requests sin origin (mobile apps, etc) en desarrollo
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      process.env.FRONTEND_URL
+    ].filter(Boolean)
+    
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('No permitido por CORS'))
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'x-requested-with',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
+  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+  optionsSuccessStatus: 200, // Para navegadores legacy
+  preflightContinue: false // Pass control to the next handler
+}
+
+app.use(cors(corsOptions))
+
+// Manejo explícito de preflight requests
+app.options('*', cors(corsOptions))
 
 // Body parser
 app.use(express.json({ limit: '10mb' }))
@@ -48,7 +93,7 @@ app.use('/api/services', servicesRoutes)
 app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/payments', paymentsRoutes)
 app.use('/api/schedules', schedulesRoutes)
-app.use('/api/public', publicRoutes)
+app.use('/api/public', publicLimiter, publicRoutes)
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

@@ -32,6 +32,17 @@ const AppointmentsPage = () => {
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
 
+  // Función para formatear duración
+  const formatDuration = (minutes) => {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    
+    if (hours > 0) {
+      return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`
+    }
+    return `${mins}min`
+  }
+
   useEffect(() => {
     const handleLoadData = async () => {
       try {
@@ -40,7 +51,7 @@ const AppointmentsPage = () => {
         // Cargar servicios para el dropdown
         const servicesResponse = await api.get('/services')
         if (servicesResponse.success) {
-          setServices(servicesResponse.services)
+          setServices(servicesResponse.data || [])
         }
 
         // Cargar citas
@@ -70,7 +81,7 @@ const AppointmentsPage = () => {
 
       const response = await api.get(`/appointments?${params.toString()}`)
       if (response.success) {
-        setAppointments(response.appointments)
+        setAppointments(response.data)
       }
     } catch (error) {
       console.error('Error cargando citas:', error)
@@ -161,10 +172,10 @@ const AppointmentsPage = () => {
         // Actualizar lista de citas
         if (editingAppointment) {
           setAppointments(prev => prev.map(appointment => 
-            appointment._id === editingAppointment._id ? response.appointment : appointment
+            appointment._id === editingAppointment._id ? response.data : appointment
           ))
         } else {
-          setAppointments(prev => [response.appointment, ...prev])
+          setAppointments(prev => [response.data, ...prev])
         }
 
         handleCloseModal()
@@ -409,7 +420,7 @@ const AppointmentsPage = () => {
         </div>
 
         {/* Main Content */}
-        {appointments.length === 0 ? (
+        {!appointments || appointments.length === 0 ? (
           <div className="text-center py-12">
             <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -460,7 +471,7 @@ const AppointmentsPage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {appointments.map((appointment) => (
+                  {appointments && Array.isArray(appointments) && appointments.map((appointment) => (
                     <tr key={appointment._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
@@ -569,9 +580,9 @@ const AppointmentsPage = () => {
                     }`}
                   >
                     <option value="">Seleccionar servicio</option>
-                    {services.map((service) => (
+                    {services && Array.isArray(services) && services.map((service) => (
                       <option key={service._id} value={service._id}>
-                        {service.name} - ${service.price} ({service.formattedDuration})
+                        {service.name} - ${service.price} ({service.formattedDuration || formatDuration(service.duration)})
                       </option>
                     ))}
                   </select>
@@ -682,56 +693,27 @@ const AppointmentsPage = () => {
                   </div>
                 </div>
 
-                {editingAppointment && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estado
+                      Notas
                     </label>
-                    <select
-                      name="status"
-                      value={formData.status}
+                    <textarea
+                      name="notes"
+                      value={formData.notes}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="pendiente">Pendiente</option>
-                      <option value="confirmada">Confirmada</option>
-                      <option value="completada">Completada</option>
-                      <option value="cancelada">Cancelada</option>
-                      <option value="no_asistio">No asistió</option>
-                    </select>
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Notas adicionales"
+                    />
                   </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notas adicionales
-                  </label>
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                    rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Comentarios especiales sobre la cita..."
-                  />
                 </div>
 
-                <div className="flex justify-end space-x-3 pt-6">
-                  <button
-                    type="button"
-                    onClick={handleCloseModal}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {submitting ? 'Guardando...' : (editingAppointment ? 'Actualizar' : 'Crear')}
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  {editingAppointment ? 'Actualizar Cita' : 'Crear Cita'}
+                </button>
               </form>
             </div>
           </div>
@@ -741,4 +723,4 @@ const AppointmentsPage = () => {
   )
 }
 
-export default AppointmentsPage 
+export default AppointmentsPage
