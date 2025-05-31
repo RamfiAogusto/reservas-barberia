@@ -342,6 +342,267 @@ function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppoi
   return availableSlots
 }
 
+// GET /api/public/salon/:username/availability/advanced - Obtener disponibilidad con sistema avanzado
+router.get('/salon/:username/availability/advanced', async (req, res) => {
+  try {
+    const { username } = req.params
+    const { date, serviceId } = req.query
+
+    if (!date || !serviceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Fecha y servicio son requeridos'
+      })
+    }
+
+    // Buscar el usuario
+    const user = await User.findOne({ 
+      username: username.toLowerCase(),
+      isActive: true 
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Salón no encontrado'
+      })
+    }
+
+    // Buscar el servicio
+    const service = await Service.findOne({
+      _id: serviceId,
+      userId: user._id,
+      isActive: true
+    })
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Servicio no encontrado'
+      })
+    }
+
+    // Convertir fecha (asegurar parsing UTC correcto)
+    const targetDate = new Date(date + 'T12:00:00.000Z')
+    const dayOfWeek = targetDate.getDay()
+
+    // 1. Obtener horarios base
+    const businessHours = await BusinessHours.getByUserAndDay(user._id, dayOfWeek)
+    
+    if (!businessHours || !businessHours.isActive) {
+      return res.json({
+        success: true,
+        data: {
+          date: date,
+          isBusinessDay: false,
+          reason: 'Día no laborable',
+          availableSlots: []
+        }
+      })
+    }
+
+    // 2. Verificar excepciones de horario para esta fecha
+    const exceptions = await ScheduleException.find({
+      userId: user._id,
+      isActive: true,
+      $or: [
+        {
+          startDate: { $lte: targetDate },
+          endDate: { $gte: targetDate }
+        }
+      ]
+    })
+
+    let effectiveStartTime = businessHours.startTime
+    let effectiveEndTime = businessHours.endTime
+    let isSpecialDay = false
+
+    // Verificar si hay alguna excepción que aplique
+    for (const exception of exceptions) {
+      if (exception.exceptionType === 'day_off' || exception.exceptionType === 'vacation' || exception.exceptionType === 'holiday') {
+        return res.json({
+          success: true,
+          data: {
+            date: date,
+            isBusinessDay: false,
+            reason: `${exception.name} - ${exception.exceptionType}`,
+            availableSlots: []
+          }
+        })
+      }
+
+      if (exception.exceptionType === 'special_hours' && exception.specialStartTime && exception.specialEndTime) {
+        effectiveStartTime = exception.specialStartTime
+        effectiveEndTime = exception.specialEndTime
+        isSpecialDay = true
+      }
+    }
+
+    // 3. Obtener descansos recurrentes que apliquen
+    const breaks = await RecurringBreak.find({
+      userId: user._id,
+      isActive: true
+    })
+
+    const applicableBreaks = breaks.filter(breakItem => {
+      if (breakItem.recurrenceType === 'daily') return true
+      if (breakItem.recurrenceType === 'specific_days') {
+        return breakItem.specificDays.includes(dayOfWeek)
+      }
+      return false
+    })
+
+    // 4. Obtener citas existentes para esa fecha
+    const existingAppointments = await Appointment.find({
+      userId: user._id,
+      date: targetDate,
+      status: { $in: ['confirmada', 'pendiente'] }
+    }).select('time')
+
+    // 5. Generar slots disponibles usando el motor avanzado
+    const slots = generateAdvancedSlotsPublic({
+      startTime: effectiveStartTime,
+      endTime: effectiveEndTime,
+      breaks: applicableBreaks,
+      existingAppointments,
+      slotDuration: 30, // 30 minutos por slot
+      targetDate
+    })
+
+    res.json({
+      success: true,
+      data: {
+        date: date,
+        isBusinessDay: true,
+        businessHours: {
+          start: effectiveStartTime,
+          end: effectiveEndTime,
+          isSpecial: isSpecialDay
+        },
+        breaks: applicableBreaks.map(b => ({
+          name: b.name,
+          startTime: b.startTime,
+          endTime: b.endTime,
+          recurrenceType: b.recurrenceType
+        })),
+        availableSlots: slots,
+        totalSlots: slots.length
+      }
+    })
+
+  } catch (error) {
+    console.error('Error en disponibilidad avanzada pública:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+})
+
+// GET /api/public/salon/:username/days-status - Verificar disponibilidad de múltiples días
+router.get('/salon/:username/days-status', async (req, res) => {
+  try {
+    const { username } = req.params
+    const { startDate, endDate } = req.query
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Fechas de inicio y fin son requeridas'
+      })
+    }
+
+    // Buscar el usuario
+    const user = await User.findOne({ 
+      username: username.toLowerCase(),
+      isActive: true 
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Salón no encontrado'
+      })
+    }
+
+    const start = new Date(startDate + 'T12:00:00.000Z')
+    const end = new Date(endDate + 'T12:00:00.000Z')
+    const days = []
+
+    // Iterar por cada día en el rango
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const currentDate = new Date(d)
+      const dayOfWeek = currentDate.getDay()
+      const dateString = currentDate.toISOString().split('T')[0]
+
+      // Verificar horarios base
+      const businessHours = await BusinessHours.getByUserAndDay(user._id, dayOfWeek)
+      
+      if (!businessHours || !businessHours.isActive) {
+        days.push({
+          date: dateString,
+          available: false,
+          reason: 'Día no laborable',
+          type: 'closed'
+        })
+        continue
+      }
+
+      // Verificar excepciones
+      const exceptions = await ScheduleException.find({
+        userId: user._id,
+        isActive: true,
+        startDate: { $lte: currentDate },
+        endDate: { $gte: currentDate }
+      })
+
+      let isAvailable = true
+      let reason = ''
+      let type = 'available'
+
+      for (const exception of exceptions) {
+        if (exception.exceptionType === 'day_off' || exception.exceptionType === 'vacation' || exception.exceptionType === 'holiday') {
+          isAvailable = false
+          reason = exception.name
+          type = exception.exceptionType
+          break
+        }
+        
+        if (exception.exceptionType === 'special_hours') {
+          type = 'special_hours'
+          reason = exception.name
+        }
+      }
+
+      days.push({
+        date: dateString,
+        available: isAvailable,
+        reason: reason,
+        type: type,
+        businessHours: isAvailable ? {
+          start: businessHours.startTime,
+          end: businessHours.endTime
+        } : null
+      })
+    }
+
+    res.json({
+      success: true,
+      data: {
+        salonName: user.salonName,
+        days: days
+      }
+    })
+
+  } catch (error) {
+    console.error('Error verificando días:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+})
+
 // POST /api/public/salon/:username/book - Crear una nueva reserva
 router.post('/salon/:username/book', [
   body('serviceId').notEmpty().withMessage('El servicio es requerido'),

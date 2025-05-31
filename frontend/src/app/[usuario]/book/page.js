@@ -24,6 +24,8 @@ const BookingPage = () => {
   const [selectedTime, setSelectedTime] = useState('')
   const [availableSlots, setAvailableSlots] = useState([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+  const [daysStatus, setDaysStatus] = useState([])
+  const [loadingDays, setLoadingDays] = useState(false)
   
   const [clientData, setClientData] = useState({
     name: '',
@@ -58,6 +60,43 @@ const BookingPage = () => {
     }
   }, [username])
 
+  // Cargar estado de días disponibles cuando se selecciona un servicio
+  useEffect(() => {
+    const handleLoadDaysStatus = async () => {
+      if (!selectedService) return
+
+      try {
+        setLoadingDays(true)
+        const today = new Date()
+        const futureDate = new Date()
+        futureDate.setDate(today.getDate() + 30) // Próximos 30 días
+
+        const startDate = today.toISOString().split('T')[0]
+        const endDate = futureDate.toISOString().split('T')[0]
+
+        const response = await fetch(
+          `${API_BASE_URL}/public/salon/${username}/days-status?startDate=${startDate}&endDate=${endDate}`
+        )
+        const data = await response.json()
+
+        if (data.success) {
+          setDaysStatus(data.data.days)
+        } else {
+          setError('Error al cargar disponibilidad de días')
+          setDaysStatus([])
+        }
+      } catch (error) {
+        console.error('Error cargando días:', error)
+        setError('Error al cargar disponibilidad')
+        setDaysStatus([])
+      } finally {
+        setLoadingDays(false)
+      }
+    }
+
+    handleLoadDaysStatus()
+  }, [selectedService, username])
+
   // Cargar slots disponibles cuando se selecciona fecha
   useEffect(() => {
     const handleLoadAvailableSlots = async () => {
@@ -66,12 +105,17 @@ const BookingPage = () => {
       try {
         setLoadingSlots(true)
         const response = await fetch(
-          `${API_BASE_URL}/public/salon/${username}/availability?date=${selectedDate}&serviceId=${selectedService._id}`
+          `${API_BASE_URL}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id}`
         )
         const data = await response.json()
 
         if (data.success) {
-          setAvailableSlots(data.data.availableSlots)
+          if (data.data.isBusinessDay) {
+            setAvailableSlots(data.data.availableSlots)
+          } else {
+            setAvailableSlots([])
+            setError(`${selectedDate}: ${data.data.reason}`)
+          }
         } else {
           setError('Error al cargar horarios disponibles')
           setAvailableSlots([])
@@ -152,19 +196,87 @@ const BookingPage = () => {
     }
   }
 
-  // Función para obtener fechas disponibles (próximos 30 días)
-  const getAvailableDates = () => {
+  // Función para obtener el estado visual de un día
+  const getDayStatus = (dateString) => {
+    // Si aún no tenemos datos, devolver estado de loading
+    if (daysStatus.length === 0) {
+      return { available: false, reason: 'Cargando...', type: 'loading' }
+    }
+    
+    const dayInfo = daysStatus.find(day => day.date === dateString)
+    
+    // Si no encontramos el día en los datos, asumir que no está disponible
+    if (!dayInfo) {
+      return { available: false, reason: 'Información no disponible', type: 'closed' }
+    }
+    
+    return dayInfo
+  }
+
+  // Función para obtener las clases CSS según el estado del día
+  const getDayClasses = (dayInfo) => {
+    const baseClasses = "p-3 border rounded-lg text-left transition-all relative"
+    
+    if (dayInfo.type === 'loading') {
+      return `${baseClasses} border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed`
+    }
+    
+    if (!dayInfo.available) {
+      switch (dayInfo.type) {
+        case 'closed':
+          return `${baseClasses} border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed`
+        case 'vacation':
+          return `${baseClasses} border-purple-300 bg-purple-50 text-purple-700 cursor-not-allowed`
+        case 'holiday':
+          return `${baseClasses} border-red-300 bg-red-50 text-red-700 cursor-not-allowed`
+        case 'day_off':
+          return `${baseClasses} border-orange-300 bg-orange-50 text-orange-700 cursor-not-allowed`
+        default:
+          return `${baseClasses} border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed`
+      }
+    }
+    
+    if (dayInfo.type === 'special_hours') {
+      return `${baseClasses} border-blue-300 bg-blue-50 text-blue-700 hover:border-blue-500 hover:bg-blue-100 cursor-pointer`
+    }
+    
+    // Día disponible normal
+    return `${baseClasses} border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer`
+  }
+
+  // Función para obtener el icono según el tipo de día
+  const getDayIcon = (dayInfo) => {
+    if (!dayInfo.available) {
+      switch (dayInfo.type) {
+        case 'closed': return '🚫'
+        case 'vacation': return '🏖️'
+        case 'holiday': return '🎉'
+        case 'day_off': return '📅'
+        default: return '❌'
+      }
+    }
+    
+    if (dayInfo.type === 'special_hours') {
+      return '⏰'
+    }
+    
+    return '✅'
+  }
+
+  // Función para obtener fechas para mostrar (próximos 30 días)
+  const getDisplayDates = () => {
     const dates = []
     const today = new Date()
     
     for (let i = 0; i < 30; i++) {
-      const date = new Date(today)
-      date.setDate(today.getDate() + i)
+      const targetDate = new Date(today)
+      targetDate.setDate(today.getDate() + i)
       
-      // Excluir domingos (0 = domingo)
-      if (date.getDay() !== 0) {
-        dates.push(date)
-      }
+      // Usar el mismo formato que usa el backend para consistencia
+      const dateString = targetDate.toISOString().split('T')[0]
+      const properDate = new Date(dateString + 'T12:00:00.000Z')
+      
+      dates.push(properDate)
     }
     
     return dates
@@ -172,6 +284,17 @@ const BookingPage = () => {
 
   // Función para formatear fecha
   const formatDate = (date) => {
+    // Si recibimos un string, parsearlo como lo hace el backend
+    if (typeof date === 'string') {
+      const properDate = new Date(date + 'T12:00:00.000Z')
+      return properDate.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
+    
     return date.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -324,27 +447,100 @@ const BookingPage = () => {
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {getAvailableDates().map((date) => (
-                <button
-                  key={date.toISOString()}
-                  onClick={() => {
-                    setSelectedDate(date.toISOString().split('T')[0])
-                    setSelectedTime('')
-                    handleNextStep()
-                  }}
-                  className="p-3 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left transition-all"
-                >
-                  <div className="font-semibold">{date.getDate()}</div>
-                  <div className="text-sm text-gray-600">
-                    {date.toLocaleDateString('es-ES', { month: 'short' })}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {date.toLocaleDateString('es-ES', { weekday: 'short' })}
-                  </div>
-                </button>
-              ))}
+            {/* Leyenda */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-semibold mb-3">Leyenda:</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div className="flex items-center space-x-1">
+                  <span>✅</span>
+                  <span>Disponible</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span>⏰</span>
+                  <span>Horario especial</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span>🚫</span>
+                  <span>Cerrado</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span>🏖️</span>
+                  <span>Vacaciones</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span>🎉</span>
+                  <span>Día festivo</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span>📅</span>
+                  <span>Día libre</span>
+                </div>
+              </div>
             </div>
+
+            {loadingDays ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Cargando disponibilidad...</p>
+              </div>
+            ) : daysStatus.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+                {getDisplayDates().map((date) => {
+                  const dateString = date.toISOString().split('T')[0]
+                  const dayInfo = getDayStatus(dateString)
+                  
+                  return (
+                    <button
+                      key={date.toISOString()}
+                      onClick={() => {
+                        if (dayInfo.available) {
+                          setSelectedDate(dateString)
+                          setSelectedTime('')
+                          setError('') // Limpiar errores anteriores
+                          handleNextStep()
+                        }
+                      }}
+                      disabled={!dayInfo.available}
+                      className={getDayClasses(dayInfo)}
+                      title={dayInfo.available ? 'Día disponible' : dayInfo.reason}
+                    >
+                      <div className="font-semibold">{date.getDate()}</div>
+                      <div className="text-sm text-gray-600">
+                        {date.toLocaleDateString('es-ES', { month: 'short' })}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {date.toLocaleDateString('es-ES', { weekday: 'short' })}
+                      </div>
+                      <div className="absolute top-1 right-1 text-xs">
+                        {getDayIcon(dayInfo)}
+                      </div>
+                      
+                      {/* Información adicional para días especiales */}
+                      {dayInfo.type === 'special_hours' && (
+                        <div className="text-xs text-blue-600 mt-1">
+                          Horario especial
+                        </div>
+                      )}
+                      {!dayInfo.available && (
+                        <div className="text-xs mt-1 font-medium">
+                          {dayInfo.reason}
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No se pudieron cargar los días disponibles.</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-2 text-blue-600 hover:text-blue-800"
+                >
+                  Recargar página
+                </button>
+              </div>
+            )}
 
             <div className="mt-6 flex justify-between">
               <button
