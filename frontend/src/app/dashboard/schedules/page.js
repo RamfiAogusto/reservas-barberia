@@ -41,6 +41,29 @@ const SchedulesPage = () => {
 
   const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
+  // Función auxiliar para normalizar horarios (asegurar que tenemos los 7 días)
+  const normalizeBusinessHours = (data) => {
+    const normalizedHours = []
+    
+    for (let dayOfWeek = 0; dayOfWeek <= 6; dayOfWeek++) {
+      const existingDay = data.find(day => day.dayOfWeek === dayOfWeek)
+      
+      if (existingDay) {
+        normalizedHours.push(existingDay)
+      } else {
+        // Crear día por defecto si no existe
+        normalizedHours.push({
+          dayOfWeek,
+          startTime: '09:00',
+          endTime: '18:00',
+          isActive: false
+        })
+      }
+    }
+    
+    return normalizedHours
+  }
+
   // Cargar datos iniciales
   useEffect(() => {
     handleLoadData()
@@ -60,7 +83,10 @@ const SchedulesPage = () => {
     try {
       const response = await api.get('/schedules/business-hours')
       if (response.success) {
-        setBusinessHours(response.data)
+        // Asegurar que tenemos los 7 días de la semana
+        const normalizedHours = normalizeBusinessHours(response.data)
+        
+        setBusinessHours(normalizedHours)
       } else {
         setError('Error cargando horarios base')
       }
@@ -87,7 +113,11 @@ const SchedulesPage = () => {
       const response = await api.put('/schedules/business-hours', { schedule: businessHours })
       if (response.success) {
         setMessage('Horarios base actualizados exitosamente')
-        setBusinessHours(response.data)
+        
+        // Normalizar la respuesta para asegurar que tenemos los 7 días
+        const normalizedHours = normalizeBusinessHours(response.data)
+        
+        setBusinessHours(normalizedHours)
       } else {
         setError(response.message || 'Error actualizando horarios')
       }

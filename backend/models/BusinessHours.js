@@ -56,7 +56,7 @@ businessHoursSchema.pre('save', function(next) {
 
 // Método estático para obtener horarios de un usuario
 businessHoursSchema.statics.getByUser = function(userId) {
-  return this.find({ userId, isActive: true }).sort({ dayOfWeek: 1 })
+  return this.find({ userId }).sort({ dayOfWeek: 1 })
 }
 
 // Método estático para obtener horarios de un día específico
