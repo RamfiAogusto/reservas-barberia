@@ -284,12 +284,6 @@ router.get('/salon/:username/availability', async (req, res) => {
 
 // Función helper para generar slots avanzados (versión pública)
 function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppointments, slotDuration, targetDate }) {
-  console.log('\n🕐 [SLOTS DEBUG] Generando slots...')
-  console.log('   Target date:', targetDate.toString())
-  console.log('   Start time:', startTime)
-  console.log('   End time:', endTime)
-  console.log('   Existing appointments:', existingAppointments.length)
-  
   // Convertir horarios a minutos
   const [startHour, startMin] = startTime.split(':').map(Number)
   const [endHour, endMin] = endTime.split(':').map(Number)
@@ -306,17 +300,13 @@ function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppoi
     allSlots.push(timeString)
   }
   
-  console.log('   All possible slots:', allSlots.length)
-  
   // Filtrar slots ocupados por citas
   const occupiedTimes = existingAppointments.map(apt => apt.time)
   let availableSlots = allSlots.filter(slot => !occupiedTimes.includes(slot))
   
-  console.log('   After removing occupied slots:', availableSlots.length)
-  
   // Filtrar slots ocupados por descansos
   breaks.forEach(breakItem => {
-    if (breakItem.appliesOnDay(targetDate.getDay())) {
+    if (breakItem.appliesOnDay && breakItem.appliesOnDay(targetDate.getDay())) {
       const [breakStartHour, breakStartMin] = breakItem.startTime.split(':').map(Number)
       const [breakEndHour, breakEndMin] = breakItem.endTime.split(':').map(Number)
       
@@ -333,26 +323,14 @@ function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppoi
     }
   })
   
-  console.log('   After removing break times:', availableSlots.length)
-  
   // Si es hoy, filtrar horarios que ya pasaron
   const now = new Date()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   
-  console.log('   Now:', now.toString())
-  console.log('   Today (normalized):', today.toString())
-  console.log('   Target date (normalized):', targetDate.toString())
-  console.log('   Is today?', targetDate.getTime() === today.getTime())
-  
   if (targetDate.getTime() === today.getTime()) {
-    console.log('   🕐 Filtering current day slots...')
     const currentHour = now.getHours()
     const currentMinute = now.getMinutes()
-    
-    console.log('   Current time:', `${currentHour}:${currentMinute}`)
-    
-    const originalCount = availableSlots.length
     
     availableSlots = availableSlots.filter(slot => {
       const [slotHour, slotMinute] = slot.split(':').map(Number)
@@ -361,20 +339,9 @@ function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppoi
       
       // Permitir reservas con al menos 15 minutos de anticipación
       const bufferMinutes = 15
-      const isAvailable = slotTime > currentTime + bufferMinutes
-      
-      if (!isAvailable) {
-        console.log(`     Filtering out ${slot} (current: ${currentHour}:${currentMinute})`)
-      }
-      
-      return isAvailable
+      return slotTime > currentTime + bufferMinutes
     })
-    
-    console.log(`   Filtered ${originalCount - availableSlots.length} past slots`)
-    console.log('   Final available slots for today:', availableSlots.length)
   }
-  
-  console.log('   🎯 Final result:', availableSlots.length, 'slots')
   
   return availableSlots
 }

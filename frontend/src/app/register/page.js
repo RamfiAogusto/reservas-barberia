@@ -40,35 +40,29 @@ export default function RegisterPage() {
     }
 
     try {
-      console.log('Enviando datos de registro:', formData)
-      
-      const response = await authAPI.register({
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-        phone: formData.phone,
-        salonName: formData.salonName,
-        address: formData.address
+      setIsLoading(true)
+      setError('')
+
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       })
 
-      console.log('Respuesta del servidor:', response)
+      const data = await response.json()
 
-      if (response.success) {
-        // Guardar token
-        saveAuthToken(response.token)
-        
-        // Mostrar mensaje de éxito
-        setSuccess('¡Registro exitoso! Redirigiendo...')
-        
-        // Redirigir después de 2 segundos
+      if (data.success) {
+        setSuccess('¡Cuenta creada exitosamente! Redirigiendo...')
         setTimeout(() => {
-          router.push('/dashboard') // Cambia esta ruta según tu app
+          router.push('/login')
         }, 2000)
+      } else {
+        setError(data.message || 'Error al crear la cuenta')
       }
     } catch (error) {
-      console.error('Error en registro:', error)
-      setError(error.message || 'Error al registrar usuario')
+      setError('Error de conexión. Intenta nuevamente.')
     } finally {
       setIsLoading(false)
     }

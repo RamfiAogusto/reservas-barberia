@@ -17,24 +17,24 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsLoading(true)
-    setError('')
-    setSuccess('')
-
+    
     try {
-      console.log('Enviando datos de login:', formData)
-      
-      const response = await authAPI.login({
-        email: formData.email,
-        password: formData.password
+      setIsLoading(true)
+      setError('')
+
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       })
 
-      console.log('Respuesta del servidor:', response)
+      const data = await response.json()
 
-      if (response.success) {
-        // Guardar token y datos del usuario
-        saveAuthToken(response.token)
-        saveUserData(response.user)
+      if (data.success) {
+        // Guardar token en localStorage
+        localStorage.setItem('token', data.token)
         
         // Mostrar mensaje de éxito
         setSuccess('¡Login exitoso! Redirigiendo...')
@@ -43,10 +43,11 @@ export default function LoginPage() {
         setTimeout(() => {
           router.push('/dashboard')
         }, 1000)
+      } else {
+        setError(data.message || 'Error al iniciar sesión')
       }
     } catch (error) {
-      console.error('Error en login:', error)
-      setError(error.message || 'Error al iniciar sesión')
+      setError('Error de conexión. Intenta nuevamente.')
     } finally {
       setIsLoading(false)
     }
