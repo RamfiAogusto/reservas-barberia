@@ -155,6 +155,43 @@ const BookingPage = () => {
     handleNextStep()
   }
 
+  // Función para seleccionar hora
+  const handleSelectTime = async (time) => {
+    try {
+      setLoadingSlots(true)
+      setError('')
+
+      // Verificar disponibilidad en tiempo real
+      const response = await fetch(
+        `${API_BASE_URL}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id}`
+      )
+      const data = await response.json()
+
+      if (data.success && data.data.isBusinessDay) {
+        // Verificar si el horario seleccionado sigue disponible
+        const isStillAvailable = data.data.availableSlots.includes(time)
+        
+        if (!isStillAvailable) {
+          setError('Lo sentimos, este horario ya no está disponible. Por favor, selecciona otro horario.')
+          // Actualizar la lista de slots disponibles
+          setAvailableSlots(data.data.availableSlots)
+          return
+        }
+
+        // Si el horario sigue disponible, proceder
+        setSelectedTime(time)
+        handleNextStep()
+      } else {
+        setError('Error al verificar disponibilidad. Por favor, intenta nuevamente.')
+      }
+    } catch (error) {
+      console.error('Error verificando disponibilidad:', error)
+      setError('Error al verificar disponibilidad')
+    } finally {
+      setLoadingSlots(false)
+    }
+  }
+
   // Función para confirmar la reserva
   const handleConfirmBooking = async () => {
     try {
@@ -267,16 +304,13 @@ const BookingPage = () => {
   const getDisplayDates = () => {
     const dates = []
     const today = new Date()
+    // Asegurar que la fecha comience al inicio del día en la zona horaria local
+    today.setHours(0, 0, 0, 0)
     
     for (let i = 0; i < 30; i++) {
       const targetDate = new Date(today)
       targetDate.setDate(today.getDate() + i)
-      
-      // Usar el mismo formato que usa el backend para consistencia
-      const dateString = targetDate.toISOString().split('T')[0]
-      const properDate = new Date(dateString + 'T12:00:00.000Z')
-      
-      dates.push(properDate)
+      dates.push(targetDate)
     }
     
     return dates
@@ -284,23 +318,35 @@ const BookingPage = () => {
 
   // Función para formatear fecha
   const formatDate = (date) => {
-    // Si recibimos un string, parsearlo como lo hace el backend
+    // Asegurar que trabajamos con un objeto Date
+    let dateObj
     if (typeof date === 'string') {
-      const properDate = new Date(date + 'T12:00:00.000Z')
-      return properDate.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
+      // Si es string, usar parsing manual para evitar problemas de zona horaria
+      const [year, month, day] = date.split('-').map(Number)
+      dateObj = new Date(year, month - 1, day)
+    } else {
+      dateObj = new Date(date)
     }
     
-    return date.toLocaleDateString('es-ES', {
+    // Asegurar que la fecha está al inicio del día
+    dateObj.setHours(0, 0, 0, 0)
+    
+    return dateObj.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     })
+  }
+
+  // Función para obtener el string de fecha en formato YYYY-MM-DD
+  const getDateString = (date) => {
+    const d = new Date(date)
+    d.setHours(0, 0, 0, 0)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   // Función para formatear precio
@@ -486,17 +532,17 @@ const BookingPage = () => {
             ) : daysStatus.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
                 {getDisplayDates().map((date) => {
-                  const dateString = date.toISOString().split('T')[0]
+                  const dateString = getDateString(date)
                   const dayInfo = getDayStatus(dateString)
                   
                   return (
                     <button
-                      key={date.toISOString()}
+                      key={dateString}
                       onClick={() => {
                         if (dayInfo.available) {
                           setSelectedDate(dateString)
                           setSelectedTime('')
-                          setError('') // Limpiar errores anteriores
+                          setError('')
                           handleNextStep()
                         }
                       }}
@@ -564,7 +610,7 @@ const BookingPage = () => {
                 <div>
                   <h3 className="font-semibold">{selectedService?.name}</h3>
                   <p className="text-sm text-gray-600">
-                    {formatDate(new Date(selectedDate))}
+                    {formatDate(selectedDate)}
                   </p>
                 </div>
                 <button
@@ -579,17 +625,14 @@ const BookingPage = () => {
             {loadingSlots ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Cargando horarios...</p>
+                <p className="mt-2 text-gray-600">Verificando disponibilidad...</p>
               </div>
             ) : availableSlots.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-6">
                 {availableSlots.map((slot) => (
                   <button
                     key={slot}
-                    onClick={() => {
-                      setSelectedTime(slot)
-                      handleNextStep()
-                    }}
+                    onClick={() => handleSelectTime(slot)}
                     className="p-3 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-center transition-all"
                   >
                     {slot}
@@ -605,6 +648,12 @@ const BookingPage = () => {
                 >
                   Seleccionar otra fecha
                 </button>
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                {error}
               </div>
             )}
 
@@ -629,7 +678,7 @@ const BookingPage = () => {
               <h3 className="font-semibold mb-2">Resumen de tu reserva</h3>
               <div className="text-sm space-y-1">
                 <p><strong>Servicio:</strong> {selectedService?.name}</p>
-                <p><strong>Fecha:</strong> {formatDate(new Date(selectedDate))}</p>
+                <p><strong>Fecha:</strong> {formatDate(selectedDate)}</p>
                 <p><strong>Hora:</strong> {selectedTime}</p>
                 <p><strong>Duración:</strong> {selectedService?.duration} minutos</p>
                 <p><strong>Precio:</strong> {formatPrice(selectedService?.price)}</p>

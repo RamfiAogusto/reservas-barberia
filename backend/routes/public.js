@@ -164,8 +164,9 @@ router.get('/salon/:username/availability', async (req, res) => {
       })
     }
 
-    // Convertir fecha a Date object
-    const requestedDate = new Date(date)
+    // Convertir fecha usando parsing manual para evitar problemas de zona horaria
+    const [year, month, day] = date.split('-').map(Number)
+    const requestedDate = new Date(year, month - 1, day)
     requestedDate.setHours(0, 0, 0, 0)
 
     // Verificar que la fecha no sea pasada
@@ -382,8 +383,10 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
       })
     }
 
-    // Convertir fecha (asegurar parsing UTC correcto)
-    const targetDate = new Date(date + 'T12:00:00.000Z')
+    // Convertir fecha usando parsing manual para evitar problemas de zona horaria
+    const [year, month, day] = date.split('-').map(Number)
+    const targetDate = new Date(year, month - 1, day)
+    targetDate.setHours(0, 0, 0, 0)
     const dayOfWeek = targetDate.getDay()
 
     // 1. Obtener horarios base
@@ -525,15 +528,26 @@ router.get('/salon/:username/days-status', async (req, res) => {
       })
     }
 
-    const start = new Date(startDate + 'T12:00:00.000Z')
-    const end = new Date(endDate + 'T12:00:00.000Z')
+    // Crear fechas usando parsing manual para evitar problemas de zona horaria
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
+    const start = new Date(startYear, startMonth - 1, startDay)
+    start.setHours(0, 0, 0, 0)
+
+    const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
+    const end = new Date(endYear, endMonth - 1, endDay)
+    end.setHours(0, 0, 0, 0)
     const days = []
 
     // Iterar por cada día en el rango
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const currentDate = new Date(d)
       const dayOfWeek = currentDate.getDay()
-      const dateString = currentDate.toISOString().split('T')[0]
+      
+      // Generar string de fecha en formato YYYY-MM-DD
+      const year = currentDate.getFullYear()
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0')
+      const day = String(currentDate.getDate()).padStart(2, '0')
+      const dateString = `${year}-${month}-${day}`
 
       // Verificar horarios base
       const businessHours = await BusinessHours.getByUserAndDay(user._id, dayOfWeek)
@@ -654,8 +668,11 @@ router.post('/salon/:username/book', [
       })
     }
 
-    // Verificar disponibilidad
-    const appointmentDate = new Date(date)
+    // Verificar disponibilidad usando parsing manual de fecha
+    const [dateYear, dateMonth, dateDay] = date.split('-').map(Number)
+    const appointmentDate = new Date(dateYear, dateMonth - 1, dateDay)
+    appointmentDate.setHours(0, 0, 0, 0)
+
     const existingAppointment = await Appointment.checkAvailability(
       user._id, 
       appointmentDate, 
