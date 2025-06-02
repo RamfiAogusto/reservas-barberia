@@ -241,17 +241,20 @@ router.get('/salon/:username/availability', async (req, res) => {
       userId: user._id,
       date: requestedDate,
       status: { $nin: ['cancelada', 'no_asistio'] }
-    }).select('time')
+    }).populate('serviceId', 'duration').select('time serviceId')
 
-    // 6. Generar slots disponibles usando el motor avanzado
-    const slots = generateAdvancedSlotsPublic({
+    // 6. Generar slots disponibles usando el motor avanzado con duración del servicio
+    const allSlots = generateAdvancedSlotsPublic({
       startTime: effectiveStartTime,
       endTime: effectiveEndTime,
       breaks,
       existingAppointments,
-      slotDuration: 30, // TODO: hacer configurable por servicio
+      serviceDuration: service.duration, // Usar duración real del servicio
       targetDate: requestedDate
     })
+
+    // Separar slots disponibles para compatibilidad
+    const availableSlots = allSlots.filter(slot => slot.available).map(slot => slot.time)
 
     res.json({
       success: true,
@@ -268,8 +271,9 @@ router.get('/salon/:username/availability', async (req, res) => {
           end: effectiveEndTime,
           isSpecial: !!specialHoursException
         },
-        availableSlots: slots,
-        totalSlots: slots.length
+        availableSlots: availableSlots,
+        allSlots: allSlots, // Incluir todos los slots con su estado
+        totalSlots: availableSlots.length
       }
     })
 
@@ -281,70 +285,6 @@ router.get('/salon/:username/availability', async (req, res) => {
     })
   }
 })
-
-// Función helper para generar slots avanzados (versión pública)
-function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppointments, slotDuration, targetDate }) {
-  // Convertir horarios a minutos
-  const [startHour, startMin] = startTime.split(':').map(Number)
-  const [endHour, endMin] = endTime.split(':').map(Number)
-  
-  const startMinutes = startHour * 60 + startMin
-  const endMinutes = endHour * 60 + endMin
-  
-  // Crear array de todos los slots posibles
-  const allSlots = []
-  for (let minutes = startMinutes; minutes < endMinutes; minutes += slotDuration) {
-    const hour = Math.floor(minutes / 60)
-    const min = minutes % 60
-    const timeString = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
-    allSlots.push(timeString)
-  }
-  
-  // Filtrar slots ocupados por citas
-  const occupiedTimes = existingAppointments.map(apt => apt.time)
-  let availableSlots = allSlots.filter(slot => !occupiedTimes.includes(slot))
-  
-  // Filtrar slots ocupados por descansos
-  breaks.forEach(breakItem => {
-    if (breakItem.appliesOnDay && breakItem.appliesOnDay(targetDate.getDay())) {
-      const [breakStartHour, breakStartMin] = breakItem.startTime.split(':').map(Number)
-      const [breakEndHour, breakEndMin] = breakItem.endTime.split(':').map(Number)
-      
-      const breakStartMinutes = breakStartHour * 60 + breakStartMin
-      const breakEndMinutes = breakEndHour * 60 + breakEndMin
-      
-      availableSlots = availableSlots.filter(slot => {
-        const [slotHour, slotMin] = slot.split(':').map(Number)
-        const slotMinutes = slotHour * 60 + slotMin
-        
-        // El slot no debe estar dentro del rango del descanso
-        return !(slotMinutes >= breakStartMinutes && slotMinutes < breakEndMinutes)
-      })
-    }
-  })
-  
-  // Si es hoy, filtrar horarios que ya pasaron
-  const now = new Date()
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  if (targetDate.getTime() === today.getTime()) {
-    const currentHour = now.getHours()
-    const currentMinute = now.getMinutes()
-    
-    availableSlots = availableSlots.filter(slot => {
-      const [slotHour, slotMinute] = slot.split(':').map(Number)
-      const slotTime = slotHour * 60 + slotMinute
-      const currentTime = currentHour * 60 + currentMinute
-      
-      // Permitir reservas con al menos 15 minutos de anticipación
-      const bufferMinutes = 15
-      return slotTime > currentTime + bufferMinutes
-    })
-  }
-  
-  return availableSlots
-}
 
 // GET /api/public/salon/:username/availability/advanced - Obtener disponibilidad con sistema avanzado
 router.get('/salon/:username/availability/advanced', async (req, res) => {
@@ -463,17 +403,20 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
       userId: user._id,
       date: targetDate,
       status: { $in: ['confirmada', 'pendiente'] }
-    }).select('time')
+    }).populate('serviceId', 'duration').select('time serviceId')
 
     // 5. Generar slots disponibles usando el motor avanzado
-    const slots = generateAdvancedSlotsPublic({
+    const allSlots = generateAdvancedSlotsPublic({
       startTime: effectiveStartTime,
       endTime: effectiveEndTime,
       breaks: applicableBreaks,
       existingAppointments,
-      slotDuration: 30, // 30 minutos por slot
+      serviceDuration: service.duration, // Usar duración real del servicio
       targetDate
     })
+
+    // Separar slots disponibles para compatibilidad
+    const availableSlots = allSlots.filter(slot => slot.available).map(slot => slot.time)
 
     res.json({
       success: true,
@@ -491,8 +434,9 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
           endTime: b.endTime,
           recurrenceType: b.recurrenceType
         })),
-        availableSlots: slots,
-        totalSlots: slots.length
+        availableSlots: availableSlots,
+        allSlots: allSlots, // Incluir todos los slots con su estado
+        totalSlots: availableSlots.length
       }
     })
 
@@ -686,7 +630,7 @@ router.post('/salon/:username/book', [
     if (existingAppointment) {
       return res.status(409).json({
         success: false,
-        message: 'Este horario ya está ocupado'
+        message: 'Este horario ya está ocupado o no hay suficiente tiempo disponible'
       })
     }
 
@@ -734,5 +678,110 @@ router.post('/salon/:username/book', [
     })
   }
 })
+
+// Función helper para generar slots avanzados (versión pública)
+function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppointments, serviceDuration, targetDate }) {
+  // Convertir horarios a minutos
+  const [startHour, startMin] = startTime.split(':').map(Number)
+  const [endHour, endMin] = endTime.split(':').map(Number)
+  
+  const startMinutes = startHour * 60 + startMin
+  const endMinutes = endHour * 60 + endMin
+  
+  // Crear array de todos los slots posibles (cada slot es del tamaño del servicio)
+  const allSlots = []
+  for (let minutes = startMinutes; minutes <= endMinutes - serviceDuration; minutes += 30) { // Incrementar de 30 en 30 pero verificar que cabe el servicio completo
+    const hour = Math.floor(minutes / 60)
+    const min = minutes % 60
+    const timeString = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
+    
+    // Verificar que el slot completo (duración del servicio) cabe en el horario
+    if (minutes + serviceDuration <= endMinutes) {
+      allSlots.push({
+        time: timeString,
+        available: true,
+        reason: null
+      })
+    }
+  }
+  
+  // Crear un mapa de ocupación en minutos para verificar conflictos
+  const occupiedMinutes = new Set()
+  
+  // Marcar minutos ocupados por citas existentes
+  existingAppointments.forEach(apt => {
+    const [aptHour, aptMin] = apt.time.split(':').map(Number)
+    const aptStartMinutes = aptHour * 60 + aptMin
+    const aptDuration = apt.serviceId?.duration || 30 // Usar duración del servicio o 30 min por defecto
+    
+    // Marcar todos los minutos ocupados por esta cita
+    for (let i = 0; i < aptDuration; i++) {
+      occupiedMinutes.add(aptStartMinutes + i)
+    }
+  })
+  
+  // Marcar slots como ocupados si tienen conflictos con citas existentes
+  allSlots.forEach(slot => {
+    const [slotHour, slotMin] = slot.time.split(':').map(Number)
+    const slotStartMinutes = slotHour * 60 + slotMin
+    
+    // Verificar si algún minuto del servicio está ocupado
+    for (let i = 0; i < serviceDuration; i++) {
+      if (occupiedMinutes.has(slotStartMinutes + i)) {
+        slot.available = false
+        slot.reason = 'Horario ocupado'
+        break
+      }
+    }
+  })
+  
+  // Marcar slots ocupados por descansos
+  breaks.forEach(breakItem => {
+    if (breakItem.appliesOnDay && breakItem.appliesOnDay(targetDate.getDay())) {
+      const [breakStartHour, breakStartMin] = breakItem.startTime.split(':').map(Number)
+      const [breakEndHour, breakEndMin] = breakItem.endTime.split(':').map(Number)
+      
+      const breakStartMinutes = breakStartHour * 60 + breakStartMin
+      const breakEndMinutes = breakEndHour * 60 + breakEndMin
+      
+      allSlots.forEach(slot => {
+        const [slotHour, slotMin] = slot.time.split(':').map(Number)
+        const slotStartMinutes = slotHour * 60 + slotMin
+        const slotEndMinutes = slotStartMinutes + serviceDuration
+        
+        // El servicio completo no debe solaparse con el descanso
+        if (slotStartMinutes < breakEndMinutes && slotEndMinutes > breakStartMinutes) {
+          slot.available = false
+          slot.reason = breakItem.name || 'Tiempo de descanso'
+        }
+      })
+    }
+  })
+  
+  // Si es hoy, marcar horarios que ya pasaron
+  const now = new Date()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  if (targetDate.getTime() === today.getTime()) {
+    const currentHour = now.getHours()
+    const currentMinute = now.getMinutes()
+    
+    allSlots.forEach(slot => {
+      const [slotHour, slotMinute] = slot.time.split(':').map(Number)
+      const slotStartMinutes = slotHour * 60 + slotMinute
+      const currentMinutes = currentHour * 60 + currentMinute
+      
+      // El servicio debe poder completarse después del tiempo actual + buffer
+      const bufferMinutes = 15
+      if (slotStartMinutes < currentMinutes + bufferMinutes) {
+        slot.available = false
+        slot.reason = 'Horario pasado'
+      }
+    })
+  }
+  
+  return allSlots
+}
 
 module.exports = router 

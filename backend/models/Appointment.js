@@ -124,12 +124,27 @@ appointmentSchema.statics.getTodayAppointments = function(userId) {
   .sort({ time: 1 })
 }
 
-// Método para verificar disponibilidad
-appointmentSchema.statics.checkAvailability = function(userId, date, time, serviceId, excludeId = null) {
+// Método para verificar disponibilidad considerando duración del servicio
+appointmentSchema.statics.checkAvailability = async function(userId, date, time, serviceId, excludeId = null) {
+  // Obtener información del servicio para conocer su duración
+  const Service = require('./Service')
+  const service = await Service.findById(serviceId).select('duration')
+  
+  if (!service) {
+    throw new Error('Servicio no encontrado')
+  }
+  
+  const serviceDuration = service.duration || 30
+  
+  // Convertir la hora propuesta a minutos
+  const [proposedHour, proposedMin] = time.split(':').map(Number)
+  const proposedStartMinutes = proposedHour * 60 + proposedMin
+  const proposedEndMinutes = proposedStartMinutes + serviceDuration
+  
+  // Buscar todas las citas existentes en la misma fecha
   const query = {
     userId,
     date,
-    time,
     status: { $nin: ['cancelada', 'no_asistio'] }
   }
   
@@ -137,7 +152,24 @@ appointmentSchema.statics.checkAvailability = function(userId, date, time, servi
     query._id = { $ne: excludeId }
   }
   
-  return this.findOne(query)
+  const existingAppointments = await this.find(query)
+    .populate('serviceId', 'duration')
+    .select('time serviceId')
+  
+  // Verificar si hay conflicto con alguna cita existente
+  for (const existingApt of existingAppointments) {
+    const [existingHour, existingMin] = existingApt.time.split(':').map(Number)
+    const existingStartMinutes = existingHour * 60 + existingMin
+    const existingDuration = existingApt.serviceId?.duration || 30
+    const existingEndMinutes = existingStartMinutes + existingDuration
+    
+    // Verificar si hay solapamiento
+    if (proposedStartMinutes < existingEndMinutes && proposedEndMinutes > existingStartMinutes) {
+      return existingApt // Hay conflicto
+    }
+  }
+  
+  return null // No hay conflicto
 }
 
 // Método virtual para obtener fecha formateada

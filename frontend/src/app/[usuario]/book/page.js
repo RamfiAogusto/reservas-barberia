@@ -23,6 +23,7 @@ const BookingPage = () => {
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
   const [availableSlots, setAvailableSlots] = useState([])
+  const [allSlots, setAllSlots] = useState([]) // Todos los slots con su estado
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [daysStatus, setDaysStatus] = useState([])
   const [loadingDays, setLoadingDays] = useState(false)
@@ -112,18 +113,22 @@ const BookingPage = () => {
         if (data.success) {
           if (data.data.isBusinessDay) {
             setAvailableSlots(data.data.availableSlots)
+            setAllSlots(data.data.allSlots)
           } else {
             setAvailableSlots([])
+            setAllSlots([])
             setError(`${selectedDate}: ${data.data.reason}`)
           }
         } else {
           setError('Error al cargar horarios disponibles')
           setAvailableSlots([])
+          setAllSlots([])
         }
       } catch (error) {
         console.error('Error cargando slots:', error)
         setError('Error al cargar horarios')
         setAvailableSlots([])
+        setAllSlots([])
       } finally {
         setLoadingSlots(false)
       }
@@ -152,6 +157,7 @@ const BookingPage = () => {
     setSelectedDate('')
     setSelectedTime('')
     setAvailableSlots([])
+    setAllSlots([])
     handleNextStep()
   }
 
@@ -175,6 +181,7 @@ const BookingPage = () => {
           setError('Lo sentimos, este horario ya no está disponible. Por favor, selecciona otro horario.')
           // Actualizar la lista de slots disponibles
           setAvailableSlots(data.data.availableSlots)
+          setAllSlots(data.data.allSlots)
           return
         }
 
@@ -610,7 +617,7 @@ const BookingPage = () => {
                 <div>
                   <h3 className="font-semibold">{selectedService?.name}</h3>
                   <p className="text-sm text-gray-600">
-                    {formatDate(selectedDate)}
+                    📅 {formatDate(selectedDate)} • ⏱️ {selectedService?.duration} minutos
                   </p>
                 </div>
                 <button
@@ -622,26 +629,80 @@ const BookingPage = () => {
               </div>
             </div>
 
+            {/* Información sobre la duración */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-yellow-800">
+                💡 <strong>Nota:</strong> Cada horario reserva {selectedService?.duration} minutos completos. 
+                El servicio terminará {selectedService?.duration} minutos después de la hora seleccionada.
+              </p>
+            </div>
+
+            {/* Leyenda de estados */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+              <h3 className="text-sm font-semibold mb-2">Estados de horarios:</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border border-gray-200 bg-white rounded"></div>
+                  <span>Disponible</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border border-gray-300 bg-gray-100 rounded"></div>
+                  <span>Ocupado</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border border-gray-300 bg-gray-100 rounded"></div>
+                  <span>Descanso</span>
+                </div>
+              </div>
+            </div>
+
             {loadingSlots ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-2 text-gray-600">Verificando disponibilidad...</p>
               </div>
-            ) : availableSlots.length > 0 ? (
-              <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-6">
-                {availableSlots.map((slot) => (
-                  <button
-                    key={slot}
-                    onClick={() => handleSelectTime(slot)}
-                    className="p-3 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-center transition-all"
-                  >
-                    {slot}
-                  </button>
-                ))}
+            ) : allSlots.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+                {allSlots.map((slot) => {
+                  // Calcular hora de finalización
+                  const [hour, min] = slot.time.split(':').map(Number)
+                  const startMinutes = hour * 60 + min
+                  const endMinutes = startMinutes + (selectedService?.duration || 30)
+                  const endHour = Math.floor(endMinutes / 60)
+                  const endMin = endMinutes % 60
+                  const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`
+                  
+                  return (
+                    <button
+                      key={slot.time}
+                      onClick={() => slot.available ? handleSelectTime(slot.time) : null}
+                      disabled={!slot.available}
+                      className={`p-3 border rounded-lg text-center transition-all ${
+                        slot.available 
+                          ? 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer'
+                          : 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}
+                      title={slot.available ? 'Horario disponible' : slot.reason}
+                    >
+                      <div className={`font-semibold text-lg ${slot.available ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {slot.time}
+                      </div>
+                      <div className={`text-xs ${slot.available ? 'text-gray-500' : 'text-gray-400'}`}>
+                        hasta {endTime}
+                      </div>
+                      <div className={`text-xs mt-1 ${slot.available ? 'text-blue-600' : 'text-gray-400'}`}>
+                        {slot.available ? `${selectedService?.duration} min` : slot.reason}
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-600">No hay horarios disponibles para esta fecha.</p>
+                <p className="text-gray-600">No hay horarios configurados para esta fecha.</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Los horarios consideran la duración completa del servicio ({selectedService?.duration} minutos)
+                </p>
                 <button
                   onClick={handlePreviousStep}
                   className="mt-4 text-blue-600 hover:text-blue-800"
