@@ -27,7 +27,8 @@ const AppointmentsPage = () => {
     time: '',
     notes: '',
     staffMember: '',
-    status: 'pendiente'
+    status: 'pendiente',
+    cancelReason: ''
   })
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -214,7 +215,8 @@ const AppointmentsPage = () => {
       time: appointment.time,
       notes: appointment.notes || '',
       staffMember: appointment.staffMember || '',
-      status: appointment.status
+      status: appointment.status,
+      cancelReason: appointment.cancelReason || ''
     })
     setShowModal(true)
   }
@@ -267,7 +269,8 @@ const AppointmentsPage = () => {
       time: '',
       notes: '',
       staffMember: '',
-      status: 'pendiente'
+      status: 'pendiente',
+      cancelReason: ''
     })
     setErrors({})
   }
@@ -283,7 +286,8 @@ const AppointmentsPage = () => {
       time: '',
       notes: '',
       staffMember: '',
-      status: 'pendiente'
+      status: 'pendiente',
+      cancelReason: ''
     })
     setErrors({})
     setShowModal(true)
@@ -702,11 +706,54 @@ const AppointmentsPage = () => {
                       name="notes"
                       value={formData.notes}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={3}
                       placeholder="Notas adicionales"
                     />
                   </div>
+
+                  {editingAppointment && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Estado de la Cita
+                      </label>
+                      <select
+                        name="status"
+                        value={formData.status}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="pendiente">Pendiente</option>
+                        <option value="confirmada">Confirmada</option>
+                        <option value="completada">Completada</option>
+                        <option value="cancelada">Cancelada</option>
+                        <option value="no_asistio">No asistió</option>
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formData.status === 'cancelada' && '⚠️ Se enviará email de cancelación al cliente'}
+                      </p>
+                    </div>
+                  )}
                 </div>
+
+                {editingAppointment && formData.status === 'cancelada' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Razón de Cancelación (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      name="cancelReason"
+                      value={formData.cancelReason || ''}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Ej: Cliente canceló, Emergencia, etc."
+                    />
+                    <p className="mt-1 text-xs text-yellow-600">
+                      💡 Esta razón será guardada para referencia interna
+                    </p>
+                  </div>
+                )}
 
                 <button
                   type="submit"

@@ -393,6 +393,9 @@ router.put('/:id', [
       req.body.cancelledAt = new Date()
     }
 
+    // Guardar estado anterior para verificar si se está cancelando
+    const previousStatus = appointment.status
+
     // Actualizar campos
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
@@ -406,33 +409,40 @@ router.put('/:id', [
     await appointment.populate('serviceId', 'name duration price category')
 
     // Enviar email de cancelación si corresponde
-    if (req.body.status === 'cancelada' && appointment.status !== 'cancelada') {
+    if (req.body.status === 'cancelada' && previousStatus !== 'cancelada') {
       try {
+        console.log('🔄 Enviando email de cancelación...')
         const salonOwner = await User.findById(req.user._id)
         const bookingData = {
           clientName: appointment.clientName,
           clientEmail: appointment.clientEmail,
-          salonName: salonOwner.salon_name || salonOwner.username,
+          salonName: salonOwner.salonName || salonOwner.username,
           serviceName: appointment.serviceId.name,
           date: format(appointment.date, 'PPP', { locale: es }),
           time: appointment.time,
           salonPhone: salonOwner.phone || 'Teléfono no especificado'
         }
 
+        console.log('📧 Datos del email de cancelación:', {
+          cliente: bookingData.clientName,
+          email: bookingData.clientEmail,
+          salon: bookingData.salonName
+        })
+
         // Enviar email de cancelación (no bloqueante)
         emailService.sendCancellationEmail(bookingData)
           .then(result => {
             if (result.success) {
-              console.log('Email de cancelación enviado exitosamente')
+              console.log('✅ Email de cancelación enviado exitosamente')
             } else {
-              console.error('Error enviando email de cancelación:', result.error)
+              console.error('❌ Error enviando email de cancelación:', result.error)
             }
           })
           .catch(error => {
-            console.error('Error en envío de email de cancelación:', error)
+            console.error('❌ Error en envío de email de cancelación:', error)
           })
       } catch (emailError) {
-        console.error('Error preparando email de cancelación:', emailError)
+        console.error('❌ Error preparando email de cancelación:', emailError)
       }
     }
 
