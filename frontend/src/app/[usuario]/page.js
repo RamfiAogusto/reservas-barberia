@@ -216,7 +216,7 @@ const PerfilPublico = () => {
         </div>
 
         {/* Sección de Información Adicional */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {/* Información de Contacto */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -267,6 +267,30 @@ const PerfilPublico = () => {
             </button>
           </div>
         </div>
+
+        {/* Sección de Políticas de Reserva */}
+        {salon.services?.some(service => service.requiresDeposit) && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
+            <div className="flex items-start gap-3">
+              <div className="text-yellow-600 text-2xl">⚠️</div>
+              <div>
+                <h3 className="text-xl font-bold text-yellow-800 mb-3">Políticas de Reserva</h3>
+                <div className="text-sm text-yellow-700 space-y-2">
+                  <p><strong>IMPORTANTE:</strong> Algunos servicios requieren depósito para confirmar la reserva.</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li><strong>Política de Inasistencia:</strong> Si no asistes a tu cita confirmada con depósito, el monto <strong>NO será reembolsado</strong></li>
+                    <li><strong>Cancelaciones:</strong> Para cancelar o reprogramar, contacta al salón con <strong>al menos 24 horas de anticipación</strong></li>
+                    <li><strong>Confirmación:</strong> Recibirás un email de confirmación con los detalles de tu cita</li>
+                    <li><strong>Pago:</strong> El saldo restante se paga al llegar al salón</li>
+                  </ul>
+                  <p className="text-yellow-800 font-medium">
+                    Al hacer una reserva, aceptas automáticamente estas condiciones.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}

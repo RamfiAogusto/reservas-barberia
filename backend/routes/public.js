@@ -7,6 +7,9 @@ const BusinessHours = require('../models/BusinessHours')
 const RecurringBreak = require('../models/RecurringBreak')
 const ScheduleException = require('../models/ScheduleException')
 const { body, validationResult } = require('express-validator')
+const emailService = require('../services/emailService')
+const { format } = require('date-fns')
+const { es } = require('date-fns/locale')
 
 // GET /api/public/salon/:username - Obtener perfil público del salón
 router.get('/salon/:username', async (req, res) => {
@@ -653,6 +656,39 @@ router.post('/salon/:username/book', [
 
     // Poblar con datos del servicio para la respuesta
     await newAppointment.populate('serviceId', 'name duration price category')
+
+    // Preparar y enviar email de confirmación
+    try {
+      const bookingData = {
+        clientName,
+        clientEmail,
+        salonName: user.salonName || user.username,
+        serviceName: newAppointment.serviceId.name,
+        date: format(appointmentDate, 'PPP', { locale: es }),
+        time,
+        price: service.price,
+        depositAmount: service.depositAmount || 0,
+        salonAddress: user.address || 'Dirección no especificada',
+        salonPhone: user.phone || 'Teléfono no especificado',
+        bookingId: newAppointment._id.toString()
+      }
+
+      // Enviar correo de confirmación (no bloqueante)
+      emailService.sendBookingConfirmation(bookingData)
+        .then(result => {
+          if (result.success) {
+            console.log('Email de confirmación enviado exitosamente para reserva:', newAppointment._id)
+          } else {
+            console.error('Error enviando email de confirmación:', result.error)
+          }
+        })
+        .catch(error => {
+          console.error('Error en envío de email:', error)
+        })
+    } catch (emailError) {
+      console.error('Error preparando email de confirmación:', emailError)
+      // No afecta la respuesta principal
+    }
 
     res.status(201).json({
       success: true,

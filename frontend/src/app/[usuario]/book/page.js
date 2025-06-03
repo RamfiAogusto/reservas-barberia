@@ -762,6 +762,28 @@ const BookingPage = () => {
               e.preventDefault()
               handleConfirmBooking()
             }} className="space-y-4">
+
+              {/* Política de No-Show - NUEVA SECCIÓN */}
+              {selectedService?.requiresDeposit && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start space-x-3">
+                    <div className="text-red-500 text-xl">⚠️</div>
+                    <div>
+                      <h4 className="font-semibold text-red-800 mb-2">Política de Inasistencia</h4>
+                      <div className="text-sm text-red-700 space-y-2">
+                        <p><strong>IMPORTANTE:</strong> Este servicio requiere un depósito de {formatPrice(selectedService.depositAmount)} para confirmar tu cita.</p>
+                        <ul className="list-disc list-inside space-y-1 ml-2">
+                          <li>Si <strong>NO asistes</strong> a tu cita confirmada, el depósito <strong>NO será reembolsado</strong></li>
+                          <li>Para cancelar o reprogramar, contacta al salón con <strong>al menos 24 horas de anticipación</strong></li>
+                          <li>Paga el saldo restante ({formatPrice(selectedService.price - selectedService.depositAmount)}) al llegar al salón</li>
+                        </ul>
+                        <p className="font-medium">Al continuar, aceptas estas condiciones.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre completo *

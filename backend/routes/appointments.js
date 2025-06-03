@@ -2,7 +2,11 @@ const express = require('express')
 const { body, validationResult, query } = require('express-validator')
 const Appointment = require('../models/Appointment')
 const Service = require('../models/Service')
+const User = require('../models/User')
 const { authenticateToken } = require('../middleware/auth')
+const emailService = require('../services/emailService')
+const { format } = require('date-fns')
+const { es } = require('date-fns/locale')
 const router = express.Router()
 
 // Middleware de autenticación para todas las rutas
@@ -229,6 +233,40 @@ router.post('/', [
     // Populate para la respuesta
     await newAppointment.populate('serviceId', 'name duration price category')
 
+    // Preparar datos para el email de confirmación
+    try {
+      const salonOwner = await User.findById(req.user._id)
+      const bookingData = {
+        clientName,
+        clientEmail,
+        salonName: salonOwner.salon_name || salonOwner.username,
+        serviceName: newAppointment.serviceId.name,
+        date: format(new Date(date), 'PPP', { locale: es }),
+        time,
+        price: service.price,
+        depositAmount: service.depositAmount || 0,
+        salonAddress: salonOwner.address || 'Dirección no especificada',
+        salonPhone: salonOwner.phone || 'Teléfono no especificado',
+        bookingId: newAppointment._id.toString()
+      }
+
+      // Enviar correo de confirmación (no bloqueante)
+      emailService.sendBookingConfirmation(bookingData)
+        .then(result => {
+          if (result.success) {
+            console.log('Email de confirmación enviado exitosamente')
+          } else {
+            console.error('Error enviando email de confirmación:', result.error)
+          }
+        })
+        .catch(error => {
+          console.error('Error en envío de email:', error)
+        })
+    } catch (emailError) {
+      console.error('Error preparando email de confirmación:', emailError)
+      // No afecta la respuesta principal
+    }
+
     res.status(201).json({
       success: true,
       message: 'Cita creada exitosamente',
@@ -366,6 +404,37 @@ router.put('/:id', [
 
     // Populate para la respuesta
     await appointment.populate('serviceId', 'name duration price category')
+
+    // Enviar email de cancelación si corresponde
+    if (req.body.status === 'cancelada' && appointment.status !== 'cancelada') {
+      try {
+        const salonOwner = await User.findById(req.user._id)
+        const bookingData = {
+          clientName: appointment.clientName,
+          clientEmail: appointment.clientEmail,
+          salonName: salonOwner.salon_name || salonOwner.username,
+          serviceName: appointment.serviceId.name,
+          date: format(appointment.date, 'PPP', { locale: es }),
+          time: appointment.time,
+          salonPhone: salonOwner.phone || 'Teléfono no especificado'
+        }
+
+        // Enviar email de cancelación (no bloqueante)
+        emailService.sendCancellationEmail(bookingData)
+          .then(result => {
+            if (result.success) {
+              console.log('Email de cancelación enviado exitosamente')
+            } else {
+              console.error('Error enviando email de cancelación:', result.error)
+            }
+          })
+          .catch(error => {
+            console.error('Error en envío de email de cancelación:', error)
+          })
+      } catch (emailError) {
+        console.error('Error preparando email de cancelación:', emailError)
+      }
+    }
 
     res.json({
       success: true,
