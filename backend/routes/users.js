@@ -1,34 +1,103 @@
 const express = require('express')
+const { authenticateToken } = require('../middleware/auth')
+const User = require('../models/User')
 const router = express.Router()
 
-// GET /api/users/profile
+// Middleware de autenticación para rutas protegidas
+router.use('/profile', authenticateToken)
+
+// GET /api/users/profile - Obtener perfil del usuario autenticado
 router.get('/profile', async (req, res) => {
   try {
-    // TODO: Implementar obtener perfil de usuario
-    res.json({ message: 'Perfil de usuario' })
+    const user = await User.findById(req.user._id).select('-password')
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      })
+    }
+
+    res.json({
+      success: true,
+      data: user
+    })
   } catch (error) {
-    res.status(500).json({ message: 'Error obteniendo perfil', error: error.message })
+    console.error('Error obteniendo perfil:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
+    })
   }
 })
 
-// PUT /api/users/profile
+// PUT /api/users/profile - Actualizar perfil del usuario autenticado
 router.put('/profile', async (req, res) => {
   try {
-    // TODO: Implementar actualizar perfil de usuario
-    res.json({ message: 'Perfil actualizado' })
+    const { salonName, phone, address, avatar } = req.body
+    
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { salonName, phone, address, avatar },
+      { new: true, runValidators: true }
+    ).select('-password')
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      })
+    }
+
+    res.json({
+      success: true,
+      message: 'Perfil actualizado exitosamente',
+      data: user
+    })
   } catch (error) {
-    res.status(500).json({ message: 'Error actualizando perfil', error: error.message })
+    console.error('Error actualizando perfil:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
+    })
   }
 })
 
-// GET /api/users/:username
+// GET /api/users/:username - Obtener perfil público por username (NO PROTEGIDA)
 router.get('/:username', async (req, res) => {
   try {
-    // TODO: Implementar obtener perfil público por username
-    res.json({ message: `Perfil público de ${req.params.username}` })
+    const user = await User.findOne({ 
+      username: req.params.username.toLowerCase(),
+      isActive: true 
+    }).select('-password -email')
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      })
+    }
+
+    res.json({
+      success: true,
+      data: {
+        username: user.username,
+        salonName: user.salonName,
+        phone: user.phone,
+        address: user.address,
+        avatar: user.avatar
+      }
+    })
   } catch (error) {
-    res.status(500).json({ message: 'Error obteniendo perfil público', error: error.message })
+    console.error('Error obteniendo perfil público:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
+    })
   }
 })
 
-module.exports = router 
+module.exports = router

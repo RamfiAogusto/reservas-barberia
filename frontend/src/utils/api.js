@@ -136,4 +136,30 @@ export const clearAuthData = () => {
 
 // Exportar tanto el objeto api como makeRequest
 export default api
-export { makeRequest } 
+export { makeRequestWithAuth as makeRequest }
+
+// Función para manejar errores de autenticación globalmente
+export const handleAuthError = (error) => {
+  if (error.message.includes('Token') || error.message.includes('401') || error.message.includes('Unauthorized')) {
+    clearAuthData()
+    // Redirigir al login
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+  }
+}
+
+// Mejorar makeRequest para manejar errores de auth automáticamente
+const originalMakeRequest = makeRequest
+
+const makeRequestWithAuth = async (endpoint, options = {}) => {
+  try {
+    return await originalMakeRequest(endpoint, options)
+  } catch (error) {
+    // Si es error de autenticación, manejarlo automáticamente
+    if (error.message.includes('Token') || error.message.includes('401')) {
+      handleAuthError(error)
+    }
+    throw error
+  }
+}
