@@ -14,6 +14,9 @@ const paymentsRoutes = require('./routes/payments')
 const schedulesRoutes = require('./routes/schedules')
 const publicRoutes = require('./routes/public')
 
+// Importar servicios
+const queueService = require('./services/queueService')
+
 const app = express()
 
 // Middleware de seguridad
@@ -83,7 +86,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/reservas')
-.then(() => console.log('✅ Conectado a MongoDB'))
+.then(() => {
+  console.log('✅ Conectado a MongoDB')
+  queueService.initialize()
+})
 .catch((err) => console.error('❌ Error conectando a MongoDB:', err))
 
 // Rutas

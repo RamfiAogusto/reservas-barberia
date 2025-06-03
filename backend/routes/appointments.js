@@ -5,6 +5,7 @@ const Service = require('../models/Service')
 const User = require('../models/User')
 const { authenticateToken } = require('../middleware/auth')
 const emailService = require('../services/emailService')
+const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
 const router = express.Router()
@@ -262,6 +263,24 @@ router.post('/', [
         .catch(error => {
           console.error('Error en envío de email:', error)
         })
+
+      // Programar recordatorio (no bloqueante)
+      queueService.scheduleReminder({
+        appointmentId: newAppointment._id.toString(),
+        appointmentDate: date,
+        appointmentTime: time,
+        clientEmail,
+        clientName
+      }).then(result => {
+        if (result.success) {
+          console.log(`📅 Recordatorio programado para: ${clientName} - ${result.reminderTime}`)
+        } else {
+          console.log(`⚠️ No se pudo programar recordatorio: ${result.message}`)
+        }
+      }).catch(error => {
+        console.error('Error programando recordatorio:', error)
+      })
+
     } catch (emailError) {
       console.error('Error preparando email de confirmación:', emailError)
       // No afecta la respuesta principal
@@ -441,6 +460,20 @@ router.put('/:id', [
           .catch(error => {
             console.error('❌ Error en envío de email de cancelación:', error)
           })
+
+        // Cancelar recordatorio programado (no bloqueante)
+        queueService.cancelReminder(appointment._id.toString())
+          .then(result => {
+            if (result.success) {
+              console.log('🗑️ Recordatorio cancelado exitosamente')
+            } else {
+              console.log(`⚠️ ${result.message || 'No se pudo cancelar el recordatorio'}`)
+            }
+          })
+          .catch(error => {
+            console.error('Error cancelando recordatorio:', error)
+          })
+
       } catch (emailError) {
         console.error('❌ Error preparando email de cancelación:', emailError)
       }

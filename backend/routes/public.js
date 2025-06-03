@@ -8,6 +8,7 @@ const RecurringBreak = require('../models/RecurringBreak')
 const ScheduleException = require('../models/ScheduleException')
 const { body, validationResult } = require('express-validator')
 const emailService = require('../services/emailService')
+const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
 
@@ -685,6 +686,24 @@ router.post('/salon/:username/book', [
         .catch(error => {
           console.error('Error en envío de email:', error)
         })
+
+      // Programar recordatorio (no bloqueante)
+      queueService.scheduleReminder({
+        appointmentId: newAppointment._id.toString(),
+        appointmentDate: date,
+        appointmentTime: time,
+        clientEmail,
+        clientName
+      }).then(result => {
+        if (result.success) {
+          console.log(`📅 Recordatorio programado para: ${clientName} - ${result.reminderTime}`)
+        } else {
+          console.log(`⚠️ No se pudo programar recordatorio: ${result.message}`)
+        }
+      }).catch(error => {
+        console.error('Error programando recordatorio:', error)
+      })
+
     } catch (emailError) {
       console.error('Error preparando email de confirmación:', emailError)
       // No afecta la respuesta principal
