@@ -294,6 +294,52 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Perfil Público Card */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg shadow-lg mb-8 overflow-hidden">
+          <div className="p-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex-1 text-white">
+                <h2 className="text-2xl font-bold mb-2">Tu Perfil Público</h2>
+                <p className="text-blue-100 mb-4">
+                  Comparte tu perfil con tus clientes para que puedan ver tus servicios y reservar citas directamente.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <Link
+                    href={`/${user?.username}`}
+                    target="_blank"
+                    className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-200 flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Ver Perfil Público
+                  </Link>
+                  <button
+                    onClick={() => {
+                      const profileUrl = `${window.location.origin}/${user?.username}`;
+                      navigator.clipboard.writeText(profileUrl);
+                      alert('¡Link copiado al portapapeles!');
+                    }}
+                    className="bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-800 transition-all duration-200 flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                    Compartir Link
+                  </button>
+                </div>
+              </div>
+              <div className="hidden md:block">
+                <div className="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Today's Appointments */}
         <div className="bg-white rounded-lg shadow-md">
           <div className="px-6 py-4 border-b border-gray-200">
