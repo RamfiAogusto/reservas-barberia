@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authAPI, saveAuthToken } from '@/utils/api'
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+
 export default function RegisterPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({

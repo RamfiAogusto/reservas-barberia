@@ -13,6 +13,7 @@ const appointmentsRoutes = require('./routes/appointments')
 const paymentsRoutes = require('./routes/payments')
 const schedulesRoutes = require('./routes/schedules')
 const publicRoutes = require('./routes/public')
+const galleryRoutes = require('./routes/gallery')
 
 // Importar servicios
 const queueService = require('./services/queueService')
@@ -99,6 +100,7 @@ app.use('/api/services', servicesRoutes)
 app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/payments', paymentsRoutes)
 app.use('/api/schedules', schedulesRoutes)
+app.use('/api/gallery', galleryRoutes)
 app.use('/api/public', publicLimiter, publicRoutes)
 
 // Ruta de salud

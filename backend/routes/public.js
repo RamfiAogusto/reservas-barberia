@@ -36,6 +36,14 @@ router.get('/salon/:username', async (req, res) => {
       isActive: true 
     }).sort({ category: 1, name: 1 })
 
+    // Buscar imágenes destacadas del salón
+    const BusinessImage = require('../models/BusinessImage')
+    const featuredImages = await BusinessImage.find({
+      userId: user._id,
+      isActive: true,
+      isFeatured: true
+    }).sort({ order: 1, createdAt: -1 }).limit(6)
+
     // Estructura de respuesta pública
     const salonProfile = {
       username: user.username,
@@ -52,6 +60,13 @@ router.get('/salon/:username', async (req, res) => {
         duration: service.duration,
         requiresDeposit: service.requiresPayment,
         depositAmount: service.depositAmount
+      })),
+      gallery: featuredImages.map(img => ({
+        _id: img._id,
+        imageUrl: img.imageUrl,
+        title: img.title,
+        description: img.description,
+        category: img.category
       }))
     }
 
@@ -727,6 +742,71 @@ router.post('/salon/:username/book', [
 
   } catch (error) {
     console.error('Error al crear reserva:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+})
+
+// GET /api/public/salon/:username/gallery - Obtener galería del salón
+router.get('/salon/:username/gallery', async (req, res) => {
+  try {
+    const { username } = req.params
+    const { category } = req.query
+
+    // Buscar el usuario
+    const user = await User.findOne({ 
+      username: username.toLowerCase(),
+      isActive: true 
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Salón no encontrado'
+      })
+    }
+
+    // Construir el query para las imágenes
+    const query = { 
+      userId: user._id,
+      isActive: true
+    }
+
+    // Filtrar por categoría si se proporciona
+    if (category) {
+      query.category = category
+    }
+
+    // Buscar imágenes
+    const BusinessImage = require('../models/BusinessImage')
+    const images = await BusinessImage.find(query)
+      .sort({ order: 1, createdAt: -1 })
+    
+    // Obtener categorías disponibles
+    const categories = await BusinessImage.distinct('category', {
+      userId: user._id,
+      isActive: true
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        salonName: user.salonName,
+        categories,
+        images: images.map(img => ({
+          _id: img._id,
+          imageUrl: img.imageUrl,
+          title: img.title,
+          description: img.description,
+          category: img.category
+        }))
+      }
+    })
+
+  } catch (error) {
+    console.error('Error al obtener galería:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'

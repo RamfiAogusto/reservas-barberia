@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import PublicGallery from '@/components/PublicGallery'
 
 const PerfilPublico = () => {
   const { usuario } = useParams()
@@ -162,6 +163,46 @@ const PerfilPublico = () => {
 
       {/* Contenido Principal */}
       <div className="max-w-6xl mx-auto px-4 py-12">
+        {/* Galería destacada */}
+        {salon.gallery && salon.gallery.length > 0 && (
+          <div className="mb-12">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">Galería de Fotos</h2>
+              <p className="text-gray-600">Conoce nuestras instalaciones y servicios</p>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {salon.gallery.slice(0, 4).map((image) => (
+                <div key={image._id} className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer">
+                  <img 
+                    src={image.imageUrl} 
+                    alt={image.title || 'Imagen del salón'} 
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                  />
+                  {image.title && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <h4 className="text-white font-medium text-sm truncate">
+                        {image.title}
+                      </h4>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {salon.gallery.length > 4 && (
+              <div className="text-center mt-6">
+                <button 
+                  onClick={() => document.getElementById('galeria-completa').scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Ver galería completa
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Sección de Servicios */}
         <div className="mb-12">
           <div className="text-center mb-8">
@@ -291,6 +332,26 @@ const PerfilPublico = () => {
             </div>
           </div>
         )}
+
+        {/* Galería Completa */}
+        <div id="galeria-completa" className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">Nuestra Galería Completa</h2>
+            <p className="text-gray-600">Descubre más imágenes de nuestro salón</p>
+          </div>
+          
+          <PublicGallery username={usuario} />
+        </div>
+
+        {/* Botón de Reserva Flotante para Móvil */}
+        <div className="fixed bottom-4 right-4 md:hidden">
+          <button
+            onClick={handleReservar}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            📅 Reservar Cita
+          </button>
+        </div>
       </div>
 
       {/* Footer */}
