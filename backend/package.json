@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "build": "prisma generate",
     "prod": "NODE_ENV=production node server.js",
     "check": "node check-production-readiness.js",
     "setup-cloudinary": "node setup-cloudinary.js",
