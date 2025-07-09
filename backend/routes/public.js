@@ -1,11 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const User = require('../models/User')
-const Service = require('../models/Service')
-const Appointment = require('../models/Appointment')
-const BusinessHours = require('../models/BusinessHours')
-const RecurringBreak = require('../models/RecurringBreak')
-const ScheduleException = require('../models/ScheduleException')
+const { prisma } = require('../lib/prisma')
 const { body, validationResult } = require('express-validator')
 const emailService = require('../services/emailService')
 const queueService = require('../services/queueService')
@@ -18,10 +13,20 @@ router.get('/salon/:username', async (req, res) => {
     const { username } = req.params
 
     // Buscar el usuario por username (sin contraseña)
-    const user = await User.findOne({ 
-      username: username.toLowerCase(),
-      isActive: true 
-    }).select('-password')
+    const user = await prisma.user.findFirst({
+      where: { 
+        username: username.toLowerCase(),
+        isActive: true 
+      },
+      select: {
+        id: true,
+        username: true,
+        salonName: true,
+        phone: true,
+        address: true,
+        avatar: true
+      }
+    })
 
     if (!user) {
       return res.status(404).json({
@@ -31,18 +36,30 @@ router.get('/salon/:username', async (req, res) => {
     }
 
     // Buscar servicios activos del salón
-    const services = await Service.find({ 
-      userId: user._id,
-      isActive: true 
-    }).sort({ category: 1, name: 1 })
+    const services = await prisma.service.findMany({
+      where: { 
+        userId: user.id,
+        isActive: true 
+      },
+      orderBy: [
+        { category: 'asc' },
+        { name: 'asc' }
+      ]
+    })
 
     // Buscar imágenes destacadas del salón
-    const BusinessImage = require('../models/BusinessImage')
-    const featuredImages = await BusinessImage.find({
-      userId: user._id,
-      isActive: true,
-      isFeatured: true
-    }).sort({ order: 1, createdAt: -1 }).limit(6)
+    const featuredImages = await prisma.businessImage.findMany({
+      where: {
+        userId: user.id,
+        isActive: true,
+        isFeatured: true
+      },
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ],
+      take: 6
+    })
 
     // Estructura de respuesta pública
     const salonProfile = {
@@ -52,7 +69,7 @@ router.get('/salon/:username', async (req, res) => {
       address: user.address,
       avatar: user.avatar,
       services: services.map(service => ({
-        _id: service._id,
+        _id: service.id,
         name: service.name,
         description: service.description,
         category: service.category,
@@ -62,7 +79,7 @@ router.get('/salon/:username', async (req, res) => {
         depositAmount: service.depositAmount
       })),
       gallery: featuredImages.map(img => ({
-        _id: img._id,
+        _id: img.id,
         imageUrl: img.imageUrl,
         title: img.title,
         description: img.description,
@@ -90,9 +107,11 @@ router.get('/salon/:username/services', async (req, res) => {
     const { username } = req.params
 
     // Buscar el usuario
-    const user = await User.findOne({ 
-      username: username.toLowerCase(),
-      isActive: true 
+    const user = await prisma.user.findFirst({ 
+      where: { 
+        username: username.toLowerCase(),
+        isActive: true 
+      }
     })
 
     if (!user) {
@@ -103,10 +122,16 @@ router.get('/salon/:username/services', async (req, res) => {
     }
 
     // Buscar servicios agrupados por categoría
-    const services = await Service.find({ 
-      userId: user._id,
-      isActive: true 
-    }).sort({ category: 1, name: 1 })
+    const services = await prisma.service.findMany({ 
+      where: { 
+        userId: user.id,
+        isActive: true 
+      },
+      orderBy: [
+        { category: 'asc' },
+        { name: 'asc' }
+      ]
+    })
 
     // Agrupar servicios por categoría
     const servicesByCategory = services.reduce((acc, service) => {
@@ -115,7 +140,7 @@ router.get('/salon/:username/services', async (req, res) => {
         acc[category] = []
       }
       acc[category].push({
-        _id: service._id,
+        _id: service.id,
         name: service.name,
         description: service.description,
         price: service.price,
@@ -157,9 +182,11 @@ router.get('/salon/:username/availability', async (req, res) => {
     }
 
     // Buscar el usuario
-    const user = await User.findOne({ 
-      username: username.toLowerCase(),
-      isActive: true 
+    const user = await prisma.user.findFirst({ 
+      where: { 
+        username: username.toLowerCase(),
+        isActive: true 
+      }
     })
 
     if (!user) {
@@ -170,10 +197,12 @@ router.get('/salon/:username/availability', async (req, res) => {
     }
 
     // Buscar el servicio
-    const service = await Service.findOne({
-      _id: serviceId,
-      userId: user._id,
-      isActive: true
+    const service = await prisma.service.findFirst({
+      where: {
+        id: serviceId,
+        userId: user.id,
+        isActive: true
+      }
     })
 
     if (!service) {
@@ -201,7 +230,12 @@ router.get('/salon/:username/availability', async (req, res) => {
     const dayOfWeek = requestedDate.getDay()
 
     // 1. Verificar horarios base del día
-    const businessHours = await BusinessHours.getByUserAndDay(user._id, dayOfWeek)
+    const businessHours = await prisma.businessHours.findFirst({
+      where: {
+        userId: user.id,
+        dayOfWeek: dayOfWeek
+      }
+    })
     
     if (!businessHours || !businessHours.isActive) {
       return res.json({
@@ -221,7 +255,13 @@ router.get('/salon/:username/availability', async (req, res) => {
     }
 
     // 2. Verificar excepciones para esta fecha
-    const exceptions = await ScheduleException.getByUserAndDate(user._id, requestedDate)
+    const exceptions = await prisma.scheduleException.findMany({
+      where: {
+        userId: user.id,
+        startDate: { lte: requestedDate },
+        endDate: { gte: requestedDate }
+      }
+    })
     
     // Si hay excepción de día libre
     const dayOffException = exceptions.find(ex => ex.isDayOff)
@@ -253,14 +293,27 @@ router.get('/salon/:username/availability', async (req, res) => {
     }
 
     // 4. Obtener descansos que aplican este día
-    const breaks = await RecurringBreak.getByUserAndDay(user._id, dayOfWeek)
+    const breaks = await prisma.recurringBreak.findMany({
+      where: {
+        userId: user.id
+      }
+    })
 
     // 5. Obtener citas existentes
-    const existingAppointments = await Appointment.find({
-      userId: user._id,
-      date: requestedDate,
-      status: { $nin: ['cancelada', 'no_asistio'] }
-    }).populate('serviceId', 'duration').select('time serviceId')
+    const existingAppointments = await prisma.appointment.findMany({
+             where: {
+         userId: user.id,
+         date: requestedDate,
+         status: { 
+           not: 'CANCELADA'
+         }
+       },
+      select: {
+        id: true,
+        time: true,
+        serviceId: true
+      }
+    })
 
     // 6. Generar slots disponibles usando el motor avanzado con duración del servicio
     const allSlots = generateAdvancedSlotsPublic({
@@ -319,9 +372,11 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     }
 
     // Buscar el usuario
-    const user = await User.findOne({ 
-      username: username.toLowerCase(),
-      isActive: true 
+    const user = await prisma.user.findFirst({ 
+      where: { 
+        username: username.toLowerCase(),
+        isActive: true 
+      }
     })
 
     if (!user) {
@@ -332,10 +387,12 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     }
 
     // Buscar el servicio
-    const service = await Service.findOne({
-      _id: serviceId,
-      userId: user._id,
-      isActive: true
+    const service = await prisma.service.findFirst({
+      where: {
+        id: serviceId,
+        userId: user.id,
+        isActive: true
+      }
     })
 
     if (!service) {
@@ -352,7 +409,12 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     const dayOfWeek = targetDate.getDay()
 
     // 1. Obtener horarios base
-    const businessHours = await BusinessHours.getByUserAndDay(user._id, dayOfWeek)
+    const businessHours = await prisma.businessHours.findFirst({
+      where: {
+        userId: user.id,
+        dayOfWeek: dayOfWeek
+      }
+    })
     
     if (!businessHours || !businessHours.isActive) {
       return res.json({
@@ -367,15 +429,17 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     }
 
     // 2. Verificar excepciones de horario para esta fecha
-    const exceptions = await ScheduleException.find({
-      userId: user._id,
-      isActive: true,
-      $or: [
-        {
-          startDate: { $lte: targetDate },
-          endDate: { $gte: targetDate }
-        }
-      ]
+    const exceptions = await prisma.scheduleException.findMany({
+             where: {
+         userId: user.id,
+         isActive: true,
+         OR: [
+           {
+             startDate: { lte: targetDate },
+             endDate: { gte: targetDate }
+           }
+         ]
+       }
     })
 
     let effectiveStartTime = businessHours.startTime
@@ -404,9 +468,11 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     }
 
     // 3. Obtener descansos recurrentes que apliquen
-    const breaks = await RecurringBreak.find({
-      userId: user._id,
-      isActive: true
+    const breaks = await prisma.recurringBreak.findMany({
+      where: {
+        userId: user.id,
+        isActive: true
+      }
     })
 
     const applicableBreaks = breaks.filter(breakItem => {
@@ -418,11 +484,20 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     })
 
     // 4. Obtener citas existentes para esa fecha
-    const existingAppointments = await Appointment.find({
-      userId: user._id,
-      date: targetDate,
-      status: { $in: ['confirmada', 'pendiente'] }
-    }).populate('serviceId', 'duration').select('time serviceId')
+    const existingAppointments = await prisma.appointment.findMany({
+             where: {
+         userId: user.id,
+         date: targetDate,
+         status: { 
+           in: ['CONFIRMADA', 'PENDIENTE'] 
+         }
+       },
+      select: {
+        id: true,
+        time: true,
+        serviceId: true
+      }
+    })
 
     // 5. Generar slots disponibles usando el motor avanzado
     const allSlots = generateAdvancedSlotsPublic({
@@ -482,9 +557,11 @@ router.get('/salon/:username/days-status', async (req, res) => {
     }
 
     // Buscar el usuario
-    const user = await User.findOne({ 
-      username: username.toLowerCase(),
-      isActive: true 
+    const user = await prisma.user.findFirst({ 
+      where: { 
+        username: username.toLowerCase(),
+        isActive: true 
+      }
     })
 
     if (!user) {
@@ -516,7 +593,12 @@ router.get('/salon/:username/days-status', async (req, res) => {
       const dateString = `${year}-${month}-${day}`
 
       // Verificar horarios base
-      const businessHours = await BusinessHours.getByUserAndDay(user._id, dayOfWeek)
+      const businessHours = await prisma.businessHours.findFirst({
+        where: {
+          userId: user.id,
+          dayOfWeek: dayOfWeek
+        }
+      })
       
       if (!businessHours || !businessHours.isActive) {
         days.push({
@@ -529,11 +611,13 @@ router.get('/salon/:username/days-status', async (req, res) => {
       }
 
       // Verificar excepciones
-      const exceptions = await ScheduleException.find({
-        userId: user._id,
-        isActive: true,
-        startDate: { $lte: currentDate },
-        endDate: { $gte: currentDate }
+      const exceptions = await prisma.scheduleException.findMany({
+        where: {
+          userId: user.id,
+          isActive: true,
+          startDate: { lte: currentDate },
+          endDate: { gte: currentDate }
+        }
       })
 
       let isAvailable = true
@@ -608,9 +692,11 @@ router.post('/salon/:username/book', [
     const { serviceId, clientName, clientEmail, clientPhone, date, time, notes } = req.body
 
     // Buscar el usuario
-    const user = await User.findOne({ 
-      username: username.toLowerCase(),
-      isActive: true 
+    const user = await prisma.user.findFirst({ 
+      where: { 
+        username: username.toLowerCase(),
+        isActive: true 
+      }
     })
 
     if (!user) {
@@ -621,10 +707,12 @@ router.post('/salon/:username/book', [
     }
 
     // Buscar el servicio
-    const service = await Service.findOne({
-      _id: serviceId,
-      userId: user._id,
-      isActive: true
+    const service = await prisma.service.findFirst({
+      where: {
+        id: serviceId,
+        userId: user.id,
+        isActive: true
+      }
     })
 
     if (!service) {
@@ -639,12 +727,14 @@ router.post('/salon/:username/book', [
     const appointmentDate = new Date(dateYear, dateMonth - 1, dateDay)
     appointmentDate.setHours(0, 0, 0, 0)
 
-    const existingAppointment = await Appointment.checkAvailability(
-      user._id, 
-      appointmentDate, 
-      time, 
-      serviceId
-    )
+    const existingAppointment = await prisma.appointment.findFirst({
+      where: {
+        userId: user.id,
+        date: appointmentDate,
+        time: time,
+        serviceId: serviceId
+      }
+    })
 
     if (existingAppointment) {
       return res.status(409).json({
@@ -654,21 +744,21 @@ router.post('/salon/:username/book', [
     }
 
     // Crear la cita
-    const newAppointment = new Appointment({
-      userId: user._id,
-      serviceId: service._id,
-      clientName,
-      clientEmail,
-      clientPhone,
-      date: appointmentDate,
-      time,
-      notes: notes || '',
-      totalAmount: service.price,
-      status: service.requiresPayment ? 'pendiente' : 'confirmada',
-      paymentStatus: service.requiresPayment ? 'pendiente' : 'completo'
+    const newAppointment = await prisma.appointment.create({
+      data: {
+        userId: user.id,
+        serviceId: service.id,
+        clientName,
+        clientEmail,
+        clientPhone,
+        date: appointmentDate,
+        time,
+        notes: notes || '',
+        totalAmount: service.price,
+                 status: service.requiresPayment ? 'PENDIENTE' : 'CONFIRMADA',
+         paymentStatus: service.requiresPayment ? 'PENDIENTE' : 'COMPLETO'
+      }
     })
-
-    await newAppointment.save()
 
     // Poblar con datos del servicio para la respuesta
     await newAppointment.populate('serviceId', 'name duration price category')
@@ -686,14 +776,14 @@ router.post('/salon/:username/book', [
         depositAmount: service.depositAmount || 0,
         salonAddress: user.address || 'Dirección no especificada',
         salonPhone: user.phone || 'Teléfono no especificado',
-        bookingId: newAppointment._id.toString()
+        bookingId: newAppointment.id.toString()
       }
 
       // Enviar correo de confirmación (no bloqueante)
       emailService.sendBookingConfirmation(bookingData)
         .then(result => {
           if (result.success) {
-            console.log('Email de confirmación enviado exitosamente para reserva:', newAppointment._id)
+            console.log('Email de confirmación enviado exitosamente para reserva:', newAppointment.id)
           } else {
             console.error('Error enviando email de confirmación:', result.error)
           }
@@ -704,7 +794,7 @@ router.post('/salon/:username/book', [
 
       // Programar recordatorio (no bloqueante)
       queueService.scheduleReminder({
-        appointmentId: newAppointment._id.toString(),
+        appointmentId: newAppointment.id.toString(),
         appointmentDate: date,
         appointmentTime: time,
         clientEmail,
@@ -728,10 +818,10 @@ router.post('/salon/:username/book', [
       success: true,
       message: 'Reserva creada exitosamente',
       data: {
-        appointmentId: newAppointment._id,
+        appointmentId: newAppointment.id,
         clientName: newAppointment.clientName,
         service: newAppointment.serviceId.name,
-        date: newAppointment.formattedDate,
+        date: newAppointment.date.toISOString().split('T')[0],
         time: newAppointment.time,
         status: newAppointment.status,
         totalAmount: newAppointment.totalAmount,
@@ -756,9 +846,11 @@ router.get('/salon/:username/gallery', async (req, res) => {
     const { category } = req.query
 
     // Buscar el usuario
-    const user = await User.findOne({ 
-      username: username.toLowerCase(),
-      isActive: true 
+    const user = await prisma.user.findFirst({ 
+      where: { 
+        username: username.toLowerCase(),
+        isActive: true 
+      }
     })
 
     if (!user) {
@@ -770,7 +862,7 @@ router.get('/salon/:username/gallery', async (req, res) => {
 
     // Construir el query para las imágenes
     const query = { 
-      userId: user._id,
+      userId: user.id,
       isActive: true
     }
 
@@ -780,23 +872,33 @@ router.get('/salon/:username/gallery', async (req, res) => {
     }
 
     // Buscar imágenes
-    const BusinessImage = require('../models/BusinessImage')
-    const images = await BusinessImage.find(query)
-      .sort({ order: 1, createdAt: -1 })
+    const images = await prisma.businessImage.findMany({
+      where: query,
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    })
     
     // Obtener categorías disponibles
-    const categories = await BusinessImage.distinct('category', {
-      userId: user._id,
-      isActive: true
+    const categories = await prisma.businessImage.findMany({
+      where: {
+        userId: user.id,
+        isActive: true
+      },
+      select: {
+        category: true
+      },
+      distinct: ['category']
     })
 
     res.status(200).json({
       success: true,
       data: {
         salonName: user.salonName,
-        categories,
+        categories: categories.map(c => c.category),
         images: images.map(img => ({
-          _id: img._id,
+          _id: img.id,
           imageUrl: img.imageUrl,
           title: img.title,
           description: img.description,
