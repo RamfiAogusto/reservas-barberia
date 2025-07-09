@@ -1,8 +1,6 @@
 const express = require('express')
 const { body, validationResult, query } = require('express-validator')
-const Appointment = require('../models/Appointment')
-const Service = require('../models/Service')
-const User = require('../models/User')
+const { prisma } = require('../lib/prisma')
 const { authenticateToken } = require('../middleware/auth')
 const emailService = require('../services/emailService')
 const queueService = require('../services/queueService')
@@ -16,7 +14,7 @@ router.use(authenticateToken)
 // GET /api/appointments - Obtener citas del usuario con filtros
 router.get('/', [
   query('date').optional().isISO8601().withMessage('Formato de fecha inválido'),
-  query('status').optional().isIn(['pendiente', 'confirmada', 'completada', 'cancelada', 'no_asistio']).withMessage('Status inválido'),
+  query('status').optional().isIn(['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO']).withMessage('Status inválido'),
   query('startDate').optional().isISO8601().withMessage('Formato de fecha de inicio inválido'),
   query('endDate').optional().isISO8601().withMessage('Formato de fecha de fin inválido')
 ], async (req, res) => {
@@ -32,7 +30,7 @@ router.get('/', [
     }
 
     const { date, status, startDate, endDate } = req.query
-    let query = { userId: req.user._id }
+    let where = { userId: req.user.id }
 
     // Filtrar por fecha específica
     if (date) {
@@ -41,28 +39,42 @@ router.get('/', [
       const nextDay = new Date(filterDate)
       nextDay.setDate(nextDay.getDate() + 1)
       
-      query.date = {
-        $gte: filterDate,
-        $lt: nextDay
+      where.date = {
+        gte: filterDate,
+        lt: nextDay
       }
     }
 
     // Filtrar por rango de fechas
     if (startDate && endDate) {
-      query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+      where.date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
       }
     }
 
     // Filtrar por status
     if (status) {
-      query.status = status
+      where.status = status
     }
 
-    const appointments = await Appointment.find(query)
-      .populate('serviceId', 'name duration price category')
-      .sort({ date: 1, time: 1 })
+    const appointments = await prisma.appointment.findMany({
+      where,
+      include: {
+        service: {
+          select: {
+            name: true,
+            duration: true,
+            price: true,
+            category: true
+          }
+        }
+      },
+      orderBy: [
+        { date: 'asc' },
+        { time: 'asc' }
+      ]
+    })
 
     res.json({
       success: true,
@@ -82,7 +94,33 @@ router.get('/', [
 // GET /api/appointments/today - Obtener citas de hoy
 router.get('/today', async (req, res) => {
   try {
-    const appointments = await Appointment.getTodayAppointments(req.user._id)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        userId: req.user.id,
+        date: {
+          gte: today,
+          lt: tomorrow
+        }
+      },
+      include: {
+        service: {
+          select: {
+            name: true,
+            duration: true,
+            price: true,
+            category: true
+          }
+        }
+      },
+      orderBy: {
+        time: 'asc'
+      }
+    })
     
     res.json({
       success: true,
@@ -102,10 +140,22 @@ router.get('/today', async (req, res) => {
 // GET /api/appointments/:id - Obtener una cita específica
 router.get('/:id', async (req, res) => {
   try {
-    const appointment = await Appointment.findOne({
-      _id: req.params.id,
-      userId: req.user._id
-    }).populate('serviceId', 'name duration price category')
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      },
+      include: {
+        service: {
+          select: {
+            name: true,
+            duration: true,
+            price: true,
+            category: true
+          }
+        }
+      }
+    })
 
     if (!appointment) {
       return res.status(404).json({
@@ -180,10 +230,12 @@ router.post('/', [
     const { serviceId, clientName, clientEmail, clientPhone, date, time, notes, staffMember } = req.body
 
     // Verificar que el servicio existe y pertenece al usuario
-    const service = await Service.findOne({
-      _id: serviceId,
-      userId: req.user._id,
-      isActive: true
+    const service = await prisma.service.findFirst({
+      where: {
+        id: serviceId,
+        userId: req.user.id,
+        isActive: true
+      }
     })
 
     if (!service) {
@@ -194,7 +246,14 @@ router.post('/', [
     }
 
     // Verificar disponibilidad del horario
-    const existingAppointment = await Appointment.checkAvailability(req.user._id, new Date(date), time, serviceId)
+    const existingAppointment = await prisma.appointment.findFirst({
+      where: {
+        userId: req.user.id,
+        date: new Date(date),
+        time: time,
+        serviceId: serviceId
+      }
+    })
     if (existingAppointment) {
       return res.status(400).json({
         success: false,
@@ -215,28 +274,30 @@ router.post('/', [
     }
 
     // Crear nueva cita
-    const newAppointment = new Appointment({
-      userId: req.user._id,
-      serviceId,
-      clientName,
-      clientEmail,
-      clientPhone,
-      date: new Date(date),
-      time,
-      notes,
-      staffMember,
-      totalAmount: service.price,
-      status: 'pendiente'
+    const newAppointment = await prisma.appointment.create({
+      data: {
+        userId: req.user.id,
+        serviceId: serviceId,
+        clientName: clientName,
+        clientEmail: clientEmail,
+        clientPhone: clientPhone,
+        date: new Date(date),
+        time: time,
+        notes: notes,
+        staffMember: staffMember,
+        totalAmount: service.price,
+        status: 'PENDIENTE'
+      }
     })
-
-    await newAppointment.save()
 
     // Populate para la respuesta
     await newAppointment.populate('serviceId', 'name duration price category')
 
     // Preparar datos para el email de confirmación
     try {
-      const salonOwner = await User.findById(req.user._id)
+      const salonOwner = await prisma.user.findFirst({
+        where: { id: req.user.id }
+      })
       const bookingData = {
         clientName,
         clientEmail,
@@ -248,7 +309,7 @@ router.post('/', [
         depositAmount: service.depositAmount || 0,
         salonAddress: salonOwner.address || 'Dirección no especificada',
         salonPhone: salonOwner.phone || 'Teléfono no especificado',
-        bookingId: newAppointment._id.toString()
+        bookingId: newAppointment.id.toString()
       }
 
       // Enviar correo de confirmación (no bloqueante)
@@ -266,7 +327,7 @@ router.post('/', [
 
       // Programar recordatorio (no bloqueante)
       queueService.scheduleReminder({
-        appointmentId: newAppointment._id.toString(),
+        appointmentId: newAppointment.id.toString(),
         appointmentDate: date,
         appointmentTime: time,
         clientEmail,
@@ -334,7 +395,7 @@ router.put('/:id', [
     .withMessage('Formato de hora inválido (HH:MM)'),
   body('status')
     .optional()
-    .isIn(['pendiente', 'confirmada', 'completada', 'cancelada', 'no_asistio'])
+    .isIn(['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO'])
     .withMessage('Status inválido'),
   body('notes')
     .optional()
@@ -374,9 +435,11 @@ router.put('/:id', [
     }
 
     // Buscar la cita
-    const appointment = await Appointment.findOne({
-      _id: req.params.id,
-      userId: req.user._id
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!appointment) {
@@ -387,17 +450,19 @@ router.put('/:id', [
     }
 
     // Si se está cambiando la fecha/hora, verificar disponibilidad
-    if ((req.body.date || req.body.time) && appointment.status !== 'cancelada') {
+    if ((req.body.date || req.body.time) && appointment.status !== 'CANCELADA') {
       const newDate = req.body.date ? new Date(req.body.date) : appointment.date
       const newTime = req.body.time || appointment.time
 
-      const existingAppointment = await Appointment.checkAvailability(
-        req.user._id, 
-        newDate, 
-        newTime, 
-        appointment.serviceId, 
-        appointment._id
-      )
+      const existingAppointment = await prisma.appointment.findFirst({
+        where: {
+          userId: req.user.id,
+          date: newDate,
+          time: newTime,
+          serviceId: appointment.serviceId,
+          NOT: { id: appointment.id }
+        }
+      })
 
       if (existingAppointment) {
         return res.status(400).json({
@@ -408,7 +473,7 @@ router.put('/:id', [
     }
 
     // Si se está cancelando, agregar fecha de cancelación
-    if (req.body.status === 'cancelada' && appointment.status !== 'cancelada') {
+    if (req.body.status === 'CANCELADA' && appointment.status !== 'CANCELADA') {
       req.body.cancelledAt = new Date()
     }
 
@@ -428,14 +493,16 @@ router.put('/:id', [
     await appointment.populate('serviceId', 'name duration price category')
 
     // Enviar email de cancelación si corresponde
-    if (req.body.status === 'cancelada' && previousStatus !== 'cancelada') {
+    if (req.body.status === 'CANCELADA' && previousStatus !== 'CANCELADA') {
       try {
         console.log('🔄 Enviando email de cancelación...')
-        const salonOwner = await User.findById(req.user._id)
+        const salonOwner = await prisma.user.findFirst({
+          where: { id: req.user.id }
+        })
         const bookingData = {
           clientName: appointment.clientName,
           clientEmail: appointment.clientEmail,
-          salonName: salonOwner.salonName || salonOwner.username,
+          salonName: salonOwner.salon_name || salonOwner.username,
           serviceName: appointment.serviceId.name,
           date: format(appointment.date, 'PPP', { locale: es }),
           time: appointment.time,
@@ -462,7 +529,7 @@ router.put('/:id', [
           })
 
         // Cancelar recordatorio programado (no bloqueante)
-        queueService.cancelReminder(appointment._id.toString())
+        queueService.cancelReminder(appointment.id.toString())
           .then(result => {
             if (result.success) {
               console.log('🗑️ Recordatorio cancelado exitosamente')
@@ -497,9 +564,11 @@ router.put('/:id', [
 // DELETE /api/appointments/:id - Eliminar cita
 router.delete('/:id', async (req, res) => {
   try {
-    const appointment = await Appointment.findOne({
-      _id: req.params.id,
-      userId: req.user._id
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!appointment) {
@@ -535,61 +604,58 @@ router.get('/stats/summary', async (req, res) => {
     const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 
     // Citas de hoy
-    const todayCount = await Appointment.countDocuments({
-      userId: req.user._id,
-      date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
-      },
-      status: { $nin: ['cancelada'] }
+    const todayCount = await prisma.appointment.count({
+      where: {
+        userId: req.user.id,
+        date: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        },
+        status: { not: 'CANCELADA' }
+      }
     })
 
     // Citas de esta semana
-    const thisWeekCount = await Appointment.countDocuments({
-      userId: req.user._id,
-      date: { $gte: thisWeekStart },
-      status: { $nin: ['cancelada'] }
+    const thisWeekCount = await prisma.appointment.count({
+      where: {
+        userId: req.user.id,
+        date: { gte: thisWeekStart },
+        status: { not: 'CANCELADA' }
+      }
     })
 
     // Citas de este mes
-    const thisMonthCount = await Appointment.countDocuments({
-      userId: req.user._id,
-      date: { $gte: thisMonthStart },
-      status: { $nin: ['cancelada'] }
+    const thisMonthCount = await prisma.appointment.count({
+      where: {
+        userId: req.user.id,
+        date: { gte: thisMonthStart },
+        status: { not: 'CANCELADA' }
+      }
     })
 
     // Estadísticas por status
-    const statusStats = await Appointment.aggregate([
-      {
-        $match: {
-          userId: req.user._id,
-          date: { $gte: thisMonthStart }
-        }
+    const statusStats = await prisma.appointment.groupBy({
+      by: ['status'],
+      where: {
+        userId: req.user.id,
+        date: { gte: thisMonthStart }
       },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
+      _count: {
+        _all: true
       }
-    ])
+    })
 
     // Ingresos del mes
-    const monthlyRevenue = await Appointment.aggregate([
-      {
-        $match: {
-          userId: req.user._id,
-          date: { $gte: thisMonthStart },
-          status: 'completada'
-        }
+    const monthlyRevenue = await prisma.appointment.aggregate({
+      _sum: {
+        paidAmount: true
       },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$paidAmount' }
-        }
+      where: {
+        userId: req.user.id,
+        date: { gte: thisMonthStart },
+        status: 'COMPLETADA'
       }
-    ])
+    })
 
     res.json({
       success: true,
@@ -598,7 +664,7 @@ router.get('/stats/summary', async (req, res) => {
         thisWeek: thisWeekCount,
         thisMonth: thisMonthCount,
         byStatus: statusStats,
-        monthlyRevenue: monthlyRevenue[0]?.total || 0
+        monthlyRevenue: monthlyRevenue._sum.total || 0
       }
     })
   } catch (error) {

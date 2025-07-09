@@ -103,7 +103,7 @@ router.post('/register', [
     })
 
     // Generar token
-    const token = generateToken(newUser._id)
+    const token = generateToken(newUser.id)
 
     res.status(201).json({
       success: true,
@@ -178,7 +178,7 @@ router.post('/login', [
     const { password: _, ...userWithoutPassword } = user
 
     // Generar token
-    const token = generateToken(user._id)
+    const token = generateToken(user.id)
 
     res.json({
       success: true,

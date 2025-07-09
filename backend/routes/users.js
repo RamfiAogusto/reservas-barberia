@@ -1,6 +1,6 @@
 const express = require('express')
 const { authenticateToken } = require('../middleware/auth')
-const User = require('../models/User')
+const { prisma } = require('../lib/prisma')
 const router = express.Router()
 
 // Middleware de autenticación para rutas protegidas
@@ -9,7 +9,22 @@ router.use('/profile', authenticateToken)
 // GET /api/users/profile - Obtener perfil del usuario autenticado
 router.get('/profile', async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password')
+    const user = await prisma.user.findUnique({
+      where: { id: req.user._id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        phone: true,
+        salonName: true,
+        address: true,
+        role: true,
+        isActive: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    })
     
     if (!user) {
       return res.status(404).json({
@@ -37,11 +52,23 @@ router.put('/profile', async (req, res) => {
   try {
     const { salonName, phone, address, avatar } = req.body
     
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { salonName, phone, address, avatar },
-      { new: true, runValidators: true }
-    ).select('-password')
+    const user = await prisma.user.update({
+      where: { id: req.user._id },
+      data: { salonName, phone, address, avatar },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        phone: true,
+        salonName: true,
+        address: true,
+        role: true,
+        isActive: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    })
 
     if (!user) {
       return res.status(404).json({
@@ -68,10 +95,19 @@ router.put('/profile', async (req, res) => {
 // GET /api/users/:username - Obtener perfil público por username (NO PROTEGIDA)
 router.get('/:username', async (req, res) => {
   try {
-    const user = await User.findOne({ 
-      username: req.params.username.toLowerCase(),
-      isActive: true 
-    }).select('-password -email')
+    const user = await prisma.user.findUnique({
+      where: { 
+        username: req.params.username.toLowerCase(),
+        isActive: true 
+      },
+      select: {
+        username: true,
+        salonName: true,
+        phone: true,
+        address: true,
+        avatar: true
+      }
+    })
 
     if (!user) {
       return res.status(404).json({
