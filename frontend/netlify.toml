@@ -1,16 +1,5 @@
 [build]
-  # Netlify detecta Next.js automáticamente
   command = "npm run build"
 
-# Headers para mejor seguridad y rendimiento
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-
-[[headers]]
-  for = "/_next/static/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable" 
+[[plugins]]
+  package = "@netlify/plugin-nextjs" 
