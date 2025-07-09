@@ -1,8 +1,13 @@
 [build]
   command = "npm run build"
+  publish = "out"
 
 [build.environment]
   NODE_VERSION = "18"
+  NEXT_PUBLIC_API_URL = "https://reservas-barberia-backend.onrender.com/api"
+  NEXT_PUBLIC_APP_URL = "https://cosmic-maamoul-8661f7.netlify.app"
 
-[[plugins]]
-  package = "@netlify/plugin-nextjs" 
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200 

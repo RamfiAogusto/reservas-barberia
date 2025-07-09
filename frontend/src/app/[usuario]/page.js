@@ -13,7 +13,8 @@ const PerfilPublico = () => {
   useEffect(() => {
     const fetchSalonProfile = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/public/salon/${usuario}`)
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+        const response = await fetch(`${apiUrl}/public/salon/${usuario}`)
         const data = await response.json()
 
         if (data.success) {
