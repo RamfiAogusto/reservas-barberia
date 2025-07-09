@@ -3,7 +3,7 @@ const router = express.Router()
 const { authenticateToken } = require('../middleware/auth')
 const { upload, handleUploadErrors } = require('../middleware/uploadMiddleware')
 const cloudinaryService = require('../services/cloudinaryService')
-const BusinessImage = require('../models/BusinessImage')
+const { prisma } = require('../lib/prisma')
 
 // Aplicar middleware de autenticación a todas las rutas
 router.use(authenticateToken)
@@ -11,7 +11,16 @@ router.use(authenticateToken)
 // GET /api/gallery - Obtener todas las imágenes del usuario
 router.get('/', async (req, res) => {
   try {
-    const images = await BusinessImage.getActiveByUser(req.user._id)
+    const images = await prisma.businessImage.findMany({
+      where: { 
+        userId: req.user.id,
+        isActive: true
+      },
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    })
     
     res.json({
       success: true,
@@ -31,7 +40,17 @@ router.get('/', async (req, res) => {
 // GET /api/gallery/featured - Obtener imágenes destacadas del usuario
 router.get('/featured', async (req, res) => {
   try {
-    const images = await BusinessImage.getFeaturedByUser(req.user._id)
+    const images = await prisma.businessImage.findMany({
+      where: { 
+        userId: req.user.id,
+        isActive: true,
+        isFeatured: true
+      },
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    })
     
     res.json({
       success: true,
@@ -76,18 +95,18 @@ router.post('/', upload.single('image'), handleUploadErrors, async (req, res) =>
     }
 
     // Crear registro en la base de datos
-    const newImage = new BusinessImage({
-      userId: req.user._id,
-      imageUrl: uploadResult.data.url,
-      cloudinaryPublicId: uploadResult.data.publicId,
-      title: title || '',
-      description: description || '',
-      category: category || 'otros',
-      isFeatured: isFeatured === 'true' || false,
-      order: 0 // Por defecto al final
+    const newImage = await prisma.businessImage.create({
+      data: {
+        userId: req.user.id,
+        imageUrl: uploadResult.data.url,
+        cloudinaryPublicId: uploadResult.data.publicId,
+        title: title || '',
+        description: description || '',
+        category: category ? category.toUpperCase() : 'OTROS',
+        isFeatured: isFeatured === 'true' || false,
+        order: 0 // Por defecto al final
+      }
     })
-
-    await newImage.save()
 
     res.status(201).json({
       success: true,
@@ -109,26 +128,34 @@ router.put('/:id', async (req, res) => {
   try {
     const { title, description, category, isFeatured, order } = req.body
 
-    const image = await BusinessImage.findOne({
-      _id: req.params.id,
-      userId: req.user._id
+    // Verificar que la imagen existe y pertenece al usuario
+    const existingImage = await prisma.businessImage.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
-    if (!image) {
+    if (!existingImage) {
       return res.status(404).json({
         success: false,
         message: 'Imagen no encontrada'
       })
     }
 
-    // Actualizar los campos proporcionados
-    if (title !== undefined) image.title = title
-    if (description !== undefined) image.description = description
-    if (category !== undefined) image.category = category
-    if (isFeatured !== undefined) image.isFeatured = isFeatured === true || isFeatured === 'true'
-    if (order !== undefined) image.order = Number(order)
+    // Preparar datos de actualización
+    const updateData = {}
+    if (title !== undefined) updateData.title = title
+    if (description !== undefined) updateData.description = description
+    if (category !== undefined) updateData.category = category.toUpperCase()
+    if (isFeatured !== undefined) updateData.isFeatured = isFeatured === true || isFeatured === 'true'
+    if (order !== undefined) updateData.order = Number(order)
 
-    await image.save()
+    // Actualizar la imagen
+    const image = await prisma.businessImage.update({
+      where: { id: req.params.id },
+      data: updateData
+    })
 
     res.json({
       success: true,
@@ -148,9 +175,11 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/gallery/:id - Eliminar una imagen
 router.delete('/:id', async (req, res) => {
   try {
-    const image = await BusinessImage.findOne({
-      _id: req.params.id,
-      userId: req.user._id
+    const image = await prisma.businessImage.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!image) {
@@ -168,8 +197,10 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Eliminación lógica (soft delete)
-    image.isActive = false
-    await image.save()
+    await prisma.businessImage.update({
+      where: { id: req.params.id },
+      data: { isActive: false }
+    })
 
     res.json({
       success: true,

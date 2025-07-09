@@ -1,8 +1,7 @@
 const { Queue, Worker } = require('bullmq');
 const Redis = require('ioredis');
 const emailService = require('./emailService');
-const Appointment = require('../models/Appointment');
-const User = require('../models/User');
+const { prisma } = require('../lib/prisma');
 const { format } = require('date-fns');
 const { es } = require('date-fns/locale');
 
@@ -101,9 +100,26 @@ class QueueService {
       console.log(`📧 Procesando recordatorio para cita: ${appointmentId}`);
 
       // Buscar la cita en la base de datos
-      const appointment = await Appointment.findById(appointmentId)
-        .populate('serviceId', 'name duration price')
-        .populate('userId', 'salonName username address phone');
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: {
+          service: {
+            select: {
+              name: true,
+              duration: true,
+              price: true
+            }
+          },
+          user: {
+            select: {
+              salonName: true,
+              username: true,
+              address: true,
+              phone: true
+            }
+          }
+        }
+      });
 
       if (!appointment) {
         console.log(`⚠️ Cita ${appointmentId} no encontrada`);
@@ -111,7 +127,7 @@ class QueueService {
       }
 
       // Verificar que la cita no esté cancelada
-      if (appointment.status === 'cancelada') {
+      if (appointment.status === 'CANCELADA') {
         console.log(`⚠️ Cita ${appointmentId} está cancelada, no se envía recordatorio`);
         return;
       }
@@ -123,12 +139,12 @@ class QueueService {
       }
 
       // Preparar datos para el email
-      const salonOwner = appointment.userId;
+      const salonOwner = appointment.user;
       const bookingData = {
         clientName: appointment.clientName,
         clientEmail: appointment.clientEmail,
         salonName: salonOwner.salonName || salonOwner.username,
-        serviceName: appointment.serviceId.name,
+        serviceName: appointment.service.name,
         date: format(appointment.date, 'PPP', { locale: es }),
         time: appointment.time,
         salonAddress: salonOwner.address || 'Dirección no especificada',
@@ -140,8 +156,9 @@ class QueueService {
 
       if (result.success) {
         // Marcar como enviado en la base de datos
-        await Appointment.findByIdAndUpdate(appointmentId, { 
-          reminderSent: true 
+        await prisma.appointment.update({
+          where: { id: appointmentId },
+          data: { reminderSent: true }
         });
         
         console.log(`✅ Recordatorio enviado exitosamente para ${clientName} (${clientEmail})`);

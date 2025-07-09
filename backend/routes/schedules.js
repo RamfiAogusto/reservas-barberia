@@ -2,10 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { body, validationResult } = require('express-validator')
 const { authenticateToken } = require('../middleware/auth')
-const BusinessHours = require('../models/BusinessHours')
-const RecurringBreak = require('../models/RecurringBreak')
-const ScheduleException = require('../models/ScheduleException')
-const Appointment = require('../models/Appointment')
+const { prisma } = require('../lib/prisma')
 
 // Aplicar middleware de autenticación a todas las rutas
 router.use(authenticateToken)
@@ -15,7 +12,10 @@ router.use(authenticateToken)
 // GET /api/schedules/business-hours - Obtener horarios base del usuario
 router.get('/business-hours', async (req, res) => {
   try {
-    const businessHours = await BusinessHours.getByUser(req.user._id)
+    const businessHours = await prisma.businessHour.findMany({
+      where: { userId: req.user.id },
+      orderBy: { dayOfWeek: 'asc' }
+    })
     
     // Crear estructura completa de la semana (0-6)
     const weekSchedule = Array.from({ length: 7 }, (_, index) => {
@@ -76,29 +76,54 @@ router.put('/business-hours', [
 
       if (isActive) {
         // Actualizar o crear horario
-        await BusinessHours.findOneAndUpdate(
-          { userId, dayOfWeek },
-          {
+        await prisma.businessHour.upsert({
+          where: {
+            userId_dayOfWeek: {
+              userId: userId,
+              dayOfWeek: dayOfWeek
+            }
+          },
+          update: {
+            startTime,
+            endTime,
+            isActive: true
+          },
+          create: {
             userId,
             dayOfWeek,
             startTime,
             endTime,
             isActive: true
-          },
-          { upsert: true, new: true }
-        )
+          }
+        })
       } else {
         // Desactivar horario
-        await BusinessHours.findOneAndUpdate(
-          { userId, dayOfWeek },
-          { isActive: false },
-          { upsert: true }
-        )
+        await prisma.businessHour.upsert({
+          where: {
+            userId_dayOfWeek: {
+              userId: userId,
+              dayOfWeek: dayOfWeek
+            }
+          },
+          update: {
+            isActive: false
+          },
+          create: {
+            userId,
+            dayOfWeek,
+            startTime: '09:00',
+            endTime: '18:00',
+            isActive: false
+          }
+        })
       }
     }
 
     // Retornar horarios actualizados
-    const updatedSchedule = await BusinessHours.getByUser(userId)
+    const updatedSchedule = await prisma.businessHour.findMany({
+      where: { userId: userId },
+      orderBy: { dayOfWeek: 'asc' }
+    })
     
     res.json({
       success: true,
@@ -120,7 +145,13 @@ router.put('/business-hours', [
 // GET /api/schedules/recurring-breaks - Obtener descansos recurrentes
 router.get('/recurring-breaks', async (req, res) => {
   try {
-    const breaks = await RecurringBreak.getByUser(req.user._id)
+    const breaks = await prisma.recurringBreak.findMany({
+      where: { 
+        userId: req.user.id,
+        isActive: true
+      },
+      orderBy: { name: 'asc' }
+    })
     
     res.json({
       success: true,
@@ -155,16 +186,16 @@ router.post('/recurring-breaks', [
 
     const { name, startTime, endTime, recurrenceType, specificDays } = req.body
 
-    const newBreak = new RecurringBreak({
-      userId: req.user._id,
-      name,
-      startTime,
-      endTime,
-      recurrenceType,
-      specificDays: specificDays || []
+    const newBreak = await prisma.recurringBreak.create({
+      data: {
+        userId: req.user.id,
+        name,
+        startTime,
+        endTime,
+        recurrenceType: recurrenceType.toUpperCase(),
+        specificDays: specificDays || []
+      }
     })
-
-    await newBreak.save()
 
     res.status(201).json({
       success: true,
