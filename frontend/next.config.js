@@ -1,13 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configuración para Netlify
-  output: 'export',
+  // Configuración para Netlify (sin export estático)
   trailingSlash: true,
-  distDir: 'out',
   
   images: {
     domains: ['localhost'],
-    unoptimized: true // Necesario para export estático
+    // Removemos unoptimized ya que no usamos export estático
   },
   
   // Configuración para mejor desarrollo
