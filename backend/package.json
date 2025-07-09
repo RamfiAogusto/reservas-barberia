@@ -9,9 +9,14 @@
     "prod": "NODE_ENV=production node server.js",
     "check": "node check-production-readiness.js",
     "setup-cloudinary": "node setup-cloudinary.js",
+    "migrate-to-postgresql": "node migrate-to-postgresql.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "health": "node -e \"require('dotenv').config(); console.log('✅ Server config OK:', {env: process.env.NODE_ENV, port: process.env.PORT})\"",
-    "db-check": "node -e \"require('dotenv').config(); require('mongoose').connect(process.env.MONGODB_URI).then(() => console.log('✅ DB connection OK')).catch(e => console.error('❌ DB error:', e.message))\""
+    "db-check": "node -e \"require('dotenv').config(); require('./lib/prisma').checkConnection().then(() => console.log('✅ PostgreSQL connection OK')).catch(e => console.error('❌ PostgreSQL error:', e.message))\"",
+    "db-migrate": "prisma migrate dev",
+    "db-push": "prisma db push",
+    "db-generate": "prisma generate",
+    "db-studio": "prisma studio"
   },
   "keywords": [
     "barbería",
@@ -23,6 +28,7 @@
   "author": "Tu Nombre",
   "license": "MIT",
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "axios": "^1.9.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.53.2",
@@ -36,13 +42,14 @@
     "helmet": "^7.1.0",
     "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.3.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.13",
+    "pg": "^8.16.3",
     "resend": "^4.5.1",
     "stripe": "^15.8.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.1.0",
+    "prisma": "^5.22.0"
   }
 }

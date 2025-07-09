@@ -1,6 +1,6 @@
 const express = require('express')
 const { body, validationResult } = require('express-validator')
-const Service = require('../models/Service')
+const { prisma } = require('../lib/prisma')
 const { authenticateToken } = require('../middleware/auth')
 const router = express.Router()
 
@@ -10,7 +10,15 @@ router.use(authenticateToken)
 // GET /api/services - Obtener todos los servicios del usuario
 router.get('/', async (req, res) => {
   try {
-    const services = await Service.getActiveByUser(req.user._id)
+    const services = await prisma.service.findMany({
+      where: {
+        userId: req.user.id,
+        isActive: true
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    })
     
     res.json({
       success: true,
@@ -30,9 +38,11 @@ router.get('/', async (req, res) => {
 // GET /api/services/:id - Obtener un servicio específico
 router.get('/:id', async (req, res) => {
   try {
-    const service = await Service.findOne({
-      _id: req.params.id,
-      userId: req.user._id
+    const service = await prisma.service.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!service) {
@@ -79,7 +89,7 @@ router.post('/', [
     .withMessage('La descripción no puede tener más de 500 caracteres'),
   body('category')
     .optional()
-    .isIn(['corte', 'barba', 'combo', 'tratamiento', 'otro'])
+    .isIn(['CORTE', 'BARBA', 'COMBO', 'TRATAMIENTO', 'OTRO'])
     .withMessage('Categoría inválida'),
   body('requiresPayment')
     .optional()
@@ -106,10 +116,15 @@ router.post('/', [
     const { name, description, price, duration, category, requiresPayment, depositAmount } = req.body
 
     // Verificar si ya existe un servicio con el mismo nombre para este usuario
-    const existingService = await Service.findOne({
-      userId: req.user._id,
-      name: { $regex: new RegExp(`^${name}$`, 'i') },
-      isActive: true
+    const existingService = await prisma.service.findFirst({
+      where: {
+        userId: req.user.id,
+        name: {
+          equals: name,
+          mode: 'insensitive'
+        },
+        isActive: true
+      }
     })
 
     if (existingService) {
@@ -120,18 +135,18 @@ router.post('/', [
     }
 
     // Crear nuevo servicio
-    const newService = new Service({
-      userId: req.user._id,
-      name,
-      description,
-      price,
-      duration,
-      category,
-      requiresPayment: requiresPayment || false,
-      depositAmount: depositAmount || 0
+    const newService = await prisma.service.create({
+      data: {
+        userId: req.user.id,
+        name,
+        description,
+        price,
+        duration,
+        category: category ? category.toUpperCase() : 'CORTE',
+        requiresPayment: requiresPayment || false,
+        depositAmount: depositAmount || 0
+      }
     })
-
-    await newService.save()
 
     res.status(201).json({
       success: true,
@@ -174,7 +189,7 @@ router.put('/:id', [
     .withMessage('La descripción no puede tener más de 500 caracteres'),
   body('category')
     .optional()
-    .isIn(['corte', 'barba', 'combo', 'tratamiento', 'otro'])
+    .isIn(['CORTE', 'BARBA', 'COMBO', 'TRATAMIENTO', 'OTRO'])
     .withMessage('Categoría inválida'),
   body('requiresPayment')
     .optional()
@@ -203,9 +218,11 @@ router.put('/:id', [
     }
 
     // Buscar el servicio
-    const service = await Service.findOne({
-      _id: req.params.id,
-      userId: req.user._id
+    const service = await prisma.service.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!service) {
@@ -217,11 +234,18 @@ router.put('/:id', [
 
     // Si se está cambiando el nombre, verificar que no exista otro con el mismo nombre
     if (req.body.name && req.body.name !== service.name) {
-      const existingService = await Service.findOne({
-        userId: req.user._id,
-        name: { $regex: new RegExp(`^${req.body.name}$`, 'i') },
-        isActive: true,
-        _id: { $ne: req.params.id }
+      const existingService = await prisma.service.findFirst({
+        where: {
+          userId: req.user.id,
+          name: {
+            equals: req.body.name,
+            mode: 'insensitive'
+          },
+          isActive: true,
+          id: {
+            not: req.params.id
+          }
+        }
       })
 
       if (existingService) {
@@ -232,19 +256,28 @@ router.put('/:id', [
       }
     }
 
-    // Actualizar campos
+    // Preparar datos para actualizar
+    const updateData = {}
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
-        service[key] = req.body[key]
+        if (key === 'category' && req.body[key]) {
+          updateData[key] = req.body[key].toUpperCase()
+        } else {
+          updateData[key] = req.body[key]
+        }
       }
     })
 
-    await service.save()
+    // Actualizar servicio
+    const updatedService = await prisma.service.update({
+      where: { id: req.params.id },
+      data: updateData
+    })
 
     res.json({
       success: true,
       message: 'Servicio actualizado exitosamente',
-      data: service
+      data: updatedService
     })
   } catch (error) {
     console.error('Error actualizando servicio:', error)
@@ -259,9 +292,11 @@ router.put('/:id', [
 // DELETE /api/services/:id - Eliminar servicio (soft delete)
 router.delete('/:id', async (req, res) => {
   try {
-    const service = await Service.findOne({
-      _id: req.params.id,
-      userId: req.user._id
+    const service = await prisma.service.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!service) {
@@ -272,8 +307,10 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Soft delete - marcar como inactivo
-    service.isActive = false
-    await service.save()
+    await prisma.service.update({
+      where: { id: req.params.id },
+      data: { isActive: false }
+    })
 
     res.json({
       success: true,
@@ -292,50 +329,57 @@ router.delete('/:id', async (req, res) => {
 // GET /api/services/stats - Estadísticas de servicios
 router.get('/stats/summary', async (req, res) => {
   try {
-    const totalServices = await Service.countDocuments({
-      userId: req.user._id,
-      isActive: true
+    const totalServices = await prisma.service.count({
+      where: {
+        userId: req.user.id,
+        isActive: true
+      }
     })
 
-    const servicesByCategory = await Service.aggregate([
-      {
-        $match: {
-          userId: req.user._id,
-          isActive: true
-        }
+    const servicesByCategory = await prisma.service.groupBy({
+      by: ['category'],
+      where: {
+        userId: req.user.id,
+        isActive: true
       },
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 },
-          avgPrice: { $avg: '$price' }
-        }
+      _count: {
+        category: true
+      },
+      _avg: {
+        price: true
       }
-    ])
+    })
 
-    const priceRange = await Service.aggregate([
-      {
-        $match: {
-          userId: req.user._id,
-          isActive: true
-        }
+    const priceRange = await prisma.service.aggregate({
+      where: {
+        userId: req.user.id,
+        isActive: true
       },
-      {
-        $group: {
-          _id: null,
-          minPrice: { $min: '$price' },
-          maxPrice: { $max: '$price' },
-          avgPrice: { $avg: '$price' }
-        }
+      _min: {
+        price: true
+      },
+      _max: {
+        price: true
+      },
+      _avg: {
+        price: true
       }
-    ])
+    })
 
     res.json({
       success: true,
       stats: {
         totalServices,
-        servicesByCategory,
-        priceRange: priceRange[0] || { minPrice: 0, maxPrice: 0, avgPrice: 0 }
+        servicesByCategory: servicesByCategory.map(item => ({
+          _id: item.category,
+          count: item._count.category,
+          avgPrice: item._avg.price
+        })),
+        priceRange: {
+          minPrice: priceRange._min.price || 0,
+          maxPrice: priceRange._max.price || 0,
+          avgPrice: priceRange._avg.price || 0
+        }
       }
     })
   } catch (error) {

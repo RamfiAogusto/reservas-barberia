@@ -1,7 +1,8 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
-const User = require('../models/User')
+const { prisma } = require('../lib/prisma')
+const bcrypt = require('bcryptjs')
 const router = express.Router()
 
 // Función para generar JWT token
@@ -55,8 +56,13 @@ router.post('/register', [
     const { username, email, password, phone, salonName, address } = req.body
 
     // Verificar si el usuario ya existe
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { username }
+        ]
+      }
     })
 
     if (existingUser) {
@@ -68,17 +74,33 @@ router.post('/register', [
       })
     }
 
-    // Crear nuevo usuario
-    const newUser = new User({
-      username,
-      email,
-      password,
-      phone,
-      salonName,
-      address
-    })
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 12)
 
-    await newUser.save()
+    // Crear nuevo usuario
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        email,
+        password: hashedPassword,
+        phone,
+        salonName,
+        address
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        phone: true,
+        salonName: true,
+        address: true,
+        role: true,
+        isActive: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    })
 
     // Generar token
     const token = generateToken(newUser._id)
@@ -124,7 +146,10 @@ router.post('/login', [
     const { email, password } = req.body
 
     // Buscar usuario por email
-    const user = await User.findOne({ email })
+    const user = await prisma.user.findUnique({
+      where: { email }
+    })
+    
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -141,13 +166,16 @@ router.post('/login', [
     }
 
     // Verificar contraseña
-    const isPasswordValid = await user.comparePassword(password)
+    const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
       })
     }
+
+    // Excluir password de la respuesta
+    const { password: _, ...userWithoutPassword } = user
 
     // Generar token
     const token = generateToken(user._id)
@@ -156,7 +184,7 @@ router.post('/login', [
       success: true,
       message: 'Login exitoso',
       token,
-      user
+      user: userWithoutPassword
     })
 
   } catch (error) {
