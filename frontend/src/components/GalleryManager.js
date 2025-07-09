@@ -11,6 +11,7 @@ export default function GalleryManager() {
   const [error, setError] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [draggedItem, setDraggedItem] = useState(null)
+
   
   // Cargar imágenes
   useEffect(() => {
