@@ -19,6 +19,7 @@ export default function LandingPage() {
           </Link>
         </nav>
       </header>
+      
 
       {/* Hero Section */}
       <main className="container mx-auto px-4 py-12">
