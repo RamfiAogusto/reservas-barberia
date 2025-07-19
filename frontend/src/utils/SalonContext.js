@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useReducer, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, useCallback } from 'react'
 import { cachedRequest, invalidateCache } from './cache'
 
 // Estado inicial
@@ -166,6 +166,13 @@ export const useSalonDataOptimized = (username) => {
   const salon = getSalon(username)
   const loading = isLoading(username)
   const error = getError(username)
+
+  // Cargar datos si no están disponibles y no está cargando
+  React.useEffect(() => {
+    if (username && !salon && !loading) {
+      getSalonData(username)
+    }
+  }, [username, salon, loading, getSalonData])
 
   return {
     salon,

@@ -2,6 +2,7 @@
 import { useParams, useRouter } from 'next/navigation'
 import PublicGallery from '@/components/PublicGallery'
 import { useSalonDataOptimized } from '@/utils/SalonContext'
+import SalonDebug from '@/components/SalonDebug'
 
 const PerfilPublico = () => {
   const { usuario } = useParams()
@@ -58,7 +59,7 @@ const PerfilPublico = () => {
     }
     acc[category].push(service)
     return acc
-  }, {})
+  }, {}) || {}
 
   if (loading) {
     return (
@@ -71,13 +72,13 @@ const PerfilPublico = () => {
     )
   }
 
-  if (error) {
+  if (error || !salon) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-4">🚫</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Salón no encontrado</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 mb-6">{error || 'No se pudo cargar la información del salón'}</p>
           <button
             onClick={() => router.push('/')}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -91,14 +92,17 @@ const PerfilPublico = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Debug component - solo en desarrollo */}
+      {process.env.NODE_ENV === 'development' && <SalonDebug username={usuario} />}
+      
       {/* Header del Salón */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
         <div className="max-w-6xl mx-auto px-4 py-12">
           <div className="flex flex-col md:flex-row items-center gap-8">
             {/* Avatar del Salón */}
             <div className="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-4xl">
-              {salon.avatar ? (
-                <img src={salon.avatar} alt={salon.salonName} className="w-full h-full rounded-full object-cover" />
+              {salon?.avatar ? (
+                <img src={salon.avatar} alt={salon.salonName || 'Salón'} className="w-full h-full rounded-full object-cover" />
               ) : (
                 '💈'
               )}
@@ -106,18 +110,18 @@ const PerfilPublico = () => {
 
             {/* Información Principal */}
             <div className="text-center md:text-left flex-1">
-              <h1 className="text-4xl md:text-5xl font-bold mb-2">{salon.salonName}</h1>
-              <p className="text-xl text-blue-100 mb-4">@{salon.username}</p>
+              <h1 className="text-4xl md:text-5xl font-bold mb-2">{salon?.salonName || 'Salón'}</h1>
+              <p className="text-xl text-blue-100 mb-4">@{salon?.username || usuario}</p>
               
               {/* Información de Contacto */}
               <div className="flex flex-col md:flex-row gap-4 text-blue-100">
                 <div className="flex items-center justify-center md:justify-start gap-2">
                   <span>📍</span>
-                  <span>{salon.address}</span>
+                  <span>{salon?.address || 'Dirección no disponible'}</span>
                 </div>
                 <div className="flex items-center justify-center md:justify-start gap-2">
                   <span>📞</span>
-                  <span>{salon.phone}</span>
+                  <span>{salon?.phone || 'Teléfono no disponible'}</span>
                 </div>
               </div>
             </div>
@@ -138,7 +142,7 @@ const PerfilPublico = () => {
       {/* Contenido Principal */}
       <div className="max-w-6xl mx-auto px-4 py-12">
         {/* Galería destacada */}
-        {salon.gallery && salon.gallery.length > 0 && (
+        {salon?.gallery && salon.gallery.length > 0 && (
           <div className="mb-12">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Galería de Fotos</h2>
@@ -244,7 +248,7 @@ const PerfilPublico = () => {
                 <span className="text-2xl">🏪</span>
                 <div>
                   <p className="font-semibold text-gray-800">Nombre del Salón</p>
-                  <p className="text-gray-600">{salon.salonName}</p>
+                  <p className="text-gray-600">{salon?.salonName || 'No disponible'}</p>
                 </div>
               </div>
               
@@ -252,7 +256,7 @@ const PerfilPublico = () => {
                 <span className="text-2xl">📍</span>
                 <div>
                   <p className="font-semibold text-gray-800">Dirección</p>
-                  <p className="text-gray-600">{salon.address}</p>
+                  <p className="text-gray-600">{salon?.address || 'No disponible'}</p>
                 </div>
               </div>
               
@@ -260,7 +264,7 @@ const PerfilPublico = () => {
                 <span className="text-2xl">📞</span>
                 <div>
                   <p className="font-semibold text-gray-800">Teléfono</p>
-                  <p className="text-gray-600">{salon.phone}</p>
+                  <p className="text-gray-600">{salon?.phone || 'No disponible'}</p>
                 </div>
               </div>
             </div>
@@ -284,7 +288,7 @@ const PerfilPublico = () => {
         </div>
 
         {/* Sección de Políticas de Reserva */}
-        {salon.services?.some(service => service.requiresDeposit) && (
+        {salon?.services?.some(service => service.requiresDeposit) && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
             <div className="flex items-start gap-3">
               <div className="text-yellow-600 text-2xl">⚠️</div>
