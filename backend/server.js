@@ -51,12 +51,18 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
+      'https://reservas-barberia-ruddy.vercel.app',
+      'https://frontreservas.netlify.app',
       process.env.FRONTEND_URL
     ].filter(Boolean)
+    
+    console.log('🌐 CORS check - Origin:', origin)
+    console.log('🌐 CORS check - Allowed origins:', allowedOrigins)
     
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true)
     } else {
+      console.log('❌ CORS blocked - Origin not allowed:', origin)
       callback(new Error('No permitido por CORS'))
     }
   },
