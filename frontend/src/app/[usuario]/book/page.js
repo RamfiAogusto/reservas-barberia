@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+import { useSalonDataOptimized } from '@/utils/SalonContext'
+import { useDaysStatus, useAvailableSlots } from '@/utils/useSalonData'
 
 const BookingPage = () => {
   const params = useParams()
@@ -13,20 +13,12 @@ const BookingPage = () => {
 
   // Estados principales
   const [currentStep, setCurrentStep] = useState(1)
-  const [salon, setSalon] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   // Estados del formulario
   const [selectedService, setSelectedService] = useState(null)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
-  const [availableSlots, setAvailableSlots] = useState([])
-  const [allSlots, setAllSlots] = useState([]) // Todos los slots con su estado
-  const [loadingSlots, setLoadingSlots] = useState(false)
-  const [daysStatus, setDaysStatus] = useState([])
-  const [loadingDays, setLoadingDays] = useState(false)
   
   const [clientData, setClientData] = useState({
     name: '',
@@ -35,107 +27,15 @@ const BookingPage = () => {
     notes: ''
   })
 
-  // Cargar datos del salón al inicio
-  useEffect(() => {
-    const handleLoadSalon = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`${API_BASE_URL}/public/salon/${username}`)
-        const data = await response.json()
-
-        if (data.success) {
-          setSalon(data.data)
-        } else {
-          setError('Salón no encontrado')
-        }
-      } catch (error) {
-        console.error('Error cargando salón:', error)
-        setError('Error al cargar el salón')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (username) {
-      handleLoadSalon()
-    }
-  }, [username])
-
-  // Cargar estado de días disponibles cuando se selecciona un servicio
-  useEffect(() => {
-    const handleLoadDaysStatus = async () => {
-      if (!selectedService) return
-
-      try {
-        setLoadingDays(true)
-        const today = new Date()
-        const futureDate = new Date()
-        futureDate.setDate(today.getDate() + 30) // Próximos 30 días
-
-        const startDate = today.toISOString().split('T')[0]
-        const endDate = futureDate.toISOString().split('T')[0]
-
-        const response = await fetch(
-          `${API_BASE_URL}/public/salon/${username}/days-status?startDate=${startDate}&endDate=${endDate}`
-        )
-        const data = await response.json()
-
-        if (data.success) {
-          setDaysStatus(data.data.days)
-        } else {
-          setError('Error al cargar disponibilidad de días')
-          setDaysStatus([])
-        }
-      } catch (error) {
-        console.error('Error cargando días:', error)
-        setError('Error al cargar disponibilidad')
-        setDaysStatus([])
-      } finally {
-        setLoadingDays(false)
-      }
-    }
-
-    handleLoadDaysStatus()
-  }, [selectedService, username])
-
-  // Cargar slots disponibles cuando se selecciona fecha
-  useEffect(() => {
-    const handleLoadAvailableSlots = async () => {
-      if (!selectedDate || !selectedService) return
-
-      try {
-        setLoadingSlots(true)
-        const response = await fetch(
-          `${API_BASE_URL}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id}`
-        )
-        const data = await response.json()
-
-        if (data.success) {
-          if (data.data.isBusinessDay) {
-            setAvailableSlots(data.data.availableSlots)
-            setAllSlots(data.data.allSlots)
-          } else {
-            setAvailableSlots([])
-            setAllSlots([])
-            setError(`${selectedDate}: ${data.data.reason}`)
-          }
-        } else {
-          setError('Error al cargar horarios disponibles')
-          setAvailableSlots([])
-          setAllSlots([])
-        }
-      } catch (error) {
-        console.error('Error cargando slots:', error)
-        setError('Error al cargar horarios')
-        setAvailableSlots([])
-        setAllSlots([])
-      } finally {
-        setLoadingSlots(false)
-      }
-    }
-
-    handleLoadAvailableSlots()
-  }, [selectedDate, selectedService, username])
+  // Hooks optimizados con caché
+  const { salon, loading, error } = useSalonDataOptimized(username)
+  const { daysStatus, loading: loadingDays } = useDaysStatus(username, selectedService)
+  const { 
+    availableSlots, 
+    allSlots, 
+    loading: loadingSlots, 
+    checkRealTimeAvailability 
+  } = useAvailableSlots(username, selectedDate, selectedService)
 
   // Función para avanzar al siguiente paso
   const handleNextStep = () => {
@@ -164,38 +64,20 @@ const BookingPage = () => {
   // Función para seleccionar hora
   const handleSelectTime = async (time) => {
     try {
-      setLoadingSlots(true)
-      setError('')
-
-      // Verificar disponibilidad en tiempo real
-      const response = await fetch(
-        `${API_BASE_URL}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id}`
-      )
-      const data = await response.json()
-
-      if (data.success && data.data.isBusinessDay) {
-        // Verificar si el horario seleccionado sigue disponible
-        const isStillAvailable = data.data.availableSlots.includes(time)
-        
-        if (!isStillAvailable) {
-          setError('Lo sentimos, este horario ya no está disponible. Por favor, selecciona otro horario.')
-          // Actualizar la lista de slots disponibles
-          setAvailableSlots(data.data.availableSlots)
-          setAllSlots(data.data.allSlots)
-          return
-        }
-
-        // Si el horario sigue disponible, proceder
-        setSelectedTime(time)
-        handleNextStep()
-      } else {
-        setError('Error al verificar disponibilidad. Por favor, intenta nuevamente.')
+      // Verificar disponibilidad en tiempo real usando el hook
+      const isStillAvailable = await checkRealTimeAvailability(time)
+      
+      if (!isStillAvailable) {
+        setError('Lo sentimos, este horario ya no está disponible. Por favor, selecciona otro horario.')
+        return
       }
+
+      // Si el horario sigue disponible, proceder
+      setSelectedTime(time)
+      handleNextStep()
     } catch (error) {
       console.error('Error verificando disponibilidad:', error)
       setError('Error al verificar disponibilidad')
-    } finally {
-      setLoadingSlots(false)
     }
   }
 

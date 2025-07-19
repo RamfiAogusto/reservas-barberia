@@ -1,41 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import PublicGallery from '@/components/PublicGallery'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+import { useSalonDataOptimized } from '@/utils/SalonContext'
 
 const PerfilPublico = () => {
   const { usuario } = useParams()
   const router = useRouter()
-  const [salon, setSalon] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    const fetchSalonProfile = async () => {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
-        const response = await fetch(`${apiUrl}/public/salon/${usuario}`)
-        const data = await response.json()
-
-        if (data.success) {
-          setSalon(data.data)
-        } else {
-          setError(data.message || 'Salón no encontrado')
-        }
-      } catch (error) {
-        console.error('Error al cargar perfil:', error)
-        setError('Error al cargar la información del salón')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (usuario) {
-      fetchSalonProfile()
-    }
-  }, [usuario])
+  const { salon, loading, error } = useSalonDataOptimized(usuario)
 
   const handleReservar = () => {
     router.push(`/${usuario}/book`)
