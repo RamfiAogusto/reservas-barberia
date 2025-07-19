@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import PublicGallery from '@/components/PublicGallery'
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+
 const PerfilPublico = () => {
   const { usuario } = useParams()
   const router = useRouter()

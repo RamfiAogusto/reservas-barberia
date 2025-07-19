@@ -1,0 +1,31 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Configuración específica para Next.js en Netlify
+[[redirects]]
+  from = "/_next/*"
+  to = "/_next/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+
+# Redirección para SPA (Single Page Application)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin" 
