@@ -20,6 +20,9 @@ const queueService = require('./services/queueService')
 
 const app = express()
 
+// Configurar trust proxy para rate limiting en producción
+app.set('trust proxy', 1)
+
 // Middleware de seguridad
 app.use(helmet())
 

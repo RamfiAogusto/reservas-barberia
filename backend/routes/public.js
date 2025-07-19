@@ -593,7 +593,7 @@ router.get('/salon/:username/days-status', async (req, res) => {
       const dateString = `${year}-${month}-${day}`
 
       // Verificar horarios base
-      const businessHours = await prisma.businessHours.findFirst({
+      const businessHours = await prisma.businessHour.findFirst({
         where: {
           userId: user.id,
           dayOfWeek: dayOfWeek

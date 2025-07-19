@@ -307,13 +307,27 @@ router.get('/exceptions', async (req, res) => {
 
     let exceptions
     if (startDate && endDate) {
-      exceptions = await ScheduleException.getByUserAndDateRange(
-        req.user.id,
-        new Date(startDate),
-        new Date(endDate)
-      )
+      exceptions = await prisma.scheduleException.findMany({
+        where: {
+          userId: req.user.id,
+          startDate: {
+            gte: new Date(startDate)
+          },
+          endDate: {
+            lte: new Date(endDate)
+          },
+          isActive: true
+        },
+        orderBy: { startDate: 'asc' }
+      })
     } else {
-      exceptions = await ScheduleException.getByUser(req.user.id)
+      exceptions = await prisma.scheduleException.findMany({
+        where: {
+          userId: req.user.id,
+          isActive: true
+        },
+        orderBy: { startDate: 'asc' }
+      })
     }
 
     res.json({
@@ -361,19 +375,19 @@ router.post('/exceptions', [
       reason
     } = req.body
 
-    const newException = new ScheduleException({
-      userId: req.user.id,
-      name,
-      exceptionType,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      specialStartTime,
-      specialEndTime,
-      isRecurringAnnually: isRecurringAnnually || false,
-      reason
+    const newException = await prisma.scheduleException.create({
+      data: {
+        userId: req.user.id,
+        name,
+        exceptionType: exceptionType.toUpperCase(),
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        specialStartTime,
+        specialEndTime,
+        isRecurringAnnually: isRecurringAnnually || false,
+        reason
+      }
     })
-
-    await newException.save()
 
     res.status(201).json({
       success: true,
@@ -411,9 +425,11 @@ router.put('/exceptions/:id', [
       })
     }
 
-    const exception = await ScheduleException.findOne({
-      _id: req.params.id,
-      userId: req.user.id
+    const exception = await prisma.scheduleException.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!exception) {
@@ -423,18 +439,22 @@ router.put('/exceptions/:id', [
       })
     }
 
-    // Actualizar campos
+    // Preparar datos para actualizar
+    const updateData = {}
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
         if (key === 'startDate' || key === 'endDate') {
-          exception[key] = new Date(req.body[key])
+          updateData[key] = new Date(req.body[key])
         } else {
-          exception[key] = req.body[key]
+          updateData[key] = req.body[key]
         }
       }
     })
 
-    await exception.save()
+    const updatedException = await prisma.scheduleException.update({
+      where: { id: req.params.id },
+      data: updateData
+    })
 
     res.json({
       success: true,
@@ -454,9 +474,11 @@ router.put('/exceptions/:id', [
 // DELETE /api/schedules/exceptions/:id - Eliminar excepción
 router.delete('/exceptions/:id', async (req, res) => {
   try {
-    const exception = await ScheduleException.findOne({
-      _id: req.params.id,
-      userId: req.user.id
+    const exception = await prisma.scheduleException.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!exception) {
@@ -466,8 +488,10 @@ router.delete('/exceptions/:id', async (req, res) => {
       })
     }
 
-    exception.isActive = false
-    await exception.save()
+    await prisma.scheduleException.update({
+      where: { id: req.params.id },
+      data: { isActive: false }
+    })
 
     res.json({
       success: true,
@@ -503,7 +527,13 @@ router.get('/availability/advanced', async (req, res) => {
     console.log(`🔍 Calculando disponibilidad para ${date} (día ${dayOfWeek})`)
 
     // 1. Obtener horarios base del día
-    const businessHours = await BusinessHours.getByUserAndDay(req.user.id, dayOfWeek)
+    const businessHours = await prisma.businessHour.findFirst({
+      where: {
+        userId: req.user.id,
+        dayOfWeek: dayOfWeek,
+        isActive: true
+      }
+    })
     
     console.log(`📅 Horarios encontrados:`, businessHours ? {
       dayOfWeek: businessHours.dayOfWeek,
@@ -528,7 +558,18 @@ router.get('/availability/advanced', async (req, res) => {
     console.log(`✅ Día laborable confirmado`)
 
     // 2. Verificar excepciones para esta fecha
-    const exceptions = await ScheduleException.getByUserAndDate(req.user.id, targetDate)
+    const exceptions = await prisma.scheduleException.findMany({
+      where: {
+        userId: req.user.id,
+        startDate: {
+          lte: targetDate
+        },
+        endDate: {
+          gte: targetDate
+        },
+        isActive: true
+      }
+    })
     
     // Si hay excepción de día libre
     const dayOffException = exceptions.find(ex => ex.isDayOff)
@@ -555,14 +596,36 @@ router.get('/availability/advanced', async (req, res) => {
     }
 
     // 4. Obtener descansos que aplican este día
-    const breaks = await RecurringBreak.getByUserAndDay(req.user.id, dayOfWeek)
+    const breaks = await prisma.recurringBreak.findMany({
+      where: {
+        userId: req.user.id,
+        isActive: true,
+        OR: [
+          { recurrenceType: 'DAILY' },
+          { recurrenceType: 'WEEKLY' },
+          {
+            recurrenceType: 'SPECIFIC_DAYS',
+            specificDays: {
+              has: dayOfWeek
+            }
+          }
+        ]
+      }
+    })
 
     // 5. Obtener citas existentes
-    const existingAppointments = await Appointment.find({
-      userId: req.user.id,
-      date: targetDate,
-      status: { $nin: ['cancelada', 'no_asistio'] }
-    }).select('time')
+    const existingAppointments = await prisma.appointment.findMany({
+      where: {
+        userId: req.user.id,
+        date: targetDate,
+        status: {
+          notIn: ['CANCELADA', 'NO_ASISTIO']
+        }
+      },
+      select: {
+        time: true
+      }
+    })
 
     // 6. Generar slots disponibles considerando todo
     const slots = generateAdvancedSlots({
