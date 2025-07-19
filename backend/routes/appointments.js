@@ -290,8 +290,16 @@ router.post('/', [
       }
     })
 
-    // Populate para la respuesta
-    await newAppointment.populate('serviceId', 'name duration price category')
+    // Obtener datos del servicio para la respuesta
+    const serviceData = await prisma.service.findFirst({
+      where: { id: newAppointment.serviceId },
+      select: {
+        name: true,
+        duration: true,
+        price: true,
+        category: true
+      }
+    })
 
     // Preparar datos para el email de confirmación
     try {
@@ -301,8 +309,8 @@ router.post('/', [
       const bookingData = {
         clientName,
         clientEmail,
-        salonName: salonOwner.salon_name || salonOwner.username,
-        serviceName: newAppointment.serviceId.name,
+        salonName: salonOwner.salonName || salonOwner.username,
+        serviceName: serviceData.name,
         date: format(new Date(date), 'PPP', { locale: es }),
         time,
         price: service.price,
@@ -480,17 +488,28 @@ router.put('/:id', [
     // Guardar estado anterior para verificar si se está cancelando
     const previousStatus = appointment.status
 
-    // Actualizar campos
+    // Preparar datos para actualizar
+    const updateData = {}
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
-        appointment[key] = req.body[key]
+        updateData[key] = req.body[key]
       }
     })
 
-    await appointment.save()
-
-    // Populate para la respuesta
-    await appointment.populate('serviceId', 'name duration price category')
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: req.params.id },
+      data: updateData,
+      include: {
+        service: {
+          select: {
+            name: true,
+            duration: true,
+            price: true,
+            category: true
+          }
+        }
+      }
+    })
 
     // Enviar email de cancelación si corresponde
     if (req.body.status === 'CANCELADA' && previousStatus !== 'CANCELADA') {
@@ -500,12 +519,12 @@ router.put('/:id', [
           where: { id: req.user.id }
         })
         const bookingData = {
-          clientName: appointment.clientName,
-          clientEmail: appointment.clientEmail,
-          salonName: salonOwner.salon_name || salonOwner.username,
-          serviceName: appointment.serviceId.name,
-          date: format(appointment.date, 'PPP', { locale: es }),
-          time: appointment.time,
+          clientName: updatedAppointment.clientName,
+          clientEmail: updatedAppointment.clientEmail,
+          salonName: salonOwner.salonName || salonOwner.username,
+          serviceName: updatedAppointment.service.name,
+          date: format(updatedAppointment.date, 'PPP', { locale: es }),
+          time: updatedAppointment.time,
           salonPhone: salonOwner.phone || 'Teléfono no especificado'
         }
 
@@ -529,7 +548,7 @@ router.put('/:id', [
           })
 
         // Cancelar recordatorio programado (no bloqueante)
-        queueService.cancelReminder(appointment.id.toString())
+        queueService.cancelReminder(updatedAppointment.id.toString())
           .then(result => {
             if (result.success) {
               console.log('🗑️ Recordatorio cancelado exitosamente')
@@ -549,7 +568,7 @@ router.put('/:id', [
     res.json({
       success: true,
       message: 'Cita actualizada exitosamente',
-      data: appointment
+      data: updatedAppointment
     })
   } catch (error) {
     console.error('Error actualizando cita:', error)
@@ -578,7 +597,9 @@ router.delete('/:id', async (req, res) => {
       })
     }
 
-    await appointment.deleteOne()
+    await prisma.appointment.delete({
+      where: { id: req.params.id }
+    })
 
     res.json({
       success: true,

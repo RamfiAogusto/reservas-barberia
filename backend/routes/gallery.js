@@ -232,10 +232,13 @@ router.put('/reorder', async (req, res) => {
     for (const item of items) {
       if (!item.id || item.order === undefined) continue
 
-      await BusinessImage.findOneAndUpdate(
-        { _id: item.id, userId: req.user.id },
-        { order: item.order }
-      )
+      await prisma.businessImage.update({
+        where: { 
+          id: item.id,
+          userId: req.user.id 
+        },
+        data: { order: item.order }
+      })
     }
 
     res.json({

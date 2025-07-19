@@ -230,9 +230,11 @@ router.put('/recurring-breaks/:id', [
       })
     }
 
-    const breakRecord = await RecurringBreak.findOne({
-      _id: req.params.id,
-      userId: req.user.id
+    const breakRecord = await prisma.recurringBreak.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!breakRecord) {
@@ -242,14 +244,18 @@ router.put('/recurring-breaks/:id', [
       })
     }
 
-    // Actualizar campos
+    // Preparar datos para actualizar
+    const updateData = {}
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
-        breakRecord[key] = req.body[key]
+        updateData[key] = req.body[key]
       }
     })
 
-    await breakRecord.save()
+    const updatedBreak = await prisma.recurringBreak.update({
+      where: { id: req.params.id },
+      data: updateData
+    })
 
     res.json({
       success: true,
@@ -269,9 +275,11 @@ router.put('/recurring-breaks/:id', [
 // DELETE /api/schedules/recurring-breaks/:id - Eliminar descanso recurrente
 router.delete('/recurring-breaks/:id', async (req, res) => {
   try {
-    const breakRecord = await RecurringBreak.findOne({
-      _id: req.params.id,
-      userId: req.user.id
+    const breakRecord = await prisma.recurringBreak.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
     })
 
     if (!breakRecord) {
@@ -281,8 +289,10 @@ router.delete('/recurring-breaks/:id', async (req, res) => {
       })
     }
 
-    breakRecord.isActive = false
-    await breakRecord.save()
+    await prisma.recurringBreak.update({
+      where: { id: req.params.id },
+      data: { isActive: false }
+    })
 
     res.json({
       success: true,

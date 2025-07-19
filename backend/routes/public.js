@@ -760,8 +760,16 @@ router.post('/salon/:username/book', [
       }
     })
 
-    // Poblar con datos del servicio para la respuesta
-    await newAppointment.populate('serviceId', 'name duration price category')
+    // Obtener datos del servicio para la respuesta
+    const serviceData = await prisma.service.findFirst({
+      where: { id: newAppointment.serviceId },
+      select: {
+        name: true,
+        duration: true,
+        price: true,
+        category: true
+      }
+    })
 
     // Preparar y enviar email de confirmación
     try {
@@ -769,7 +777,7 @@ router.post('/salon/:username/book', [
         clientName,
         clientEmail,
         salonName: user.salonName || user.username,
-        serviceName: newAppointment.serviceId.name,
+        serviceName: serviceData.name,
         date: format(appointmentDate, 'PPP', { locale: es }),
         time,
         price: service.price,
@@ -820,7 +828,7 @@ router.post('/salon/:username/book', [
       data: {
         appointmentId: newAppointment.id,
         clientName: newAppointment.clientName,
-        service: newAppointment.serviceId.name,
+        service: serviceData.name,
         date: newAppointment.date.toISOString().split('T')[0],
         time: newAppointment.time,
         status: newAppointment.status,
