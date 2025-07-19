@@ -110,14 +110,6 @@ export const SalonProvider = ({ children }) => {
       })
       return null
     }
-    } catch (error) {
-      console.error('Error al cargar perfil:', error)
-      dispatch({ 
-        type: ACTIONS.SET_ERROR, 
-        payload: { username, error: 'Error al cargar la información del salón' } 
-      })
-      return null
-    }
   }, [state.salonData, state.loadingStates])
 
   // Función para invalidar caché
