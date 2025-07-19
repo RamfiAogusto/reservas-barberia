@@ -2,14 +2,10 @@
 const nextConfig = {
   images: {
     domains: ['localhost', 'res.cloudinary.com'],
-    unoptimized: true,
   },
   // Configuración para mejor desarrollo
   reactStrictMode: true,
   swcMinify: true,
-  // Configuración para Netlify
-  output: 'export',
-  trailingSlash: true,
   // Configuración específica para evitar problemas de hot reload
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {
