@@ -3,6 +3,15 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import PublicGallery from '@/components/PublicGallery'
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+
+// Función para generar parámetros estáticos
+export async function generateStaticParams() {
+  // Para desarrollo, retornar un array vacío
+  // En producción, podrías obtener la lista de usuarios desde tu API
+  return []
+}
+
 const PerfilPublico = () => {
   const { usuario } = useParams()
   const router = useRouter()
