@@ -1,11 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'res.cloudinary.com'],
+    unoptimized: true, // Necesario para Netlify
   },
   // Configuración para mejor desarrollo
   reactStrictMode: true,
   swcMinify: true,
+  // Configuración para Netlify
+  output: 'export', // Para generar archivos estáticos
+  trailingSlash: true, // Necesario para Netlify
   // Configuración específica para evitar problemas de hot reload
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {
