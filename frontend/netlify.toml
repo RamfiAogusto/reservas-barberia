@@ -10,6 +10,17 @@
   to = "/index.html"
   status = 200
 
+# Configuración específica para Next.js
+[[redirects]]
+  from = "/_next/*"
+  to = "/_next/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
