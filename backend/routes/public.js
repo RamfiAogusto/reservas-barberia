@@ -230,7 +230,7 @@ router.get('/salon/:username/availability', async (req, res) => {
     const dayOfWeek = requestedDate.getDay()
 
     // 1. Verificar horarios base del día
-    const businessHours = await prisma.businessHours.findFirst({
+    const businessHours = await prisma.businessHour.findFirst({
       where: {
         userId: user.id,
         dayOfWeek: dayOfWeek
@@ -409,7 +409,7 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     const dayOfWeek = targetDate.getDay()
 
     // 1. Obtener horarios base
-    const businessHours = await prisma.businessHours.findFirst({
+    const businessHours = await prisma.businessHour.findFirst({
       where: {
         userId: user.id,
         dayOfWeek: dayOfWeek
