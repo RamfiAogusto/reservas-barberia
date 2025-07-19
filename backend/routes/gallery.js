@@ -82,7 +82,7 @@ router.post('/', upload.single('image'), handleUploadErrors, async (req, res) =>
 
     // Subir imagen a Cloudinary
     const uploadResult = await cloudinaryService.uploadImage(req.file.buffer, {
-      folder: `reservas_barberia/${req.user._id}`,
+      folder: `reservas_barberia/${req.user.id}`,
       public_id: `business_${Date.now()}`
     })
 
@@ -233,7 +233,7 @@ router.put('/reorder', async (req, res) => {
       if (!item.id || item.order === undefined) continue
 
       await BusinessImage.findOneAndUpdate(
-        { _id: item.id, userId: req.user._id },
+        { _id: item.id, userId: req.user.id },
         { order: item.order }
       )
     }

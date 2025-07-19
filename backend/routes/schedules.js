@@ -61,7 +61,7 @@ router.put('/business-hours', [
     }
 
     const { schedule } = req.body
-    const userId = req.user._id
+    const userId = req.user.id
 
     // Procesar cada día de la semana
     for (const daySchedule of schedule) {
@@ -232,7 +232,7 @@ router.put('/recurring-breaks/:id', [
 
     const breakRecord = await RecurringBreak.findOne({
       _id: req.params.id,
-      userId: req.user._id
+      userId: req.user.id
     })
 
     if (!breakRecord) {
@@ -271,7 +271,7 @@ router.delete('/recurring-breaks/:id', async (req, res) => {
   try {
     const breakRecord = await RecurringBreak.findOne({
       _id: req.params.id,
-      userId: req.user._id
+      userId: req.user.id
     })
 
     if (!breakRecord) {
@@ -308,12 +308,12 @@ router.get('/exceptions', async (req, res) => {
     let exceptions
     if (startDate && endDate) {
       exceptions = await ScheduleException.getByUserAndDateRange(
-        req.user._id,
+        req.user.id,
         new Date(startDate),
         new Date(endDate)
       )
     } else {
-      exceptions = await ScheduleException.getByUser(req.user._id)
+      exceptions = await ScheduleException.getByUser(req.user.id)
     }
 
     res.json({
@@ -362,7 +362,7 @@ router.post('/exceptions', [
     } = req.body
 
     const newException = new ScheduleException({
-      userId: req.user._id,
+      userId: req.user.id,
       name,
       exceptionType,
       startDate: new Date(startDate),
@@ -413,7 +413,7 @@ router.put('/exceptions/:id', [
 
     const exception = await ScheduleException.findOne({
       _id: req.params.id,
-      userId: req.user._id
+      userId: req.user.id
     })
 
     if (!exception) {
@@ -456,7 +456,7 @@ router.delete('/exceptions/:id', async (req, res) => {
   try {
     const exception = await ScheduleException.findOne({
       _id: req.params.id,
-      userId: req.user._id
+      userId: req.user.id
     })
 
     if (!exception) {
@@ -503,7 +503,7 @@ router.get('/availability/advanced', async (req, res) => {
     console.log(`🔍 Calculando disponibilidad para ${date} (día ${dayOfWeek})`)
 
     // 1. Obtener horarios base del día
-    const businessHours = await BusinessHours.getByUserAndDay(req.user._id, dayOfWeek)
+    const businessHours = await BusinessHours.getByUserAndDay(req.user.id, dayOfWeek)
     
     console.log(`📅 Horarios encontrados:`, businessHours ? {
       dayOfWeek: businessHours.dayOfWeek,
@@ -528,7 +528,7 @@ router.get('/availability/advanced', async (req, res) => {
     console.log(`✅ Día laborable confirmado`)
 
     // 2. Verificar excepciones para esta fecha
-    const exceptions = await ScheduleException.getByUserAndDate(req.user._id, targetDate)
+    const exceptions = await ScheduleException.getByUserAndDate(req.user.id, targetDate)
     
     // Si hay excepción de día libre
     const dayOffException = exceptions.find(ex => ex.isDayOff)
@@ -555,11 +555,11 @@ router.get('/availability/advanced', async (req, res) => {
     }
 
     // 4. Obtener descansos que aplican este día
-    const breaks = await RecurringBreak.getByUserAndDay(req.user._id, dayOfWeek)
+    const breaks = await RecurringBreak.getByUserAndDay(req.user.id, dayOfWeek)
 
     // 5. Obtener citas existentes
     const existingAppointments = await Appointment.find({
-      userId: req.user._id,
+      userId: req.user.id,
       date: targetDate,
       status: { $nin: ['cancelada', 'no_asistio'] }
     }).select('time')

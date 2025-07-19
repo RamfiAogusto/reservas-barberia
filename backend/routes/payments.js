@@ -12,7 +12,7 @@ router.post('/create-payment-intent', async (req, res) => {
     res.json({ 
       success: true,
       message: 'Intención de pago creada',
-      userId: req.user._id 
+      userId: req.user.id 
     })
   } catch (error) {
     console.error('Error creando intención de pago:', error)
@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
     res.json({ 
       success: true,
       message: 'Historial de pagos',
-      userId: req.user._id,
+      userId: req.user.id,
       payments: [] // Placeholder
     })
   } catch (error) {

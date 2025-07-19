@@ -10,7 +10,7 @@ router.use('/profile', authenticateToken)
 router.get('/profile', async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user._id },
+      where: { id: req.user.id },
       select: {
         id: true,
         username: true,
@@ -53,7 +53,7 @@ router.put('/profile', async (req, res) => {
     const { salonName, phone, address, avatar } = req.body
     
     const user = await prisma.user.update({
-      where: { id: req.user._id },
+      where: { id: req.user.id },
       data: { salonName, phone, address, avatar },
       select: {
         id: true,
