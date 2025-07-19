@@ -94,6 +94,7 @@ const ServicesPage = () => {
         ...formData,
         price: parseFloat(formData.price),
         duration: parseInt(formData.duration),
+        category: formData.category.toUpperCase(),
         depositAmount: formData.requiresPayment ? parseFloat(formData.depositAmount || 0) : 0
       }
 
