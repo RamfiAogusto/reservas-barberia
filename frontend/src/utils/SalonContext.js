@@ -71,6 +71,11 @@ export const SalonProvider = ({ children }) => {
       return state.salonData.get(username)
     }
 
+    // Verificar si ya hay un error (evitar reintentos infinitos)
+    if (state.errorStates.get(username)) {
+      return null // Ya hay un error, no reintentar
+    }
+
     // Verificar si ya está cargando
     if (state.loadingStates.get(username)) {
       return null // Ya se está cargando
@@ -105,6 +110,14 @@ export const SalonProvider = ({ children }) => {
       })
       return null
     }
+    } catch (error) {
+      console.error('Error al cargar perfil:', error)
+      dispatch({ 
+        type: ACTIONS.SET_ERROR, 
+        payload: { username, error: 'Error al cargar la información del salón' } 
+      })
+      return null
+    }
   }, [state.salonData, state.loadingStates])
 
   // Función para invalidar caché
@@ -126,6 +139,18 @@ export const SalonProvider = ({ children }) => {
     dispatch({ type: ACTIONS.CLEAR_SALON_DATA })
   }, [])
 
+  // Función para limpiar error específico y permitir reintento
+  const clearError = useCallback((username) => {
+    if (username) {
+      const newErrorStates = new Map(state.errorStates)
+      newErrorStates.delete(username)
+      dispatch({ 
+        type: ACTIONS.SET_ERROR, 
+        payload: { username, error: null } 
+      })
+    }
+  }, [state.errorStates])
+
   const value = {
     // Estado
     salonData: state.salonData,
@@ -136,6 +161,7 @@ export const SalonProvider = ({ children }) => {
     getSalonData,
     invalidateSalonCache,
     clearAllData,
+    clearError,
     
     // Helpers
     getSalon: (username) => state.salonData.get(username),
@@ -161,23 +187,26 @@ export const useSalonContext = () => {
 
 // Hook optimizado para datos del salón
 export const useSalonDataOptimized = (username) => {
-  const { getSalonData, getSalon, isLoading, getError } = useSalonContext()
+  const { getSalonData, getSalon, isLoading, getError, clearError } = useSalonContext()
   
   const salon = getSalon(username)
   const loading = isLoading(username)
   const error = getError(username)
 
-  // Cargar datos si no están disponibles y no está cargando
+  // Cargar datos solo una vez cuando el componente se monta
   React.useEffect(() => {
-    if (username && !salon && !loading) {
+    if (username && !salon && !loading && !error) {
       getSalonData(username)
     }
-  }, [username, salon, loading, getSalonData])
+  }, [username]) // Solo depende de username para evitar bucles
 
   return {
     salon,
     loading,
     error,
-    refetch: () => getSalonData(username)
+    refetch: () => {
+      clearError(username) // Limpiar error antes de reintentar
+      getSalonData(username)
+    }
   }
 } 

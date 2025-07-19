@@ -104,8 +104,10 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null) => {
       throw new Error(data.message || `Error ${response.status}`)
     }
 
-    // Guardar en caché
-    apiCache.set(key, data, ttl)
+    // Solo guardar en caché si la respuesta es exitosa
+    if (data.success !== false) {
+      apiCache.set(key, data, ttl)
+    }
     return data
   } catch (error) {
     console.error(`Error en petición cacheada a ${endpoint}:`, error)

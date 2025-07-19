@@ -3,7 +3,7 @@
 import { useSalonContext } from '@/utils/SalonContext'
 
 const SalonDebug = ({ username }) => {
-  const { salonData, loadingStates, errorStates, getSalonData } = useSalonContext()
+  const { salonData, loadingStates, errorStates, getSalonData, clearError } = useSalonContext()
   
   const salon = salonData.get(username)
   const loading = loadingStates.get(username)
@@ -18,13 +18,22 @@ const SalonDebug = ({ username }) => {
         <div>Has Data: {salon ? 'Yes' : 'No'}</div>
         <div>Error: {error || 'None'}</div>
         <div>Data Keys: {Array.from(salonData.keys()).join(', ')}</div>
+        <div>Error Keys: {Array.from(errorStates.keys()).join(', ')}</div>
       </div>
-      <button
-        onClick={() => getSalonData(username)}
-        className="bg-blue-600 px-2 py-1 rounded text-xs hover:bg-blue-700 mt-2"
-      >
-        Load Data
-      </button>
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={() => getSalonData(username)}
+          className="bg-blue-600 px-2 py-1 rounded text-xs hover:bg-blue-700"
+        >
+          Load Data
+        </button>
+        <button
+          onClick={() => clearError(username)}
+          className="bg-yellow-600 px-2 py-1 rounded text-xs hover:bg-yellow-700"
+        >
+          Clear Error
+        </button>
+      </div>
     </div>
   )
 }
