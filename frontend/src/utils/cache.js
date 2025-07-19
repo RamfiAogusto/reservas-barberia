@@ -89,7 +89,12 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null) => {
 
   // Si no está en caché, hacer la petición
   console.log(`🌐 API call: ${endpoint}`)
-  const url = new URL(endpoint, process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api')
+  console.log(`🔧 NEXT_PUBLIC_API_URL:`, process.env.NEXT_PUBLIC_API_URL)
+  
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+  const url = new URL(endpoint, baseURL)
+  
+  console.log(`🔗 URL construida:`, url.toString())
   
   // Agregar parámetros a la URL
   Object.keys(params).forEach(key => {
@@ -97,10 +102,14 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null) => {
   })
 
   try {
+    console.log(`📡 Haciendo petición a:`, url.toString())
     const response = await fetch(url.toString())
+    console.log(`📥 Respuesta del servidor:`, response.status, response.statusText)
+    
     const data = await response.json()
 
     if (!response.ok) {
+      console.error(`❌ Error en respuesta:`, data)
       throw new Error(data.message || `Error ${response.status}`)
     }
 
