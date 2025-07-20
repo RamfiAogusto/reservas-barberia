@@ -3,6 +3,9 @@ const cors = require('cors')
 const helmet = require('helmet')
 const rateLimit = require('express-rate-limit')
 const { checkConnection } = require('./lib/prisma')
+// Configuración de zona horaria para México
+process.env.TZ = 'America/Mexico_City'
+
 require('dotenv').config()
 
 // Importar rutas

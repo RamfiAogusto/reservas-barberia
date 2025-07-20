@@ -1003,23 +1003,18 @@ function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppoi
     }
   })
   
-  // Si es hoy, marcar horarios que ya pasaron
-  const now = new Date()
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Si es hoy, marcar horarios que ya pasaron usando la nueva utilidad
+  const { isToday, isTimePassed } = require('../utils/timeUtils')
   
-  if (targetDate.getTime() === today.getTime()) {
-    const currentHour = now.getHours()
-    const currentMinute = now.getMinutes()
-    
+  if (isToday(targetDate)) {
     allSlots.forEach(slot => {
-      const [slotHour, slotMinute] = slot.time.split(':').map(Number)
-      const slotStartMinutes = slotHour * 60 + slotMinute
-      const currentMinutes = currentHour * 60 + currentMinute
-      
       // El servicio debe poder completarse después del tiempo actual + buffer
       const bufferMinutes = 15
-      if (slotStartMinutes < currentMinutes + bufferMinutes) {
+      const slotWithBuffer = new Date()
+      const [slotHour, slotMinute] = slot.time.split(':').map(Number)
+      slotWithBuffer.setHours(slotHour, slotMinute + bufferMinutes, 0, 0)
+      
+      if (isTimePassed(slot.time, 'America/Mexico_City')) {
         slot.available = false
         slot.reason = 'Horario pasado'
       }

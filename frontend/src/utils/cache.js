@@ -77,18 +77,24 @@ class APICache {
 const apiCache = new APICache()
 
 // Función para hacer peticiones con caché
-export const cachedRequest = async (endpoint, params = {}, ttl = null) => {
+export const cachedRequest = async (endpoint, params = {}, ttl = null, fetchOptions = {}) => {
   const key = apiCache.generateKey(endpoint, params)
   
-  // Intentar obtener del caché primero
-  const cachedData = apiCache.get(key)
-  if (cachedData) {
-    console.log(`📦 Cache hit: ${endpoint}`)
-    return cachedData
+  // Para peticiones POST, PUT, DELETE, no usar caché
+  const method = fetchOptions.method || 'GET'
+  const isModifyingRequest = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method.toUpperCase())
+  
+  // Solo intentar obtener del caché para peticiones GET
+  if (!isModifyingRequest) {
+    const cachedData = apiCache.get(key)
+    if (cachedData) {
+      console.log(`📦 Cache hit: ${endpoint}`)
+      return cachedData
+    }
   }
 
-  // Si no está en caché, hacer la petición
-  console.log(`🌐 API call: ${endpoint}`)
+  // Si no está en caché o es petición modificadora, hacer la petición
+  console.log(`🌐 API call: ${endpoint} (${method})`)
   console.log(`🔧 NEXT_PUBLIC_API_URL:`, process.env.NEXT_PUBLIC_API_URL)
   
   const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
@@ -102,14 +108,30 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null) => {
   
   console.log(`🔗 URL construida:`, url.toString())
   
-  // Agregar parámetros a la URL
-  Object.keys(params).forEach(key => {
-    url.searchParams.append(key, params[key])
-  })
+  // Agregar parámetros a la URL solo para peticiones GET
+  if (!isModifyingRequest) {
+    Object.keys(params).forEach(key => {
+      url.searchParams.append(key, params[key])
+    })
+  }
 
   try {
-    console.log(`📡 Haciendo petición a:`, url.toString())
-    const response = await fetch(url.toString())
+    console.log(`📡 Haciendo petición ${method} a:`, url.toString())
+    
+    // Configurar opciones de fetch
+    const fetchConfig = {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...fetchOptions.headers
+      },
+      ...fetchOptions
+    }
+    
+    // Para peticiones modificadoras, usar la URL base sin parámetros
+    const requestURL = isModifyingRequest ? fullURL : url.toString()
+    
+    const response = await fetch(requestURL, fetchConfig)
     console.log(`📥 Respuesta del servidor:`, response.status, response.statusText)
     
     const data = await response.json()
@@ -119,8 +141,8 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null) => {
       throw new Error(data.message || `Error ${response.status}`)
     }
 
-    // Solo guardar en caché si la respuesta es exitosa
-    if (data.success !== false) {
+    // Solo guardar en caché si la respuesta es exitosa y es GET
+    if (!isModifyingRequest && data.success !== false) {
       apiCache.set(key, data, ttl)
     }
     return data

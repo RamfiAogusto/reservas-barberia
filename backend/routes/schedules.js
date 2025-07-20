@@ -682,6 +682,8 @@ router.get('/availability/advanced', async (req, res) => {
 // Función helper para generar slots avanzados
 function generateAdvancedSlots({ startTime, endTime, breaks = [], existingAppointments = [], slotDuration, targetDate }) {
   try {
+    const { isToday, filterPastSlots, getTimezoneDebugInfo } = require('../utils/timeUtils')
+    
     console.log('🔧 Generando slots con parámetros:', {
       startTime,
       endTime,
@@ -690,6 +692,10 @@ function generateAdvancedSlots({ startTime, endTime, breaks = [], existingAppoin
       slotDuration,
       targetDate: targetDate ? targetDate.toISOString() : 'undefined'
     })
+
+    // Debug de zona horaria
+    const timezoneInfo = getTimezoneDebugInfo()
+    console.log('🕐 Información de zona horaria:', timezoneInfo)
 
     // Convertir horarios a minutos
     const [startHour, startMin] = startTime.split(':').map(Number)
@@ -751,24 +757,11 @@ function generateAdvancedSlots({ startTime, endTime, breaks = [], existingAppoin
       console.log(`   ☕ No hay descansos que procesar`)
     }
     
-    // Si es hoy, filtrar horarios que ya pasaron
-    const now = new Date()
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    if (targetDate.getTime() === today.getTime()) {
+    // Si es hoy, filtrar horarios que ya pasaron usando la nueva utilidad
+    if (isToday(targetDate)) {
       console.log(`   🕐 Filtrando horarios pasados (es hoy)`)
-      const currentHour = now.getHours()
-      const currentMinute = now.getMinutes()
-      
       const beforeTimeFilter = availableSlots.length
-      availableSlots = availableSlots.filter(slot => {
-        const [slotHour, slotMinute] = slot.split(':').map(Number)
-        if (slotHour > currentHour) return true
-        if (slotHour === currentHour && slotMinute > currentMinute + 30) return true // 30 min buffer
-        return false
-      })
-      
+      availableSlots = filterPastSlots(availableSlots, 30) // 30 min buffer
       console.log(`   Después de filtrar tiempo: ${beforeTimeFilter} -> ${availableSlots.length}`)
     }
     

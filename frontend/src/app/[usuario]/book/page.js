@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSalonDataOptimized } from '@/utils/SalonContext'
 import { useDaysStatus, useAvailableSlots } from '@/utils/useSalonData'
+import { cachedRequest } from '@/utils/cache'
 
 const BookingPage = () => {
   const params = useParams()
@@ -100,15 +101,13 @@ const BookingPage = () => {
         notes: clientData.notes
       }
 
-      const response = await fetch(`${API_BASE_URL}/public/salon/${username}/book`, {
+      const data = await cachedRequest(`/public/salon/${username}/book`, {}, null, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(bookingData)
       })
-
-      const data = await response.json()
 
       if (data.success) {
         // Redirigir a página de confirmación o mostrar mensaje
