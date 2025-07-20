@@ -92,7 +92,13 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null) => {
   console.log(`🔧 NEXT_PUBLIC_API_URL:`, process.env.NEXT_PUBLIC_API_URL)
   
   const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
-  const url = new URL(endpoint, baseURL)
+  
+  // Construir URL correctamente para evitar que se elimine /api
+  const fullURL = endpoint.startsWith('/') 
+    ? `${baseURL}${endpoint}`
+    : `${baseURL}/${endpoint}`
+  
+  const url = new URL(fullURL)
   
   console.log(`🔗 URL construida:`, url.toString())
   
