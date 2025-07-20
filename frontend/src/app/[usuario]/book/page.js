@@ -34,7 +34,10 @@ const BookingPage = () => {
     availableSlots, 
     allSlots, 
     loading: loadingSlots, 
-    checkRealTimeAvailability 
+    checkRealTimeAvailability,
+    setAvailableSlots,
+    setAllSlots,
+    setError
   } = useAvailableSlots(username, selectedDate, selectedService)
 
   // Función para avanzar al siguiente paso

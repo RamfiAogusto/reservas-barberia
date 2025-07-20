@@ -199,7 +199,10 @@ export const useAvailableSlots = (username, selectedDate, selectedService) => {
     loading,
     error,
     refetch: fetchAvailableSlots,
-    checkRealTimeAvailability
+    checkRealTimeAvailability,
+    setAvailableSlots,
+    setAllSlots,
+    setError
   }
 }
 
