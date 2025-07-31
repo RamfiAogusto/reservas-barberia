@@ -18,7 +18,8 @@ const ServicesPage = () => {
     duration: '',
     category: 'corte',
     requiresPayment: false,
-    depositAmount: ''
+    depositAmount: '',
+    showDuration: true
   })
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -68,8 +69,10 @@ const ServicesPage = () => {
       newErrors.price = 'El precio debe ser mayor a 0'
     }
 
-    if (!formData.duration || formData.duration < 5) {
-      newErrors.duration = 'La duración debe ser al menos 5 minutos'
+    if (!formData.duration || formData.duration < 30) {
+      newErrors.duration = 'La duración debe ser al menos 30 minutos'
+    } else if (formData.duration % 30 !== 0) {
+      newErrors.duration = 'La duración debe ser en bloques de 30 minutos'
     }
 
     if (formData.requiresPayment && (!formData.depositAmount || formData.depositAmount <= 0)) {
@@ -136,7 +139,8 @@ const ServicesPage = () => {
       duration: service.duration.toString(),
       category: service.category,
       requiresPayment: service.requiresPayment,
-      depositAmount: service.depositAmount ? service.depositAmount.toString() : ''
+      depositAmount: service.depositAmount ? service.depositAmount.toString() : '',
+      showDuration: service.showDuration !== undefined ? service.showDuration : true
     })
     setShowModal(true)
   }
@@ -169,7 +173,8 @@ const ServicesPage = () => {
       duration: '',
       category: 'corte',
       requiresPayment: false,
-      depositAmount: ''
+      depositAmount: '',
+      showDuration: true
     })
     setErrors({})
   }
@@ -183,7 +188,8 @@ const ServicesPage = () => {
       duration: '',
       category: 'corte',
       requiresPayment: false,
-      depositAmount: ''
+      depositAmount: '',
+      showDuration: true
     })
     setErrors({})
     setShowModal(true)
@@ -271,6 +277,9 @@ const ServicesPage = () => {
                       Duración
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Visible
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Pago
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -299,6 +308,17 @@ const ServicesPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {service.formattedDuration ? service.formattedDuration : formatDuration(service.duration)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {service.showDuration ? (
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            Sí
+                          </span>
+                        ) : (
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            No
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {service.requiresPayment ? (
@@ -414,18 +434,32 @@ const ServicesPage = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Duración (minutos) *
                     </label>
-                    <input
-                      type="number"
+                    <select
                       name="duration"
                       value={formData.duration}
                       onChange={handleInputChange}
-                      min="5"
-                      max="480"
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors.duration ? 'border-red-500' : 'border-gray-300'
                       }`}
-                      placeholder="30"
-                    />
+                    >
+                      <option value="">Seleccionar duración</option>
+                      <option value="30">30 minutos</option>
+                      <option value="60">1 hora</option>
+                      <option value="90">1 hora 30 minutos</option>
+                      <option value="120">2 horas</option>
+                      <option value="150">2 horas 30 minutos</option>
+                      <option value="180">3 horas</option>
+                      <option value="210">3 horas 30 minutos</option>
+                      <option value="240">4 horas</option>
+                      <option value="270">4 horas 30 minutos</option>
+                      <option value="300">5 horas</option>
+                      <option value="330">5 horas 30 minutos</option>
+                      <option value="360">6 horas</option>
+                      <option value="390">6 horas 30 minutos</option>
+                      <option value="420">7 horas</option>
+                      <option value="450">7 horas 30 minutos</option>
+                      <option value="480">8 horas</option>
+                    </select>
                     {errors.duration && <p className="mt-1 text-sm text-red-600">{errors.duration}</p>}
                   </div>
                 </div>
@@ -449,6 +483,19 @@ const ServicesPage = () => {
                 </div>
 
                 <div className="border-t pt-4">
+                  <div className="flex items-center mb-4">
+                    <input
+                      type="checkbox"
+                      name="showDuration"
+                      checked={formData.showDuration}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 block text-sm text-gray-900">
+                      Mostrar duración del servicio en el perfil público
+                    </label>
+                  </div>
+
                   <div className="flex items-center">
                     <input
                       type="checkbox"

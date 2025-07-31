@@ -80,8 +80,14 @@ router.post('/', [
     .isFloat({ min: 0 })
     .withMessage('El precio debe ser mayor o igual a 0'),
   body('duration')
-    .isInt({ min: 5, max: 480 })
-    .withMessage('La duración debe estar entre 5 y 480 minutos'),
+    .isInt({ min: 30, max: 480 })
+    .withMessage('La duración debe estar entre 30 y 480 minutos')
+    .custom((value) => {
+      if (value % 30 !== 0) {
+        throw new Error('La duración debe ser en bloques de 30 minutos')
+      }
+      return true
+    }),
   body('description')
     .optional()
     .trim()
@@ -100,7 +106,11 @@ router.post('/', [
     .isNumeric()
     .withMessage('El monto del depósito debe ser un número')
     .isFloat({ min: 0 })
-    .withMessage('El monto del depósito debe ser mayor o igual a 0')
+    .withMessage('El monto del depósito debe ser mayor o igual a 0'),
+  body('showDuration')
+    .optional()
+    .isBoolean()
+    .withMessage('showDuration debe ser true o false')
 ], async (req, res) => {
   try {
 
@@ -116,7 +126,7 @@ router.post('/', [
       })
     }
 
-    const { name, description, price, duration, category, requiresPayment, depositAmount } = req.body
+    const { name, description, price, duration, category, requiresPayment, depositAmount, showDuration } = req.body
 
     // Verificar si ya existe un servicio con el mismo nombre para este usuario
     const existingService = await prisma.service.findFirst({
@@ -145,6 +155,7 @@ router.post('/', [
         description,
         price,
         duration,
+        showDuration: showDuration !== undefined ? showDuration : true,
         category: category ? category.toUpperCase() : 'CORTE',
         requiresPayment: requiresPayment || false,
         depositAmount: depositAmount || 0
@@ -183,8 +194,14 @@ router.put('/:id', [
     .withMessage('El precio debe ser mayor o igual a 0'),
   body('duration')
     .optional()
-    .isInt({ min: 5, max: 480 })
-    .withMessage('La duración debe estar entre 5 y 480 minutos'),
+    .isInt({ min: 30, max: 480 })
+    .withMessage('La duración debe estar entre 30 y 480 minutos')
+    .custom((value) => {
+      if (value % 30 !== 0) {
+        throw new Error('La duración debe ser en bloques de 30 minutos')
+      }
+      return true
+    }),
   body('description')
     .optional()
     .trim()
@@ -207,7 +224,11 @@ router.put('/:id', [
   body('isActive')
     .optional()
     .isBoolean()
-    .withMessage('isActive debe ser true o false')
+    .withMessage('isActive debe ser true o false'),
+  body('showDuration')
+    .optional()
+    .isBoolean()
+    .withMessage('showDuration debe ser true o false')
 ], async (req, res) => {
   try {
     // Verificar errores de validación
