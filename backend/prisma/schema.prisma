@@ -42,6 +42,7 @@ model Service {
   description      String?
   price            Float
   duration         Int         // en minutos
+  showDuration     Boolean     @default(true)  // Nuevo: controla si mostrar duración al público
   requiresPayment  Boolean     @default(false)
   depositAmount    Float       @default(0)
   isActive         Boolean     @default(true)
