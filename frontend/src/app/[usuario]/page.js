@@ -52,7 +52,7 @@ const PerfilPublico = () => {
 
   // Agrupar servicios por categoría
   const servicesByCategory = salon?.services?.reduce((acc, service) => {
-    const category = service.category || 'otro'
+    const category = (service.category || 'OTRO').toLowerCase()
     if (!acc[category]) {
       acc[category] = []
     }
