@@ -682,7 +682,7 @@ router.get('/availability/advanced', async (req, res) => {
 // Función helper para generar slots avanzados
 function generateAdvancedSlots({ startTime, endTime, breaks = [], existingAppointments = [], slotDuration, targetDate }) {
   try {
-    const { isToday, filterPastSlots, getTimezoneDebugInfo } = require('../utils/timeUtils')
+    const { isToday, filterPastSlots } = require('../utils/timeUtils')
     
     console.log('🔧 Generando slots con parámetros:', {
       startTime,
@@ -693,9 +693,7 @@ function generateAdvancedSlots({ startTime, endTime, breaks = [], existingAppoin
       targetDate: targetDate ? targetDate.toISOString() : 'undefined'
     })
 
-    // Debug de zona horaria
-    const timezoneInfo = getTimezoneDebugInfo()
-    console.log('🕐 Información de zona horaria:', timezoneInfo)
+
 
     // Convertir horarios a minutos
     const [startHour, startMin] = startTime.split(':').map(Number)

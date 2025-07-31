@@ -118,24 +118,7 @@ function formatDateForDisplay(date, timezone = DEFAULT_TIMEZONE) {
   return dateObj.toLocaleDateString('es-MX', { timeZone: timezone })
 }
 
-/**
- * Obtiene información de debug de zona horaria
- * @returns {object} Información de debug
- */
-function getTimezoneDebugInfo() {
-  const now = new Date()
-  const mexicoTime = getCurrentDateTime('America/Mexico_City')
-  
-  return {
-    serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    serverTime: now.toLocaleString(),
-    mexicoTime: mexicoTime.toLocaleString(),
-    serverHours: now.getHours(),
-    mexicoHours: mexicoTime.getHours(),
-    timezoneOffset: now.getTimezoneOffset(),
-    isConfigured: process.env.TZ === 'America/Mexico_City'
-  }
-}
+
 
 module.exports = {
   getCurrentDateTime,
@@ -146,6 +129,5 @@ module.exports = {
   isTimePassed,
   filterPastSlots,
   formatDateForDisplay,
-  getTimezoneDebugInfo,
   DEFAULT_TIMEZONE
 } 

@@ -2,7 +2,6 @@
 import { useParams, useRouter } from 'next/navigation'
 import PublicGallery from '@/components/PublicGallery'
 import { useSalonDataOptimized } from '@/utils/SalonContext'
-import SalonDebug from '@/components/SalonDebug'
 
 const PerfilPublico = () => {
   const { usuario } = useParams()
@@ -92,9 +91,6 @@ const PerfilPublico = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Debug component - solo en desarrollo */}
-      {process.env.NODE_ENV === 'development' && <SalonDebug username={usuario} />}
-      
       {/* Header del Salón */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
         <div className="max-w-6xl mx-auto px-4 py-12">

@@ -103,11 +103,7 @@ router.post('/', [
     .withMessage('El monto del depósito debe ser mayor o igual a 0')
 ], async (req, res) => {
   try {
-    // Debug: Log de los datos recibidos
-    console.log('📝 Datos recibidos para crear servicio:', {
-      body: req.body,
-      user: req.user.id
-    })
+
     
     // Verificar errores de validación
     const errors = validationResult(req)
