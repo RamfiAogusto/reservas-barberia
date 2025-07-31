@@ -37,7 +37,7 @@ Este proyecto nació de la necesidad de digitalizar y automatizar el proceso de 
 #### **Infraestructura**
 - **Vercel** para deploy del frontend
 - **Railway/Render** para deploy del backend
-- **MongoDB Atlas** para base de datos en la nube
+- **PostgreSQL** (Railway/Render) para base de datos en la nube
 - **Redis Cloud** para colas de tareas
 
 ---

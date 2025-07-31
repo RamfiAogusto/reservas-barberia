@@ -4,7 +4,7 @@
 
 ### Prerrequisitos
 - Node.js 18+ 
-- MongoDB (local o Atlas)
+- PostgreSQL (local o Railway/Render)
 - Git
 
 ### 1. Clonar y configurar el proyecto
@@ -64,7 +64,7 @@ ReservasBarberia/
 │   │   ├── appointments.js # Citas
 │   │   ├── payments.js     # Pagos
 │   │   └── schedules.js    # Horarios
-│   ├── models/             # Modelos de MongoDB
+│   ├── prisma/             # Schema de PostgreSQL
 │   ├── middleware/         # Middleware personalizado
 │   ├── utils/              # Utilidades
 │   ├── package.json
@@ -102,7 +102,7 @@ npm start        # Producción
 
 ### Backend
 - **Express.js** - Framework web
-- **MongoDB + Mongoose** - Base de datos
+- **PostgreSQL + Prisma** - Base de datos
 - **JWT** - Autenticación
 - **Stripe** - Procesamiento de pagos
 - **Nodemailer** - Envío de emails
@@ -122,7 +122,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 NODE_ENV=development
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/reservas
+DATABASE_URL=postgresql://username:password@localhost:5432/reservas
 JWT_SECRET=tu_jwt_secret_super_seguro
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
@@ -163,7 +163,7 @@ FRONTEND_URL=http://localhost:3000
 ### Backend (Railway/Heroku)
 1. Crear aplicación
 2. Configurar variables de entorno
-3. Conectar base de datos MongoDB Atlas
+3. Conectar base de datos PostgreSQL
 4. Deploy
 
 ## 📞 Soporte

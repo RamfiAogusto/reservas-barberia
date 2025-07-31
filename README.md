@@ -7,7 +7,7 @@ Sistema web completo para gestión de citas y reservas de barberías con pagos i
 ```
 ReservasBarberia/
 ├── frontend/          # Next.js + React + TailwindCSS
-├── backend/           # Node.js + Express + MongoDB
+├── backend/           # Node.js + Express + PostgreSQL
 ├── docs/              # Documentación
 └── README.md          # Este archivo
 ```
@@ -15,7 +15,7 @@ ReservasBarberia/
 ## 🚀 Características Principales
 
 - **Frontend**: Next.js 14 con App Router, React, TailwindCSS
-- **Backend**: Node.js, Express, MongoDB
+- **Backend**: Node.js, Express, PostgreSQL
 - **Pagos**: Integración con Stripe
 - **Autenticación**: JWT
 - **Deploy**: Vercel (Frontend) + Railway/Heroku (Backend)
@@ -83,7 +83,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 NODE_ENV=development
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/reservas
+DATABASE_URL=postgresql://username:password@localhost:5432/reservas
 JWT_SECRET=tu_jwt_secret_aqui
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
@@ -100,7 +100,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 ### Backend
 - Express.js
-- MongoDB/Mongoose
+- PostgreSQL/Prisma
 - JWT
 - Stripe
 - Nodemailer

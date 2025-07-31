@@ -24,7 +24,7 @@
     "reservas",
     "api",
     "express",
-    "mongodb"
+    "postgresql"
   ],
   "author": "Tu Nombre",
   "license": "MIT",

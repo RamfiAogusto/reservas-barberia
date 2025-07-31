@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config()
-const mongoose = require('mongoose')
+const { prisma } = require('./lib/prisma')
 
 // Colores para console output
 const colors = {
@@ -78,20 +78,19 @@ ${colors.reset}`)
   // =====================================
   // 2. VERIFICAR BASE DE DATOS
   // =====================================
-  log.title('BASE DE DATOS MONGODB')
+  log.title('BASE DE DATOS POSTGRESQL')
 
-  if (!process.env.MONGODB_URI) {
-    log.error('MONGODB_URI no configurado - CRÍTICO')
+  if (!process.env.DATABASE_URL) {
+    log.error('DATABASE_URL no configurado - CRÍTICO')
     criticalIssues++
   } else {
     try {
-      log.info('Verificando conexión a MongoDB...')
-      await mongoose.connect(process.env.MONGODB_URI)
-      log.success('✅ Conexión a MongoDB exitosa')
+      log.info('Verificando conexión a PostgreSQL...')
+      await prisma.$connect()
+      log.success('✅ Conexión a PostgreSQL exitosa')
       
       // Verificar que hay usuarios en la base de datos
-      const User = require('./models/User')
-      const userCount = await User.countDocuments()
+      const userCount = await prisma.user.count()
       
       if (userCount > 0) {
         log.success(`Base de datos poblada con ${userCount} usuarios`)
@@ -100,9 +99,9 @@ ${colors.reset}`)
         warnings++
       }
 
-      await mongoose.disconnect()
+      await prisma.$disconnect()
     } catch (error) {
-      log.error(`Error conectando a MongoDB: ${error.message}`)
+              log.error(`Error conectando a PostgreSQL: ${error.message}`)
       criticalIssues++
     }
   }

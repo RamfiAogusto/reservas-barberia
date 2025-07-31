@@ -9,7 +9,7 @@ En el directorio `backend/`, crea un archivo llamado `.env` con:
 # Backend Environment Variables
 NODE_ENV=development
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/DB_reservas
+DATABASE_URL=postgresql://username:password@localhost:5432/reservas
 JWT_SECRET=tu_jwt_secret_super_seguro_aqui
 
 # 📧 EMAIL CONFIGURATION (RESEND)

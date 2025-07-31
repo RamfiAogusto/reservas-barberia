@@ -4,7 +4,7 @@
 
 ### ✅ **Ya Configurado y Funcionando:**
 - ✅ Sistema de emails (Resend)
-- ✅ Base de datos MongoDB
+- ✅ Base de datos PostgreSQL
 - ✅ Autenticación JWT
 - ✅ Sistema de reservas completo
 - ✅ Horarios y calendario avanzado
@@ -25,7 +25,7 @@
 # Configuración Básica
 NODE_ENV=production
 PORT=5000
-MONGODB_URI=tu_uri_de_mongodb_produccion
+DATABASE_URL=tu_uri_de_postgresql_produccion
 JWT_SECRET=jwt_secret_muy_seguro_para_produccion
 FRONTEND_URL=https://tu-dominio.com
 
@@ -150,9 +150,9 @@ REDIS_PASSWORD=tu_password_redis
    - Gratuito para proyectos pequeños
 
 ### **Base de Datos:**
-1. **MongoDB Atlas** ⭐ (Recomendado)
-   - 512MB gratuitos permanente
-   - Ya está siendo usado
+1. **PostgreSQL** (Railway/Render) ⭐ (Recomendado)
+   - Base de datos relacional robusta
+   - Ya está siendo usado con Prisma
 
 ### **Frontend:**
 1. **Vercel** ⭐ (Recomendado para Next.js)
@@ -232,10 +232,10 @@ curl -H "Authorization: Bearer TU_TOKEN" https://tu-api.com/api/gallery
 - ✅ El sistema funciona sin recordatorios automáticos
 - 🔧 Configurar Redis para recordatorios
 
-### **Error de conexión a MongoDB**
+### **Error de conexión a PostgreSQL**
 - ❌ **Crítico** - el sistema no funcionará
-- 🔧 Verificar MONGODB_URI
-- 🔧 Verificar que MongoDB Atlas permite conexiones
+- 🔧 Verificar DATABASE_URL
+- 🔧 Verificar que PostgreSQL permite conexiones
 
 ### **Error 500 en producción**
 - 🔧 Verificar que NODE_ENV=production
