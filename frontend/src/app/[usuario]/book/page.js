@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useSalonDataOptimized } from '@/utils/SalonContext'
 import { useDaysStatus, useAvailableSlots } from '@/utils/useSalonData'
@@ -10,6 +10,7 @@ import { cachedRequest } from '@/utils/cache'
 const BookingPage = () => {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const username = params.usuario
 
   // Estados principales
@@ -40,6 +41,18 @@ const BookingPage = () => {
     setAllSlots,
     setError
   } = useAvailableSlots(username, selectedDate, selectedService)
+
+  // Efecto para manejar servicio preseleccionado desde URL
+  useEffect(() => {
+    const serviceId = searchParams.get('service')
+    if (serviceId && salon?.services && !selectedService) {
+      const service = salon.services.find(s => s._id === serviceId)
+      if (service) {
+        setSelectedService(service)
+        setCurrentStep(2) // Ir directamente al paso de selección de fecha
+      }
+    }
+  }, [salon, searchParams, selectedService])
 
   // Función para avanzar al siguiente paso
   const handleNextStep = () => {
@@ -327,16 +340,50 @@ const BookingPage = () => {
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-semibold mb-6">Paso 1: Selecciona tu servicio</h2>
             
+            {/* Indicador si hay servicio preseleccionado */}
+            {selectedService && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <span className="text-green-600 text-xl">✅</span>
+                  <div>
+                    <p className="text-green-800 font-medium">Servicio preseleccionado:</p>
+                    <p className="text-green-700 text-sm">{selectedService.name} - {formatPrice(selectedService.price)}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedService(null)
+                      setSelectedDate('')
+                      setSelectedTime('')
+                      setAvailableSlots([])
+                      setAllSlots([])
+                    }}
+                    className="ml-auto text-green-600 hover:text-green-800 text-sm font-medium"
+                  >
+                    Cambiar
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <div className="grid gap-4 md:grid-cols-2">
               {salon?.services?.map((service) => (
                 <div
                   key={service._id}
                   onClick={() => handleSelectService(service)}
-                  className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-blue-500 hover:shadow-md transition-all"
+                  className={`border rounded-lg p-4 cursor-pointer hover:shadow-md transition-all ${
+                    selectedService?._id === service._id 
+                      ? 'border-green-500 bg-green-50' 
+                      : 'border-gray-200 hover:border-blue-500'
+                  }`}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-semibold text-lg">{service.name}</h3>
-                    <span className="text-blue-600 font-bold">{formatPrice(service.price)}</span>
+                    <div className="flex items-center gap-2">
+                      {selectedService?._id === service._id && (
+                        <span className="text-green-600 text-sm">✅ Seleccionado</span>
+                      )}
+                      <span className="text-blue-600 font-bold">{formatPrice(service.price)}</span>
+                    </div>
                   </div>
                   
                   {service.description && (
@@ -374,9 +421,15 @@ const BookingPage = () => {
                   <p className="text-sm text-gray-600">
                     {selectedService?.duration} min • {formatPrice(selectedService?.price)}
                   </p>
+                  {selectedService?.description && (
+                    <p className="text-xs text-gray-500 mt-1">{selectedService.description}</p>
+                  )}
                 </div>
                 <button
-                  onClick={handlePreviousStep}
+                  onClick={() => {
+                    setSelectedService(null)
+                    setCurrentStep(1)
+                  }}
                   className="text-blue-600 hover:text-blue-800 text-sm"
                 >
                   Cambiar servicio
