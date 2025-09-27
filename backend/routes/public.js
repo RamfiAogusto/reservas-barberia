@@ -788,17 +788,24 @@ router.post('/salon/:username/book', [
         bookingId: newAppointment.id.toString()
       }
 
+      console.log('📧 Preparando envío de email de confirmación...')
+      console.log('   Cliente:', bookingData.clientName)
+      console.log('   Email:', bookingData.clientEmail)
+      console.log('   Salón:', bookingData.salonName)
+      console.log('   Servicio:', bookingData.serviceName)
+
       // Enviar correo de confirmación (no bloqueante)
       emailService.sendBookingConfirmation(bookingData)
         .then(result => {
           if (result.success) {
-            console.log('Email de confirmación enviado exitosamente para reserva:', newAppointment.id)
+            console.log('✅ Email de confirmación enviado exitosamente para reserva:', newAppointment.id)
+            console.log('   Message ID:', result.messageId)
           } else {
-            console.error('Error enviando email de confirmación:', result.error)
+            console.error('❌ Error enviando email de confirmación:', result.error)
           }
         })
         .catch(error => {
-          console.error('Error en envío de email:', error)
+          console.error('❌ Error en envío de email:', error)
         })
 
       // Programar recordatorio (no bloqueante)
