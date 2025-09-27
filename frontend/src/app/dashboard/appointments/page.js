@@ -173,7 +173,7 @@ const AppointmentsPage = () => {
         // Actualizar lista de citas
         if (editingAppointment) {
           setAppointments(prev => prev.map(appointment => 
-            appointment._id === editingAppointment._id ? response.data : appointment
+            appointment.id === editingAppointment.id ? response.data : appointment
           ))
         } else {
           setAppointments(prev => [response.data, ...prev])
@@ -207,7 +207,7 @@ const AppointmentsPage = () => {
     const formattedDate = appointmentDate.toISOString().split('T')[0]
     
     setFormData({
-      serviceId: appointment.serviceId?._id || '',
+      serviceId: appointment.serviceId || '',
       clientName: appointment.clientName,
       clientEmail: appointment.clientEmail,
       clientPhone: appointment.clientPhone,
@@ -226,7 +226,7 @@ const AppointmentsPage = () => {
       const response = await api.put(`/appointments/${appointmentId}`, { status: newStatus })
       if (response.success) {
         setAppointments(prev => prev.map(appointment => 
-          appointment._id === appointmentId 
+          appointment.id === appointmentId 
             ? { ...appointment, status: newStatus }
             : appointment
         ))
@@ -247,7 +247,7 @@ const AppointmentsPage = () => {
     try {
       const response = await api.delete(`/appointments/${appointmentId}`)
       if (response.success) {
-        setAppointments(prev => prev.filter(appointment => appointment._id !== appointmentId))
+        setAppointments(prev => prev.filter(appointment => appointment.id !== appointmentId))
       } else {
         alert('Error al eliminar la cita')
       }
@@ -476,7 +476,7 @@ const AppointmentsPage = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {appointments && Array.isArray(appointments) && appointments.map((appointment) => (
-                    <tr key={appointment._id} className="hover:bg-gray-50">
+                    <tr key={appointment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">{appointment.clientName}</div>
@@ -485,7 +485,7 @@ const AppointmentsPage = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{appointment.serviceId?.name}</div>
+                        <div className="text-sm text-gray-900">{appointment.service?.name || appointment.serviceId?.name}</div>
                         {appointment.staffMember && (
                           <div className="text-sm text-gray-500">con {appointment.staffMember}</div>
                         )}
@@ -508,7 +508,7 @@ const AppointmentsPage = () => {
                         <div className="flex justify-end space-x-2">
                           {appointment.status === 'pendiente' && (
                             <button
-                              onClick={() => handleUpdateStatus(appointment._id, 'confirmada')}
+                              onClick={() => handleUpdateStatus(appointment.id, 'confirmada')}
                               className="text-green-600 hover:text-green-900 text-xs"
                             >
                               Confirmar
@@ -516,7 +516,7 @@ const AppointmentsPage = () => {
                           )}
                           {appointment.status === 'confirmada' && (
                             <button
-                              onClick={() => handleUpdateStatus(appointment._id, 'completada')}
+                              onClick={() => handleUpdateStatus(appointment.id, 'completada')}
                               className="text-blue-600 hover:text-blue-900 text-xs"
                             >
                               Completar
@@ -529,7 +529,7 @@ const AppointmentsPage = () => {
                             Editar
                           </button>
                           <button
-                            onClick={() => handleDelete(appointment._id)}
+                            onClick={() => handleDelete(appointment.id)}
                             className="text-red-600 hover:text-red-900 text-xs"
                           >
                             Eliminar

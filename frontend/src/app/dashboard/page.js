@@ -389,7 +389,7 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-4">
                 {todayAppointments.map((appointment) => (
-                  <div key={appointment._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
+                  <div key={appointment.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -410,7 +410,7 @@ const Dashboard = () => {
                           {appointment.clientName}
                         </h3>
                         <div className="text-sm text-gray-600 mb-2">
-                          {appointment.serviceId?.name}
+                          {appointment.service?.name || appointment.serviceId?.name}
                           {appointment.staffMember && (
                             <span className="ml-2">• con {appointment.staffMember}</span>
                           )}
