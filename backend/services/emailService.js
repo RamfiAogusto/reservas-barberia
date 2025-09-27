@@ -250,6 +250,134 @@ class EmailService {
     }
   }
 
+  // Template para notificación al dueño del negocio
+  generateOwnerNotificationTemplate(bookingData) {
+    const { 
+      clientName, 
+      clientEmail,
+      clientPhone,
+      salonName, 
+      serviceName, 
+      date, 
+      time, 
+      price, 
+      depositAmount, 
+      bookingId,
+      notes
+    } = bookingData;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Nueva Reserva - ${salonName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #2563eb; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: white; padding: 30px; border: 1px solid #ddd; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+          .highlight { background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0; }
+          .client-info { background: #e0f2fe; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #0284c7; }
+          .appointment-details { background: #f0fdf4; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #16a34a; }
+          .price { color: #059669; font-weight: bold; font-size: 1.1em; }
+          .urgent { background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #f59e0b; }
+          ul { margin: 10px 0; padding-left: 20px; }
+          li { margin: 5px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📅 ¡Nueva Reserva!</h1>
+            <h2>${salonName}</h2>
+          </div>
+          
+          <div class="content">
+            <p>Hola,</p>
+            
+            <p>Has recibido una nueva reserva en tu negocio. Aquí están los detalles:</p>
+            
+            <div class="appointment-details">
+              <h3>📅 Detalles de la Cita</h3>
+              <p><strong>Servicio:</strong> ${serviceName}</p>
+              <p><strong>Fecha:</strong> ${date}</p>
+              <p><strong>Hora:</strong> ${time}</p>
+              <p><strong>ID de Reserva:</strong> ${bookingId}</p>
+              ${notes ? `<p><strong>Notas:</strong> ${notes}</p>` : ''}
+            </div>
+
+            <div class="client-info">
+              <h3>👤 Información del Cliente</h3>
+              <p><strong>Nombre:</strong> ${clientName}</p>
+              <p><strong>Email:</strong> ${clientEmail}</p>
+              <p><strong>Teléfono:</strong> ${clientPhone}</p>
+            </div>
+
+            <div class="highlight">
+              <h3>💰 Información de Pago</h3>
+              <p><strong>Precio Total:</strong> <span class="price">$${price}</span></p>
+              ${depositAmount > 0 ? `
+                <p><strong>Depósito Requerido:</strong> <span class="price">$${depositAmount}</span></p>
+                <p><strong>Saldo Pendiente:</strong> <span class="price">$${price - depositAmount}</span></p>
+              ` : `
+                <p><strong>Pago:</strong> Al llegar al salón</p>
+              `}
+            </div>
+
+            <div class="urgent">
+              <h3>⚠️ Acciones Recomendadas</h3>
+              <ul>
+                <li>Confirma la disponibilidad del horario</li>
+                <li>Prepara el servicio solicitado</li>
+                <li>Contacta al cliente si hay algún problema</li>
+                <li>Actualiza el estado en tu dashboard</li>
+              </ul>
+            </div>
+
+            <p><strong>¡Que tengas un excelente día de trabajo!</strong></p>
+          </div>
+          
+          <div class="footer">
+            <p>Este email fue enviado automáticamente por tu sistema de reservas.</p>
+            <p>ReservaBarber - Sistema de Gestión de Citas</p>
+          </div>
+        </div>
+      </body>
+    </html>
+    `;
+  }
+
+  // Enviar notificación al dueño del negocio
+  async sendOwnerNotification(bookingData) {
+    try {
+      // Verificar configuración
+      if (!this.checkConfiguration()) {
+        return { 
+          success: true, 
+          messageId: 'simulated-email-' + Date.now(),
+          message: 'Email simulado - configuración no disponible'
+        };
+      }
+
+      const emailContent = this.generateOwnerNotificationTemplate(bookingData);
+      
+      const result = await resend.emails.send({
+        from: this.fromEmail,
+        to: bookingData.ownerEmail,
+        subject: `📅 Nueva Reserva - ${bookingData.salonName} | ${bookingData.date} ${bookingData.time}`,
+        html: emailContent
+      });
+
+      console.log('Email de notificación al dueño enviado:', result);
+      return { success: true, messageId: result.id };
+    } catch (error) {
+      console.error('Error enviando notificación al dueño:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Enviar email de cancelación
   async sendCancellationEmail(bookingData) {
     try {

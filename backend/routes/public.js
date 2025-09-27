@@ -794,7 +794,7 @@ router.post('/salon/:username/book', [
       console.log('   Salón:', bookingData.salonName)
       console.log('   Servicio:', bookingData.serviceName)
 
-      // Enviar correo de confirmación (no bloqueante)
+      // Enviar correo de confirmación al cliente (no bloqueante)
       emailService.sendBookingConfirmation(bookingData)
         .then(result => {
           if (result.success) {
@@ -806,6 +806,31 @@ router.post('/salon/:username/book', [
         })
         .catch(error => {
           console.error('❌ Error en envío de email:', error)
+        })
+
+      // Enviar notificación al dueño del negocio (no bloqueante)
+      const ownerNotificationData = {
+        ...bookingData,
+        ownerEmail: user.email,
+        clientPhone: clientPhone,
+        notes: notes || ''
+      }
+
+      console.log('📧 Preparando notificación al dueño del negocio...')
+      console.log('   Dueño:', user.username)
+      console.log('   Email del dueño:', user.email)
+
+      emailService.sendOwnerNotification(ownerNotificationData)
+        .then(result => {
+          if (result.success) {
+            console.log('✅ Notificación al dueño enviada exitosamente para reserva:', newAppointment.id)
+            console.log('   Message ID:', result.messageId)
+          } else {
+            console.error('❌ Error enviando notificación al dueño:', result.error)
+          }
+        })
+        .catch(error => {
+          console.error('❌ Error en envío de notificación al dueño:', error)
         })
 
       // Programar recordatorio (no bloqueante)
