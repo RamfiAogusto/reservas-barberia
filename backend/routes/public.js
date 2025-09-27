@@ -75,7 +75,7 @@ router.get('/salon/:username', async (req, res) => {
         category: service.category,
         price: service.price,
         duration: service.duration,
-        showDuration: service.showDuration,
+        showDuration: service.showDuration, // Descomentado
         requiresDeposit: service.requiresPayment,
         depositAmount: service.depositAmount
       })),

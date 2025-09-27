@@ -19,7 +19,7 @@ const ServicesPage = () => {
     category: 'corte',
     requiresPayment: false,
     depositAmount: '',
-    showDuration: true
+    showDuration: true // Descomentado
   })
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -94,11 +94,14 @@ const ServicesPage = () => {
       setSubmitting(true)
       
       const serviceData = {
-        ...formData,
+        name: formData.name,
+        description: formData.description,
         price: parseFloat(formData.price),
         duration: parseInt(formData.duration),
         category: formData.category.toUpperCase(),
-        depositAmount: formData.requiresPayment ? parseFloat(formData.depositAmount || 0) : 0
+        requiresPayment: formData.requiresPayment,
+        depositAmount: formData.requiresPayment ? parseFloat(formData.depositAmount || 0) : 0,
+        showDuration: formData.showDuration // Descomentado
       }
 
       let response
@@ -137,10 +140,10 @@ const ServicesPage = () => {
       description: service.description || '',
       price: service.price.toString(),
       duration: service.duration.toString(),
-      category: service.category,
-      requiresPayment: service.requiresPayment,
+      category: service.category ? service.category.toLowerCase() : 'corte',
+      requiresPayment: service.requiresPayment || false,
       depositAmount: service.depositAmount ? service.depositAmount.toString() : '',
-      showDuration: service.showDuration !== undefined ? service.showDuration : true
+      showDuration: service.showDuration !== undefined ? service.showDuration : true // Descomentado
     })
     setShowModal(true)
   }
@@ -174,7 +177,7 @@ const ServicesPage = () => {
       category: 'corte',
       requiresPayment: false,
       depositAmount: '',
-      showDuration: true
+      showDuration: true // Descomentado
     })
     setErrors({})
   }
@@ -189,7 +192,7 @@ const ServicesPage = () => {
       category: 'corte',
       requiresPayment: false,
       depositAmount: '',
-      showDuration: true
+      showDuration: true // Descomentado
     })
     setErrors({})
     setShowModal(true)

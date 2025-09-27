@@ -20,10 +20,16 @@ router.get('/', async (req, res) => {
       }
     })
     
+    // Agregar _id para compatibilidad con frontend
+    const servicesWithId = services.map(service => ({
+      ...service,
+      _id: service.id
+    }))
+    
     res.json({
       success: true,
-      count: services.length,
-      data: services
+      count: servicesWithId.length,
+      data: servicesWithId
     })
   } catch (error) {
     console.error('Error obteniendo servicios:', error)
@@ -52,9 +58,15 @@ router.get('/:id', async (req, res) => {
       })
     }
 
+    // Agregar _id para compatibilidad con frontend
+    const serviceWithId = {
+      ...service,
+      _id: service.id
+    }
+
     res.json({
       success: true,
-      data: service
+      data: serviceWithId
     })
   } catch (error) {
     console.error('Error obteniendo servicio:', error)
@@ -162,10 +174,16 @@ router.post('/', [
       }
     })
 
+    // Agregar _id para compatibilidad con frontend
+    const serviceWithId = {
+      ...newService,
+      _id: newService.id
+    }
+
     res.status(201).json({
       success: true,
       message: 'Servicio creado exitosamente',
-      data: newService
+      data: serviceWithId
     })
   } catch (error) {
     console.error('Error creando servicio:', error)
@@ -286,6 +304,9 @@ router.put('/:id', [
       if (req.body[key] !== undefined) {
         if (key === 'category' && req.body[key]) {
           updateData[key] = req.body[key].toUpperCase()
+        } else if (key === 'showDuration') {
+          // Asegurar que showDuration sea un booleano
+          updateData[key] = Boolean(req.body[key])
         } else {
           updateData[key] = req.body[key]
         }
@@ -298,10 +319,16 @@ router.put('/:id', [
       data: updateData
     })
 
+    // Agregar _id para compatibilidad con frontend
+    const serviceWithId = {
+      ...updatedService,
+      _id: updatedService.id
+    }
+
     res.json({
       success: true,
       message: 'Servicio actualizado exitosamente',
-      data: updatedService
+      data: serviceWithId
     })
   } catch (error) {
     console.error('Error actualizando servicio:', error)
