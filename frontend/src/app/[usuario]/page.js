@@ -1,5 +1,6 @@
 'use client'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import PublicGallery from '@/components/PublicGallery'
 import { useSalonDataOptimized } from '@/utils/SalonContext'
 
@@ -91,6 +92,31 @@ const PerfilPublico = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Banner promocional para nuevos usuarios */}
+      <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-center sm:text-left">
+            <p className="text-sm font-medium">
+              💡 <strong>¿Tienes tu propia barbería?</strong> Crea tu perfil profesional gratis
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link
+              href="/register"
+              className="px-4 py-2 bg-white text-green-600 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors duration-200"
+            >
+              Crear Perfil
+            </Link>
+            <Link
+              href="/"
+              className="px-4 py-2 border border-white text-white rounded-lg text-sm font-semibold hover:bg-white hover:text-green-600 transition-colors duration-200"
+            >
+              Ver Demo
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Header del Salón */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
         <div className="max-w-6xl mx-auto px-4 py-12">
@@ -126,10 +152,20 @@ const PerfilPublico = () => {
             <div className="text-center">
               <button
                 onClick={handleReservar}
-                className="bg-white text-blue-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="bg-white text-blue-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 mb-4"
               >
                 📅 Reservar Cita
               </button>
+              
+              {/* Botón secundario para crear perfil */}
+              <div className="mt-3">
+                <Link
+                  href="/register"
+                  className="inline-block px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-400 transition-colors duration-200 text-sm"
+                >
+                  💼 ¿Tienes barbería? Crear perfil gratis
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -232,6 +268,31 @@ const PerfilPublico = () => {
           )}
         </div>
 
+        {/* Sección promocional intermedia */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 mb-12 text-white text-center">
+          <div className="max-w-3xl mx-auto">
+            <h3 className="text-3xl font-bold mb-4">¿Te gusta lo que ves?</h3>
+            <p className="text-xl text-indigo-100 mb-6">
+              Crea tu propio perfil profesional y gestiona tu barbería de forma digital. 
+              Es completamente gratis y solo toma 5 minutos configurarlo.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/register"
+                className="px-8 py-3 bg-white text-indigo-600 rounded-lg font-bold hover:bg-gray-100 transition-colors duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                🚀 Crear Mi Perfil Gratis
+              </Link>
+              <Link
+                href="/"
+                className="px-8 py-3 border-2 border-white text-white rounded-lg font-bold hover:bg-white hover:text-indigo-600 transition-colors duration-200"
+              >
+                ℹ️ Conocer Más
+              </Link>
+            </div>
+          </div>
+        </div>
+
         {/* Sección de Información Adicional */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {/* Información de Contacto */}
@@ -332,10 +393,42 @@ const PerfilPublico = () => {
 
       {/* Footer */}
       <div className="bg-gray-800 text-white py-8">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <p className="text-gray-400">
-            © 2025 {salon.salonName} - Powered by ReservasBarbería
-          </p>
+        <div className="max-w-6xl mx-auto px-4">
+          {/* Sección de navegación para nuevos usuarios */}
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold mb-4">¿Tienes tu propia barbería?</h3>
+            <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+              Crea tu perfil profesional y gestiona tus citas de forma digital. 
+              Es gratis y solo toma 5 minutos configurarlo.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/register"
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                🚀 Crear Mi Perfil Gratis
+              </Link>
+              <Link
+                href="/"
+                className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg font-semibold hover:border-white hover:text-white transition-colors duration-200"
+              >
+                ℹ️ Más Información
+              </Link>
+            </div>
+          </div>
+          
+          {/* Separador */}
+          <div className="border-t border-gray-700 pt-6">
+            <div className="text-center">
+              <p className="text-gray-400 mb-2">
+                © 2025 {salon.salonName} - Powered by ReservaBarber
+              </p>
+              <p className="text-gray-500 text-sm">
+                Sistema profesional de gestión para barberías
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
