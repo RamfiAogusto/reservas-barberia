@@ -222,19 +222,31 @@ const AppointmentsPage = () => {
   }
 
   const handleUpdateStatus = async (appointmentId, newStatus) => {
+    console.log('🔄 Actualizando estado:', { appointmentId, newStatus })
+    
+    if (!appointmentId) {
+      console.error('❌ Error: appointmentId es undefined')
+      alert('Error: ID de cita no válido')
+      return
+    }
+    
     try {
+      console.log('📤 Enviando petición PUT a:', `/appointments/${appointmentId}`)
       const response = await api.put(`/appointments/${appointmentId}`, { status: newStatus })
+      
       if (response.success) {
+        console.log('✅ Estado actualizado exitosamente')
         setAppointments(prev => prev.map(appointment => 
           appointment.id === appointmentId 
             ? { ...appointment, status: newStatus }
             : appointment
         ))
       } else {
+        console.error('❌ Error en respuesta:', response)
         alert('Error al actualizar el estado')
       }
     } catch (error) {
-      console.error('Error actualizando estado:', error)
+      console.error('❌ Error actualizando estado:', error)
       alert('Error interno del servidor')
     }
   }
@@ -295,15 +307,15 @@ const AppointmentsPage = () => {
 
   const handleGetStatusColor = (status) => {
     switch (status) {
-      case 'confirmada':
+      case 'CONFIRMADA':
         return 'bg-green-100 text-green-800'
-      case 'pendiente':
+      case 'PENDIENTE':
         return 'bg-yellow-100 text-yellow-800'
-      case 'completada':
+      case 'COMPLETADA':
         return 'bg-blue-100 text-blue-800'
-      case 'cancelada':
+      case 'CANCELADA':
         return 'bg-red-100 text-red-800'
-      case 'no_asistio':
+      case 'NO_ASISTIO':
         return 'bg-gray-100 text-gray-800'
       default:
         return 'bg-gray-100 text-gray-800'
@@ -367,11 +379,11 @@ const AppointmentsPage = () => {
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todos los estados</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="confirmada">Confirmada</option>
-                <option value="completada">Completada</option>
-                <option value="cancelada">Cancelada</option>
-                <option value="no_asistio">No asistió</option>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="CONFIRMADA">Confirmada</option>
+                <option value="COMPLETADA">Completada</option>
+                <option value="CANCELADA">Cancelada</option>
+                <option value="NO_ASISTIO">No asistió</option>
               </select>
             </div>
 
@@ -506,17 +518,17 @@ const AppointmentsPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                          {appointment.status === 'pendiente' && (
+                          {appointment.status === 'PENDIENTE' && (
                             <button
-                              onClick={() => handleUpdateStatus(appointment.id, 'confirmada')}
+                              onClick={() => handleUpdateStatus(appointment.id, 'CONFIRMADA')}
                               className="text-green-600 hover:text-green-900 text-xs"
                             >
                               Confirmar
                             </button>
                           )}
-                          {appointment.status === 'confirmada' && (
+                          {appointment.status === 'CONFIRMADA' && (
                             <button
-                              onClick={() => handleUpdateStatus(appointment.id, 'completada')}
+                              onClick={() => handleUpdateStatus(appointment.id, 'COMPLETADA')}
                               className="text-blue-600 hover:text-blue-900 text-xs"
                             >
                               Completar
@@ -723,20 +735,20 @@ const AppointmentsPage = () => {
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="pendiente">Pendiente</option>
-                        <option value="confirmada">Confirmada</option>
-                        <option value="completada">Completada</option>
-                        <option value="cancelada">Cancelada</option>
-                        <option value="no_asistio">No asistió</option>
+                        <option value="PENDIENTE">Pendiente</option>
+                        <option value="CONFIRMADA">Confirmada</option>
+                        <option value="COMPLETADA">Completada</option>
+                        <option value="CANCELADA">Cancelada</option>
+                        <option value="NO_ASISTIO">No asistió</option>
                       </select>
                       <p className="mt-1 text-xs text-gray-500">
-                        {formData.status === 'cancelada' && '⚠️ Se enviará email de cancelación al cliente'}
+                        {formData.status === 'CANCELADA' && '⚠️ Se enviará email de cancelación al cliente'}
                       </p>
                     </div>
                   )}
                 </div>
 
-                {editingAppointment && formData.status === 'cancelada' && (
+                {editingAppointment && formData.status === 'CANCELADA' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Razón de Cancelación (opcional)

@@ -397,10 +397,10 @@ const Dashboard = () => {
                             {appointment.time}
                           </div>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            appointment.status === 'confirmada' ? 'bg-green-100 text-green-800' :
-                            appointment.status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
-                            appointment.status === 'completada' ? 'bg-blue-100 text-blue-800' :
-                            appointment.status === 'cancelada' ? 'bg-red-100 text-red-800' :
+                            appointment.status === 'CONFIRMADA' ? 'bg-green-100 text-green-800' :
+                            appointment.status === 'PENDIENTE' ? 'bg-yellow-100 text-yellow-800' :
+                            appointment.status === 'COMPLETADA' ? 'bg-blue-100 text-blue-800' :
+                            appointment.status === 'CANCELADA' ? 'bg-red-100 text-red-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
                             {appointment.status}
