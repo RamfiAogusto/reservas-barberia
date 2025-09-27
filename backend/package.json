@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "prisma generate",
+    "build": "prisma generate && node force-migrate.js",
     "prod": "NODE_ENV=production node server.js",
     "check": "node check-production-readiness.js",
     "setup-cloudinary": "node setup-cloudinary.js",
@@ -16,6 +16,7 @@
     "db-check": "node -e \"require('dotenv').config(); require('./lib/prisma').checkConnection().then(() => console.log('✅ PostgreSQL connection OK')).catch(e => console.error('❌ PostgreSQL error:', e.message))\"",
     "db-migrate": "prisma migrate dev",
     "db-migrate-deploy": "prisma migrate deploy",
+    "force-migrate": "node force-migrate.js",
     "db-push": "prisma db push",
     "db-generate": "prisma generate",
     "db-studio": "prisma studio"

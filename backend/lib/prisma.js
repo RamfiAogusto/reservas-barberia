@@ -356,24 +356,44 @@ async function checkTablesExist() {
 // Función para verificar conexión
 async function checkConnection() {
   try {
+    console.log('🔌 Intentando conectar a PostgreSQL...')
+    console.log('🌍 NODE_ENV:', process.env.NODE_ENV)
+    console.log('🗄️ DATABASE_URL configurada:', process.env.DATABASE_URL ? 'Sí' : 'No')
+    
     await prisma.$connect()
     console.log('✅ Conectado a PostgreSQL')
     
     // En producción, verificar si las tablas existen
     if (process.env.NODE_ENV === 'production') {
+      console.log('🏭 Entorno de producción detectado, verificando tablas...')
       const tablesExist = await checkTablesExist()
+      console.log('📊 Tablas existen:', tablesExist)
+      
       if (!tablesExist) {
         console.log('⚠️ Las tablas no existen, ejecutando migraciones...')
         const migrationsSuccess = await runMigrations()
         if (!migrationsSuccess) {
           throw new Error('No se pudieron ejecutar las migraciones')
         }
+        
+        // Verificar nuevamente después de las migraciones
+        const tablesExistAfter = await checkTablesExist()
+        console.log('📊 Tablas existen después de migración:', tablesExistAfter)
+        
+        if (!tablesExistAfter) {
+          throw new Error('Las migraciones no se ejecutaron correctamente')
+        }
+      } else {
+        console.log('✅ Las tablas ya existen, no se requieren migraciones')
       }
+    } else {
+      console.log('🔧 Entorno de desarrollo, saltando verificación de tablas')
     }
     
     return true
   } catch (error) {
     console.error('❌ Error conectando a PostgreSQL:', error.message)
+    console.error('❌ Stack trace:', error.stack)
     return false
   }
 }
