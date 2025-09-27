@@ -511,6 +511,108 @@ router.put('/:id', [
       }
     })
 
+    // Enviar emails según el tipo de cambio
+    try {
+      const salonOwner = await prisma.user.findFirst({
+        where: { id: req.user.id }
+      })
+
+      // Detectar cambios para email de modificación
+      const changes = []
+      if (req.body.date && req.body.date !== appointment.date.toISOString().split('T')[0]) {
+        changes.push({
+          field: 'Fecha',
+          old: format(appointment.date, 'PPP', { locale: es }),
+          new: format(new Date(req.body.date), 'PPP', { locale: es })
+        })
+      }
+      if (req.body.time && req.body.time !== appointment.time) {
+        changes.push({
+          field: 'Hora',
+          old: appointment.time,
+          new: req.body.time
+        })
+      }
+      if (req.body.clientName && req.body.clientName !== appointment.clientName) {
+        changes.push({
+          field: 'Nombre del cliente',
+          old: appointment.clientName,
+          new: req.body.clientName
+        })
+      }
+      if (req.body.clientPhone && req.body.clientPhone !== appointment.clientPhone) {
+        changes.push({
+          field: 'Teléfono',
+          old: appointment.clientPhone,
+          new: req.body.clientPhone
+        })
+      }
+
+      // Email de confirmación (cuando cambia de PENDIENTE a CONFIRMADA)
+      if (req.body.status === 'CONFIRMADA' && previousStatus === 'PENDIENTE') {
+        console.log('📧 Enviando email de confirmación...')
+        const bookingData = {
+          clientName: updatedAppointment.clientName,
+          clientEmail: updatedAppointment.clientEmail,
+          salonName: salonOwner.salonName || salonOwner.username,
+          serviceName: updatedAppointment.service.name,
+          date: format(updatedAppointment.date, 'PPP', { locale: es }),
+          time: updatedAppointment.time,
+          price: updatedAppointment.service.price,
+          depositAmount: updatedAppointment.service.depositAmount || 0,
+          salonAddress: salonOwner.address || 'Dirección no especificada',
+          salonPhone: salonOwner.phone || 'Teléfono no especificado',
+          bookingId: updatedAppointment.id.toString()
+        }
+
+        emailService.sendBookingConfirmation(bookingData)
+          .then(result => {
+            if (result.success) {
+              console.log('✅ Email de confirmación enviado exitosamente')
+            } else {
+              console.error('❌ Error enviando email de confirmación:', result.error)
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error en envío de email de confirmación:', error)
+          })
+      }
+
+      // Email de modificación (cuando hay cambios en fecha/hora/datos del cliente)
+      if (changes.length > 0 && updatedAppointment.status !== 'CANCELADA') {
+        console.log('📧 Enviando email de modificación...')
+        const modificationData = {
+          clientName: updatedAppointment.clientName,
+          clientEmail: updatedAppointment.clientEmail,
+          salonName: salonOwner.salonName || salonOwner.username,
+          serviceName: updatedAppointment.service.name,
+          date: format(updatedAppointment.date, 'PPP', { locale: es }),
+          time: updatedAppointment.time,
+          price: updatedAppointment.service.price,
+          depositAmount: updatedAppointment.service.depositAmount || 0,
+          salonAddress: salonOwner.address || 'Dirección no especificada',
+          salonPhone: salonOwner.phone || 'Teléfono no especificado',
+          bookingId: updatedAppointment.id.toString(),
+          changes: changes
+        }
+
+        emailService.sendBookingModification(modificationData)
+          .then(result => {
+            if (result.success) {
+              console.log('✅ Email de modificación enviado exitosamente')
+            } else {
+              console.error('❌ Error enviando email de modificación:', result.error)
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error en envío de email de modificación:', error)
+          })
+      }
+
+    } catch (emailError) {
+      console.error('❌ Error preparando emails:', emailError)
+    }
+
     // Enviar email de cancelación si corresponde
     if (req.body.status === 'CANCELADA' && previousStatus !== 'CANCELADA') {
       try {

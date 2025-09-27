@@ -250,6 +250,133 @@ class EmailService {
     }
   }
 
+  // Template para solicitud de reserva enviada (pendiente de confirmación)
+  generateBookingRequestTemplate(bookingData) {
+    const { 
+      clientName, 
+      salonName, 
+      serviceName, 
+      date, 
+      time, 
+      price, 
+      depositAmount, 
+      salonAddress, 
+      salonPhone, 
+      bookingId 
+    } = bookingData;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Solicitud de Reserva Enviada - ${salonName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f59e0b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: white; padding: 30px; border: 1px solid #ddd; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+          .highlight { background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0; }
+          .pending { background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #f59e0b; }
+          .salon-info { background: #e0f2fe; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #0284c7; }
+          .price { color: #059669; font-weight: bold; font-size: 1.1em; }
+          .status { background: #fef2f2; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #dc2626; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📋 Solicitud Enviada</h1>
+            <h2>${salonName}</h2>
+          </div>
+          
+          <div class="content">
+            <p>Hola <strong>${clientName}</strong>,</p>
+            
+            <p>Tu solicitud de reserva ha sido enviada exitosamente. Está siendo revisada por el salón.</p>
+            
+            <div class="highlight">
+              <h3>📅 Detalles de tu Solicitud</h3>
+              <p><strong>Servicio:</strong> ${serviceName}</p>
+              <p><strong>Fecha:</strong> ${date}</p>
+              <p><strong>Hora:</strong> ${time}</p>
+              <p><strong>ID de Solicitud:</strong> ${bookingId}</p>
+            </div>
+
+            <div class="status">
+              <h3>⏳ Estado: Pendiente de Confirmación</h3>
+              <p><strong>Tu solicitud está siendo revisada por el salón.</strong></p>
+              <p>Recibirás un email de confirmación una vez que el salón confirme tu cita.</p>
+            </div>
+
+            <div class="salon-info">
+              <h3>🏪 Información del Salón</h3>
+              <p><strong>Salón:</strong> ${salonName}</p>
+              <p><strong>Dirección:</strong> ${salonAddress}</p>
+              <p><strong>Teléfono:</strong> ${salonPhone}</p>
+            </div>
+
+            <div class="highlight">
+              <h3>💰 Información de Pago</h3>
+              <p><strong>Precio Total:</strong> <span class="price">$${price}</span></p>
+              ${depositAmount > 0 ? `
+                <p><strong>Depósito Requerido:</strong> <span class="price">$${depositAmount}</span></p>
+                <p><strong>Saldo Pendiente:</strong> <span class="price">$${price - depositAmount}</span></p>
+              ` : `
+                <p><strong>Pago:</strong> Al llegar al salón</p>
+              `}
+            </div>
+
+            <div class="pending">
+              <h3>📞 ¿Necesitas contactar al salón?</h3>
+              <p>Si tienes alguna pregunta o necesitas hacer cambios:</p>
+              <p><strong>Teléfono:</strong> ${salonPhone}</p>
+              <p><em>El salón se pondrá en contacto contigo para confirmar tu cita.</em></p>
+            </div>
+
+            <p>¡Gracias por elegir ${salonName}!</p>
+          </div>
+          
+          <div class="footer">
+            <p>Este email fue enviado automáticamente. Por favor no respondas a este correo.</p>
+            <p>ReservaBarber - Sistema de Gestión de Citas</p>
+          </div>
+        </div>
+      </body>
+    </html>
+    `;
+  }
+
+  // Enviar email de solicitud de reserva (pendiente)
+  async sendBookingRequest(bookingData) {
+    try {
+      // Verificar configuración
+      if (!this.checkConfiguration()) {
+        return { 
+          success: true, 
+          messageId: 'simulated-email-' + Date.now(),
+          message: 'Email simulado - configuración no disponible'
+        };
+      }
+
+      const emailContent = this.generateBookingRequestTemplate(bookingData);
+      
+      const result = await resend.emails.send({
+        from: this.fromEmail,
+        to: bookingData.clientEmail,
+        subject: `📋 Solicitud Enviada - ${bookingData.salonName} | ${bookingData.date} ${bookingData.time}`,
+        html: emailContent
+      });
+
+      console.log('Email de solicitud enviado:', result);
+      return { success: true, messageId: result.id };
+    } catch (error) {
+      console.error('Error enviando email de solicitud:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Template para notificación al dueño del negocio
   generateOwnerNotificationTemplate(bookingData) {
     const { 
@@ -374,6 +501,138 @@ class EmailService {
       return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error enviando notificación al dueño:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Template para modificación de reserva
+  generateBookingModificationTemplate(bookingData) {
+    const { 
+      clientName, 
+      salonName, 
+      serviceName, 
+      date, 
+      time, 
+      price, 
+      depositAmount, 
+      salonAddress, 
+      salonPhone, 
+      bookingId,
+      changes,
+      oldDate,
+      oldTime
+    } = bookingData;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Reserva Modificada - ${salonName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #7c3aed; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: white; padding: 30px; border: 1px solid #ddd; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+          .highlight { background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0; }
+          .changes { background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #f59e0b; }
+          .current { background: #f0fdf4; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #16a34a; }
+          .salon-info { background: #e0f2fe; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #0284c7; }
+          .price { color: #059669; font-weight: bold; font-size: 1.1em; }
+          .old { text-decoration: line-through; color: #6b7280; }
+          .new { color: #059669; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>✏️ Reserva Modificada</h1>
+            <h2>${salonName}</h2>
+          </div>
+          
+          <div class="content">
+            <p>Hola <strong>${clientName}</strong>,</p>
+            
+            <p>Tu reserva ha sido modificada por el salón. Aquí están los cambios realizados:</p>
+            
+            <div class="changes">
+              <h3>🔄 Cambios Realizados</h3>
+              ${changes.map(change => `<p><strong>${change.field}:</strong> <span class="old">${change.old}</span> → <span class="new">${change.new}</span></p>`).join('')}
+            </div>
+
+            <div class="current">
+              <h3>📅 Detalles Actualizados de tu Cita</h3>
+              <p><strong>Servicio:</strong> ${serviceName}</p>
+              <p><strong>Fecha:</strong> ${date}</p>
+              <p><strong>Hora:</strong> ${time}</p>
+              <p><strong>ID de Reserva:</strong> ${bookingId}</p>
+            </div>
+
+            <div class="salon-info">
+              <h3>🏪 Información del Salón</h3>
+              <p><strong>Salón:</strong> ${salonName}</p>
+              <p><strong>Dirección:</strong> ${salonAddress}</p>
+              <p><strong>Teléfono:</strong> ${salonPhone}</p>
+            </div>
+
+            <div class="highlight">
+              <h3>💰 Información de Pago</h3>
+              <p><strong>Precio Total:</strong> <span class="price">$${price}</span></p>
+              ${depositAmount > 0 ? `
+                <p><strong>Depósito Requerido:</strong> <span class="price">$${depositAmount}</span></p>
+                <p><strong>Saldo Pendiente:</strong> <span class="price">$${price - depositAmount}</span></p>
+              ` : `
+                <p><strong>Pago:</strong> Al llegar al salón</p>
+              `}
+            </div>
+
+            <div class="changes">
+              <h3>📞 ¿Tienes alguna pregunta?</h3>
+              <p>Si los cambios no te funcionan o necesitas hacer ajustes:</p>
+              <p><strong>Teléfono:</strong> ${salonPhone}</p>
+              <p><em>Contacta al salón lo antes posible para coordinar.</em></p>
+            </div>
+
+            <p>¡Esperamos verte pronto!</p>
+            <p>Equipo de ${salonName}</p>
+          </div>
+          
+          <div class="footer">
+            <p>Este email fue enviado automáticamente. Por favor no respondas a este correo.</p>
+            <p>ReservaBarber - Sistema de Gestión de Citas</p>
+          </div>
+        </div>
+      </body>
+    </html>
+    `;
+  }
+
+  // Enviar email de modificación de reserva
+  async sendBookingModification(bookingData) {
+    try {
+      // Verificar configuración
+      if (!this.checkConfiguration()) {
+        return { 
+          success: true, 
+          messageId: 'simulated-email-' + Date.now(),
+          message: 'Email simulado - configuración no disponible'
+        };
+      }
+
+      const emailContent = this.generateBookingModificationTemplate(bookingData);
+      
+      const result = await resend.emails.send({
+        from: this.fromEmail,
+        to: bookingData.clientEmail,
+        subject: `✏️ Reserva Modificada - ${bookingData.salonName} | ${bookingData.date} ${bookingData.time}`,
+        html: emailContent
+      });
+
+      console.log('Email de modificación enviado:', result);
+      return { success: true, messageId: result.id };
+    } catch (error) {
+      console.error('Error enviando email de modificación:', error);
       return { success: false, error: error.message };
     }
   }
