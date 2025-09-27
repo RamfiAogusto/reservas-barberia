@@ -759,7 +759,7 @@ function generateAdvancedSlots({ startTime, endTime, breaks = [], existingAppoin
     if (isToday(targetDate)) {
       console.log(`   🕐 Filtrando horarios pasados (es hoy)`)
       const beforeTimeFilter = availableSlots.length
-      availableSlots = filterPastSlots(availableSlots, 30) // 30 min buffer
+      availableSlots = filterPastSlots(availableSlots, 30, 'America/Santo_Domingo') // 30 min buffer, zona horaria República Dominicana
       console.log(`   Después de filtrar tiempo: ${beforeTimeFilter} -> ${availableSlots.length}`)
     }
     

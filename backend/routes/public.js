@@ -1009,13 +1009,8 @@ function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppoi
   
   if (isToday(targetDate)) {
     allSlots.forEach(slot => {
-      // El servicio debe poder completarse después del tiempo actual + buffer
-      const bufferMinutes = 15
-      const slotWithBuffer = new Date()
-      const [slotHour, slotMinute] = slot.time.split(':').map(Number)
-      slotWithBuffer.setHours(slotHour, slotMinute + bufferMinutes, 0, 0)
-      
-      if (isTimePassed(slot.time, 'America/Mexico_City')) {
+      // Verificar si el horario ya pasó usando la zona horaria de República Dominicana
+      if (isTimePassed(slot.time, 'America/Santo_Domingo')) {
         slot.available = false
         slot.reason = 'Horario pasado'
       }

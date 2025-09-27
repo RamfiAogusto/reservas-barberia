@@ -1,17 +1,20 @@
 /**
  * Utilidades para manejo de fechas y horas con zona horaria específica
- * Asegura que todos los cálculos se hagan en la zona horaria de México
+ * Asegura que todos los cálculos se hagan en la zona horaria de República Dominicana
  */
 
-// Zona horaria por defecto para México
-const DEFAULT_TIMEZONE = 'America/Mexico_City'
+// Zona horaria por defecto para República Dominicana
+const DEFAULT_TIMEZONE = 'America/Santo_Domingo'
 
 /**
  * Obtiene la fecha y hora actual en la zona horaria especificada
- * @param {string} timezone - Zona horaria (por defecto México)
+ * @param {string} timezone - Zona horaria (por defecto República Dominicana)
  * @returns {Date} Fecha actual en la zona horaria especificada
  */
 function getCurrentDateTime(timezone = DEFAULT_TIMEZONE) {
+  // Forzar la zona horaria del sistema
+  process.env.TZ = timezone
+  
   const now = new Date()
   const localTime = now.toLocaleString('en-US', { timeZone: timezone })
   return new Date(localTime)
@@ -19,7 +22,7 @@ function getCurrentDateTime(timezone = DEFAULT_TIMEZONE) {
 
 /**
  * Obtiene la fecha actual (sin hora) en la zona horaria especificada
- * @param {string} timezone - Zona horaria (por defecto México)
+ * @param {string} timezone - Zona horaria (por defecto República Dominicana)
  * @returns {Date} Fecha actual al inicio del día
  */
 function getCurrentDate(timezone = DEFAULT_TIMEZONE) {
@@ -30,7 +33,7 @@ function getCurrentDate(timezone = DEFAULT_TIMEZONE) {
 
 /**
  * Obtiene la hora actual en formato HH:MM
- * @param {string} timezone - Zona horaria (por defecto México)
+ * @param {string} timezone - Zona horaria (por defecto República Dominicana)
  * @returns {string} Hora actual en formato HH:MM
  */
 function getCurrentTime(timezone = DEFAULT_TIMEZONE) {
@@ -43,7 +46,7 @@ function getCurrentTime(timezone = DEFAULT_TIMEZONE) {
 /**
  * Convierte una fecha string (YYYY-MM-DD) a Date en la zona horaria especificada
  * @param {string} dateString - Fecha en formato YYYY-MM-DD
- * @param {string} timezone - Zona horaria (por defecto México)
+ * @param {string} timezone - Zona horaria (por defecto República Dominicana)
  * @returns {Date} Fecha en la zona horaria especificada
  */
 function parseDateString(dateString, timezone = DEFAULT_TIMEZONE) {
@@ -61,7 +64,7 @@ function parseDateString(dateString, timezone = DEFAULT_TIMEZONE) {
 /**
  * Verifica si una fecha es hoy en la zona horaria especificada
  * @param {Date|string} date - Fecha a verificar
- * @param {string} timezone - Zona horaria (por defecto México)
+ * @param {string} timezone - Zona horaria (por defecto República Dominicana)
  * @returns {boolean} True si es hoy
  */
 function isToday(date, timezone = DEFAULT_TIMEZONE) {
@@ -74,33 +77,41 @@ function isToday(date, timezone = DEFAULT_TIMEZONE) {
 /**
  * Verifica si un horario ya pasó en la zona horaria especificada
  * @param {string} time - Horario en formato HH:MM
- * @param {string} timezone - Zona horaria (por defecto México)
+ * @param {string} timezone - Zona horaria (por defecto República Dominicana)
  * @returns {boolean} True si el horario ya pasó
  */
 function isTimePassed(time, timezone = DEFAULT_TIMEZONE) {
+  // Forzar la zona horaria del sistema
+  process.env.TZ = timezone
+  
   const [timeHour, timeMinute] = time.split(':').map(Number)
   const currentTime = getCurrentTime(timezone)
   const [currentHour, currentMinute] = currentTime.split(':').map(Number)
   
-  if (timeHour > currentHour) return false
-  if (timeHour === currentHour && timeMinute > currentMinute) return false
-  return true
+  // Comparar horas y minutos
+  if (timeHour < currentHour) return true
+  if (timeHour === currentHour && timeMinute <= currentMinute) return true
+  return false
 }
 
 /**
  * Filtra horarios que ya pasaron con buffer de tiempo
  * @param {string[]} slots - Array de horarios en formato HH:MM
  * @param {number} bufferMinutes - Buffer en minutos (por defecto 30)
- * @param {string} timezone - Zona horaria (por defecto México)
+ * @param {string} timezone - Zona horaria (por defecto República Dominicana)
  * @returns {string[]} Horarios disponibles
  */
 function filterPastSlots(slots, bufferMinutes = 30, timezone = DEFAULT_TIMEZONE) {
+  // Forzar la zona horaria del sistema
+  process.env.TZ = timezone
+  
   const currentTime = getCurrentTime(timezone)
   const [currentHour, currentMinute] = currentTime.split(':').map(Number)
   
   return slots.filter(slot => {
     const [slotHour, slotMinute] = slot.split(':').map(Number)
     
+    // El slot debe estar disponible después del tiempo actual + buffer
     if (slotHour > currentHour) return true
     if (slotHour === currentHour && slotMinute > currentMinute + bufferMinutes) return true
     return false
@@ -110,7 +121,7 @@ function filterPastSlots(slots, bufferMinutes = 30, timezone = DEFAULT_TIMEZONE)
 /**
  * Formatea una fecha para mostrar en la zona horaria especificada
  * @param {Date|string} date - Fecha a formatear
- * @param {string} timezone - Zona horaria (por defecto México)
+ * @param {string} timezone - Zona horaria (por defecto República Dominicana)
  * @returns {string} Fecha formateada
  */
 function formatDateForDisplay(date, timezone = DEFAULT_TIMEZONE) {
