@@ -61,7 +61,7 @@ export default function GalleryManager() {
       if (response.success) {
         // Actualizar estado local
         setImages(prev => prev.map(img => 
-          img._id === id ? {...img, isFeatured: !isFeatured} : img
+          (img.id === id || img._id === id) ? {...img, isFeatured: !isFeatured} : img
         ))
       }
     } catch (error) {
@@ -79,7 +79,7 @@ export default function GalleryManager() {
       
       if (response.success) {
         // Eliminar del estado local
-        setImages(prev => prev.filter(img => img._id !== id))
+        setImages(prev => prev.filter(img => (img.id !== id && img._id !== id)))
       }
     } catch (error) {
       console.error('Error eliminando imagen:', error)
@@ -115,7 +115,7 @@ export default function GalleryManager() {
     try {
       await api.put('/gallery/reorder', {
         items: images.map((img, index) => ({
-          id: img._id,
+          id: img.id || img._id,
           order: index
         }))
       })
@@ -217,70 +217,73 @@ export default function GalleryManager() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {filteredImages.map((image, index) => (
-                      <div
-                        key={image._id}
-                        className="group relative rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
-                        onDragOver={(e) => handleDragOver(e, index)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="aspect-square relative">
-                          <img
-                            src={image.imageUrl}
-                            alt={image.title || 'Imagen de negocio'}
-                            className="object-cover w-full h-full"
-                          />
-                          {image.isFeatured && (
-                            <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center">
-                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                              Destacada
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="p-3 bg-white">
-                          <h4 className="font-medium text-sm truncate text-gray-900">
-                            {image.title || 'Sin título'}
-                          </h4>
-                          <p className="text-xs text-gray-500 truncate capitalize">
-                            {image.category}
-                          </p>
-                        </div>
-                        
-                        {/* Overlay con acciones */}
-                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleToggleFeatured(image._id, image.isFeatured)}
-                              className={`p-3 rounded-full transition-colors ${image.isFeatured ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-white hover:bg-gray-100'}`}
-                              title={image.isFeatured ? 'Quitar destacado' : 'Destacar imagen'}
-                            >
-                              <svg 
-                                className={`w-5 h-5 ${image.isFeatured ? 'text-white' : 'text-yellow-500'}`} 
-                                fill="currentColor" 
-                                viewBox="0 0 20 20"
+                    {filteredImages.map((image, index) => {
+                      const imageId = image.id || image._id;
+                      return (
+                        <div
+                          key={imageId}
+                          className="group relative rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragOver={(e) => handleDragOver(e, index)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <div className="aspect-square relative">
+                            <img
+                              src={image.imageUrl}
+                              alt={image.title || 'Imagen de negocio'}
+                              className="object-cover w-full h-full"
+                            />
+                            {image.isFeatured && (
+                              <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center">
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                Destacada
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="p-3 bg-white">
+                            <h4 className="font-medium text-sm truncate text-gray-900">
+                              {image.title || 'Sin título'}
+                            </h4>
+                            <p className="text-xs text-gray-500 truncate capitalize">
+                              {image.category}
+                            </p>
+                          </div>
+                          
+                          {/* Overlay con acciones */}
+                          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleToggleFeatured(imageId, image.isFeatured)}
+                                className={`p-3 rounded-full transition-colors ${image.isFeatured ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-white hover:bg-gray-100'}`}
+                                title={image.isFeatured ? 'Quitar destacado' : 'Destacar imagen'}
                               >
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            </button>
-                            
-                            <button
-                              onClick={() => handleDelete(image._id)}
-                              className="p-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
-                              title="Eliminar imagen"
-                            >
-                              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                                <svg 
+                                  className={`w-5 h-5 ${image.isFeatured ? 'text-white' : 'text-yellow-500'}`} 
+                                  fill="currentColor" 
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              </button>
+                              
+                              <button
+                                onClick={() => handleDelete(imageId)}
+                                className="p-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
+                                title="Eliminar imagen"
+                              >
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

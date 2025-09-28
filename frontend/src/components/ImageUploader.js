@@ -121,132 +121,139 @@ export default function ImageUploader({ onImageUploaded }) {
   }
   
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <h3 className="text-lg font-semibold mb-4">Subir Nueva Imagen</h3>
+    <div className="space-y-4">
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Subir Nueva Imagen</h4>
       
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-          {error}
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit}>
-        {/* File input */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Imagen
-          </label>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/jpeg,image/png,image/jpg,image/webp"
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            disabled={isUploading}
-          />
-        </div>
-        
-        {/* Image preview */}
-        {imagePreview && (
-          <div className="mb-4">
-            <div className="relative aspect-video overflow-hidden rounded-md">
-              <img 
-                src={imagePreview} 
-                alt="Preview" 
-                className="object-cover w-full h-full"
-              />
-            </div>
+        {error && (
+          <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
           </div>
         )}
         
-        {/* Image metadata */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Título
-          </label>
-          <input
-            type="text"
-            name="title"
-            value={imageData.title}
-            onChange={handleInputChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            disabled={isUploading}
-          />
-        </div>
-        
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Descripción
-          </label>
-          <textarea
-            name="description"
-            value={imageData.description}
-            onChange={handleInputChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            rows="2"
-            disabled={isUploading}
-          ></textarea>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Categoría
-          </label>
-          <select
-            name="category"
-            value={imageData.category}
-            onChange={handleInputChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            disabled={isUploading}
-          >
-            <option value="exterior">Exterior</option>
-            <option value="interior">Interior</option>
-            <option value="servicios">Servicios</option>
-            <option value="equipo">Equipo</option>
-            <option value="otros">Otros</option>
-          </select>
-        </div>
-        
-        <div className="mb-4">
-          <label className="flex items-center gap-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* File input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Seleccionar imagen
+            </label>
             <input
-              type="checkbox"
-              name="isFeatured"
-              checked={imageData.isFeatured}
-              onChange={handleInputChange}
-              className="rounded text-blue-600"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/jpeg,image/png,image/jpg,image/webp"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               disabled={isUploading}
             />
-            <span className="text-sm font-medium text-gray-700">
-              Destacar en perfil público
-            </span>
-          </label>
-        </div>
-        
-        {/* Upload progress */}
-        {isUploading && (
-          <div className="mb-4">
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-500 mt-1 text-center">
-              {uploadProgress < 100 ? 'Subiendo...' : '¡Subida completada!'}
-            </p>
           </div>
-        )}
         
-        {/* Submit button */}
-        <button
-          type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isUploading}
-        >
-          {isUploading ? 'Subiendo...' : 'Subir Imagen'}
-        </button>
-      </form>
+          {/* Image preview */}
+          {imagePreview && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Vista previa
+              </label>
+              <div className="relative aspect-video overflow-hidden rounded-lg border border-gray-200">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="object-cover w-full h-full"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Image metadata */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Título
+            </label>
+            <input
+              type="text"
+              name="title"
+              value={imageData.title}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Título de la imagen"
+              disabled={isUploading}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Descripción
+            </label>
+            <textarea
+              name="description"
+              value={imageData.description}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows="3"
+              placeholder="Descripción de la imagen"
+              disabled={isUploading}
+            ></textarea>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Categoría
+            </label>
+            <select
+              name="category"
+              value={imageData.category}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isUploading}
+            >
+              <option value="exterior">Exterior</option>
+              <option value="interior">Interior</option>
+              <option value="servicios">Servicios</option>
+              <option value="equipo">Equipo</option>
+              <option value="otros">Otros</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                name="isFeatured"
+                checked={imageData.isFeatured}
+                onChange={handleInputChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                disabled={isUploading}
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Destacar en perfil público
+              </span>
+            </label>
+          </div>
+          
+          {/* Upload progress */}
+          {isUploading && (
+            <div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div 
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                {uploadProgress < 100 ? 'Subiendo imagen...' : '¡Subida completada!'}
+              </p>
+            </div>
+          )}
+          
+          {/* Submit button */}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isUploading}
+          >
+            {isUploading ? 'Subiendo...' : 'Subir Imagen'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 } 
