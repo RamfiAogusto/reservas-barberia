@@ -499,7 +499,12 @@ router.put('/:id', [
     const updateData = {}
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
-        updateData[key] = req.body[key]
+        // Convertir fecha a objeto Date si es necesario
+        if (key === 'date' && typeof req.body[key] === 'string') {
+          updateData[key] = new Date(req.body[key])
+        } else {
+          updateData[key] = req.body[key]
+        }
       }
     })
 
