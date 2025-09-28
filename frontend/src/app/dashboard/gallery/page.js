@@ -48,16 +48,5 @@ export default function GalleryPage() {
     )
   }
 
-  return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">Galería de Imágenes</h1>
-        <p className="text-gray-600">
-          Administra las fotos de tu negocio que se mostrarán en tu perfil público. Las imágenes marcadas como destacadas aparecerán en la sección principal de tu perfil.
-        </p>
-      </div>
-
-      <GalleryManager />
-    </div>
-  )
+  return <GalleryManager />
 } 
