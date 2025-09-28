@@ -173,17 +173,30 @@ const AppointmentsPage = () => {
         const newStatus = formData.status
         
         // Verificar si solo cambió el estado comparando todos los campos
+        // Convertir fecha para comparación
+        const appointmentDateStr = editingAppointment.date instanceof Date 
+          ? editingAppointment.date.toISOString().split('T')[0]
+          : editingAppointment.date
+        
         const hasOnlyStatusChanged = (
           originalStatus !== newStatus &&
           editingAppointment.serviceId === formData.serviceId &&
           editingAppointment.clientName === formData.clientName &&
           editingAppointment.clientEmail === formData.clientEmail &&
           editingAppointment.clientPhone === formData.clientPhone &&
-          editingAppointment.date === formData.date &&
+          appointmentDateStr === formData.date &&
           editingAppointment.time === formData.time &&
           editingAppointment.notes === formData.notes &&
           editingAppointment.staffMember === formData.staffMember
         )
+        
+        console.log('🔍 Verificando cambio de estado:', {
+          originalStatus,
+          newStatus,
+          hasOnlyStatusChanged,
+          appointmentDateStr,
+          formDataDate: formData.date
+        })
         
         if (hasOnlyStatusChanged) {
           console.log('📤 Solo cambiando estado, usando endpoint específico')
@@ -266,11 +279,17 @@ const AppointmentsPage = () => {
       
       if (response.success) {
         console.log('✅ Estado actualizado exitosamente')
-        setAppointments(prev => prev.map(appointment => 
-          appointment.id === appointmentId 
-            ? { ...appointment, status: newStatus }
-            : appointment
-        ))
+        console.log('🔄 Actualizando estado local - appointmentId:', appointmentId)
+        console.log('🔄 Estado anterior:', appointments.find(a => a.id === appointmentId))
+        setAppointments(prev => prev.map(appointment => {
+          const matchesId = (appointment.id === appointmentId || appointment._id === appointmentId)
+          console.log(`🔄 Comparando ${appointment.id}/${appointment._id} con ${appointmentId}: ${matchesId}`)
+          if (matchesId) {
+            console.log('✅ Actualizando cita:', appointment.clientName, 'de', appointment.status, 'a', newStatus)
+            return { ...appointment, status: newStatus }
+          }
+          return appointment
+        }))
       } else {
         console.error('❌ Error en respuesta:', response)
         alert('Error al actualizar el estado')
