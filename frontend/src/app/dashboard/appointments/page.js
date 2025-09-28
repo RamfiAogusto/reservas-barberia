@@ -82,6 +82,7 @@ const AppointmentsPage = () => {
 
       const response = await api.get(`/appointments?${params.toString()}`)
       if (response.success) {
+        console.log('📋 Citas recibidas:', response.data)
         setAppointments(response.data)
       }
     } catch (error) {
@@ -164,7 +165,9 @@ const AppointmentsPage = () => {
 
       let response
       if (editingAppointment) {
-        response = await api.put(`/appointments/${editingAppointment._id}`, formData)
+        const appointmentId = editingAppointment.id || editingAppointment._id
+        console.log('🔄 Actualizando cita con ID:', appointmentId)
+        response = await api.put(`/appointments/${appointmentId}`, formData)
       } else {
         response = await api.post('/appointments', formData)
       }
@@ -173,7 +176,7 @@ const AppointmentsPage = () => {
         // Actualizar lista de citas
         if (editingAppointment) {
           setAppointments(prev => prev.map(appointment => 
-            appointment.id === editingAppointment.id ? response.data : appointment
+            (appointment.id === editingAppointment.id || appointment._id === editingAppointment._id) ? response.data : appointment
           ))
         } else {
           setAppointments(prev => [response.data, ...prev])
@@ -223,6 +226,8 @@ const AppointmentsPage = () => {
 
   const handleUpdateStatus = async (appointmentId, newStatus) => {
     console.log('🔄 Actualizando estado:', { appointmentId, newStatus })
+    console.log('📋 Tipo de appointmentId:', typeof appointmentId)
+    console.log('📋 Valor de appointmentId:', appointmentId)
     
     if (!appointmentId) {
       console.error('❌ Error: appointmentId es undefined')
@@ -488,7 +493,7 @@ const AppointmentsPage = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {appointments && Array.isArray(appointments) && appointments.map((appointment) => (
-                    <tr key={appointment.id} className="hover:bg-gray-50">
+                    <tr key={appointment.id || appointment._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">{appointment.clientName}</div>
@@ -520,7 +525,12 @@ const AppointmentsPage = () => {
                         <div className="flex justify-end space-x-2">
                           {appointment.status === 'PENDIENTE' && (
                             <button
-                              onClick={() => handleUpdateStatus(appointment.id, 'CONFIRMADA')}
+                              onClick={() => {
+                                console.log('🔘 Botón Confirmar clickeado - appointment:', appointment)
+                                console.log('🔘 appointment.id:', appointment.id)
+                                console.log('🔘 appointment._id:', appointment._id)
+                                handleUpdateStatus(appointment.id || appointment._id, 'CONFIRMADA')
+                              }}
                               className="text-green-600 hover:text-green-900 text-xs"
                             >
                               Confirmar
@@ -528,7 +538,12 @@ const AppointmentsPage = () => {
                           )}
                           {appointment.status === 'CONFIRMADA' && (
                             <button
-                              onClick={() => handleUpdateStatus(appointment.id, 'COMPLETADA')}
+                              onClick={() => {
+                                console.log('🔘 Botón Completar clickeado - appointment:', appointment)
+                                console.log('🔘 appointment.id:', appointment.id)
+                                console.log('🔘 appointment._id:', appointment._id)
+                                handleUpdateStatus(appointment.id || appointment._id, 'COMPLETADA')
+                              }}
                               className="text-blue-600 hover:text-blue-900 text-xs"
                             >
                               Completar
@@ -541,7 +556,7 @@ const AppointmentsPage = () => {
                             Editar
                           </button>
                           <button
-                            onClick={() => handleDelete(appointment.id)}
+                            onClick={() => handleDelete(appointment.id || appointment._id)}
                             className="text-red-600 hover:text-red-900 text-xs"
                           >
                             Eliminar
@@ -597,7 +612,7 @@ const AppointmentsPage = () => {
                   >
                     <option value="">Seleccionar servicio</option>
                     {services && Array.isArray(services) && services.map((service) => (
-                      <option key={service._id} value={service._id}>
+                      <option key={service.id || service._id} value={service.id || service._id}>
                         {service.name} - ${service.price} ({service.formattedDuration || formatDuration(service.duration)})
                       </option>
                     ))}
