@@ -183,7 +183,7 @@ router.post('/', [
   body('serviceId')
     .notEmpty()
     .withMessage('El ID del servicio es requerido')
-    .isUUID()
+    .isLength({ min: 1, max: 50 })
     .withMessage('ID de servicio inválido'),
   body('clientName')
     .trim()
@@ -374,7 +374,7 @@ router.post('/', [
 router.put('/:id', [
   body('serviceId')
     .optional()
-    .isUUID()
+    .isLength({ min: 1, max: 50 })
     .withMessage('ID de servicio inválido'),
   body('clientName')
     .optional()

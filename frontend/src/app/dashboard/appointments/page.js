@@ -167,7 +167,31 @@ const AppointmentsPage = () => {
       if (editingAppointment) {
         const appointmentId = editingAppointment.id || editingAppointment._id
         console.log('🔄 Actualizando cita con ID:', appointmentId)
-        response = await api.put(`/appointments/${appointmentId}`, formData)
+        
+        // Si solo se está cambiando el estado, usar el endpoint específico
+        const originalStatus = editingAppointment.status
+        const newStatus = formData.status
+        
+        // Verificar si solo cambió el estado comparando todos los campos
+        const hasOnlyStatusChanged = (
+          originalStatus !== newStatus &&
+          editingAppointment.serviceId === formData.serviceId &&
+          editingAppointment.clientName === formData.clientName &&
+          editingAppointment.clientEmail === formData.clientEmail &&
+          editingAppointment.clientPhone === formData.clientPhone &&
+          editingAppointment.date === formData.date &&
+          editingAppointment.time === formData.time &&
+          editingAppointment.notes === formData.notes &&
+          editingAppointment.staffMember === formData.staffMember
+        )
+        
+        if (hasOnlyStatusChanged) {
+          console.log('📤 Solo cambiando estado, usando endpoint específico')
+          response = await api.put(`/appointments/${appointmentId}/status`, { status: newStatus })
+        } else {
+          console.log('📤 Actualización completa, usando endpoint general')
+          response = await api.put(`/appointments/${appointmentId}`, formData)
+        }
       } else {
         response = await api.post('/appointments', formData)
       }
