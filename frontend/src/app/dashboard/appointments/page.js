@@ -236,8 +236,9 @@ const AppointmentsPage = () => {
     }
     
     try {
-      console.log('📤 Enviando petición PUT a:', `/appointments/${appointmentId}`)
-      const response = await api.put(`/appointments/${appointmentId}`, { status: newStatus })
+      console.log('📤 Enviando petición PUT a:', `/appointments/${appointmentId}/status`)
+      console.log('📤 Datos enviados:', { status: newStatus })
+      const response = await api.put(`/appointments/${appointmentId}/status`, { status: newStatus })
       
       if (response.success) {
         console.log('✅ Estado actualizado exitosamente')

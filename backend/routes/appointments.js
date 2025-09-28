@@ -432,9 +432,16 @@ router.put('/:id', [
     .withMessage('La razón de cancelación no puede tener más de 200 caracteres')
 ], async (req, res) => {
   try {
+    console.log('🔄 PUT /appointments/:id - Datos recibidos:', {
+      params: req.params,
+      body: req.body,
+      userId: req.user.id
+    })
+    
     // Verificar errores de validación
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
+      console.error('❌ Errores de validación:', errors.array())
       return res.status(400).json({
         success: false,
         message: 'Datos inválidos',
@@ -792,6 +799,93 @@ router.get('/stats/summary', async (req, res) => {
     })
   } catch (error) {
     console.error('Error obteniendo estadísticas:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
+    })
+  }
+})
+
+// PUT /api/appointments/:id/status - Actualizar solo el estado de una cita
+router.put('/:id/status', [
+  body('status')
+    .isIn(['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO'])
+    .withMessage('Status inválido'),
+  body('cancelReason')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('La razón de cancelación no puede tener más de 200 caracteres')
+], async (req, res) => {
+  try {
+    console.log('🔄 PUT /appointments/:id/status - Datos recibidos:', {
+      params: req.params,
+      body: req.body,
+      userId: req.user.id
+    })
+    
+    // Verificar errores de validación
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      console.error('❌ Errores de validación:', errors.array())
+      return res.status(400).json({
+        success: false,
+        message: 'Datos inválidos',
+        errors: errors.array()
+      })
+    }
+
+    // Buscar la cita
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
+    })
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cita no encontrada'
+      })
+    }
+
+    // Preparar datos de actualización
+    const updateData = {
+      status: req.body.status
+    }
+
+    // Agregar razón de cancelación si se proporciona
+    if (req.body.cancelReason) {
+      updateData.cancelReason = req.body.cancelReason
+    }
+
+    // Actualizar la cita
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: req.params.id },
+      data: updateData,
+      include: {
+        service: {
+          select: {
+            name: true,
+            duration: true,
+            price: true,
+            category: true
+          }
+        }
+      }
+    })
+
+    console.log('✅ Estado de cita actualizado exitosamente:', updatedAppointment.id)
+
+    res.json({
+      success: true,
+      message: 'Estado de cita actualizado exitosamente',
+      data: updatedAppointment
+    })
+  } catch (error) {
+    console.error('Error actualizando estado de cita:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
