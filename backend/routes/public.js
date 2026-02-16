@@ -24,7 +24,9 @@ router.get('/salon/:username', async (req, res) => {
         salonName: true,
         phone: true,
         address: true,
-        avatar: true
+        avatar: true,
+        requiresDeposit: true,
+        depositAmount: true
       }
     })
 
@@ -62,12 +64,15 @@ router.get('/salon/:username', async (req, res) => {
     })
 
     // Estructura de respuesta pública
+    // Depósito: a nivel salón, para confirmar la reserva. El precio del servicio se paga completo al llegar.
     const salonProfile = {
       username: user.username,
       salonName: user.salonName,
       phone: user.phone,
       address: user.address,
       avatar: user.avatar,
+      requiresDeposit: user.requiresDeposit ?? false,
+      depositAmount: user.depositAmount ?? 0,
       services: services.map(service => ({
         _id: service.id,
         name: service.name,
@@ -75,9 +80,7 @@ router.get('/salon/:username', async (req, res) => {
         category: service.category,
         price: service.price,
         duration: service.duration,
-        showDuration: service.showDuration, // Descomentado
-        requiresDeposit: service.requiresPayment,
-        depositAmount: service.depositAmount
+        showDuration: service.showDuration
       })),
       gallery: featuredImages.map(img => ({
         _id: img.id,
@@ -145,9 +148,7 @@ router.get('/salon/:username/services', async (req, res) => {
         name: service.name,
         description: service.description,
         price: service.price,
-        duration: service.duration,
-        requiresDeposit: service.requiresPayment,
-        depositAmount: service.depositAmount
+        duration: service.duration
       })
       return acc
     }, {})
@@ -259,13 +260,18 @@ router.get('/salon/:username/availability', async (req, res) => {
     const exceptions = await prisma.scheduleException.findMany({
       where: {
         userId: user.id,
+        isActive: true,
         startDate: { lte: requestedDate },
         endDate: { gte: requestedDate }
       }
     })
+
+    const isDayOffType = (type) => ['DAY_OFF', 'VACATION', 'HOLIDAY'].includes(String(type).toUpperCase())
+    const hasSpecialHours = (ex) => String(ex.exceptionType).toUpperCase() === 'SPECIAL_HOURS' && ex.specialStartTime && ex.specialEndTime
+    const getExceptionTypeLabel = (type) => ({ DAY_OFF: 'Día libre', SPECIAL_HOURS: 'Horario especial', VACATION: 'Vacaciones', HOLIDAY: 'Día festivo' }[String(type).toUpperCase()] || type)
     
     // Si hay excepción de día libre
-    const dayOffException = exceptions.find(ex => ex.isDayOff)
+    const dayOffException = exceptions.find(ex => isDayOffType(ex.exceptionType))
     if (dayOffException) {
       return res.json({
         success: true,
@@ -278,7 +284,7 @@ router.get('/salon/:username/availability', async (req, res) => {
           },
           isBusinessDay: false,
           availableSlots: [],
-          reason: `${dayOffException.typeDescription}: ${dayOffException.name}`
+          reason: `${getExceptionTypeLabel(dayOffException.exceptionType)}: ${dayOffException.name}`
         }
       })
     }
@@ -287,17 +293,21 @@ router.get('/salon/:username/availability', async (req, res) => {
     let effectiveStartTime = businessHours.startTime
     let effectiveEndTime = businessHours.endTime
 
-    const specialHoursException = exceptions.find(ex => ex.hasSpecialHours)
+    const specialHoursException = exceptions.find(ex => hasSpecialHours(ex))
     if (specialHoursException) {
       effectiveStartTime = specialHoursException.specialStartTime
       effectiveEndTime = specialHoursException.specialEndTime
     }
 
-    // 4. Obtener descansos que aplican este día
-    const breaks = await prisma.recurringBreak.findMany({
-      where: {
-        userId: user.id
-      }
+    // 4. Obtener descansos que aplican este día (filtrar por recurrencia)
+    const allBreaks = await prisma.recurringBreak.findMany({
+      where: { userId: user.id, isActive: true }
+    })
+    const breaks = allBreaks.filter(b => {
+      const rt = String(b.recurrenceType).toUpperCase()
+      if (rt === 'DAILY') return true
+      if (rt === 'SPECIFIC_DAYS' && Array.isArray(b.specificDays)) return b.specificDays.includes(dayOfWeek)
+      return false
     })
 
     // 5. Obtener citas existentes
@@ -448,8 +458,9 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     let isSpecialDay = false
 
     // Verificar si hay alguna excepción que aplique
+    const isDayOffType = (type) => ['DAY_OFF', 'VACATION', 'HOLIDAY'].includes(String(type).toUpperCase())
     for (const exception of exceptions) {
-      if (exception.exceptionType === 'day_off' || exception.exceptionType === 'vacation' || exception.exceptionType === 'holiday') {
+      if (isDayOffType(exception.exceptionType)) {
         return res.json({
           success: true,
           data: {
@@ -461,7 +472,7 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
         })
       }
 
-      if (exception.exceptionType === 'special_hours' && exception.specialStartTime && exception.specialEndTime) {
+      if (String(exception.exceptionType).toUpperCase() === 'SPECIAL_HOURS' && exception.specialStartTime && exception.specialEndTime) {
         effectiveStartTime = exception.specialStartTime
         effectiveEndTime = exception.specialEndTime
         isSpecialDay = true
@@ -477,8 +488,9 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     })
 
     const applicableBreaks = breaks.filter(breakItem => {
-      if (breakItem.recurrenceType === 'daily') return true
-      if (breakItem.recurrenceType === 'specific_days') {
+      const rt = String(breakItem.recurrenceType).toUpperCase()
+      if (rt === 'DAILY') return true
+      if (rt === 'SPECIFIC_DAYS' && Array.isArray(breakItem.specificDays)) {
         return breakItem.specificDays.includes(dayOfWeek)
       }
       return false
@@ -621,19 +633,20 @@ router.get('/salon/:username/days-status', async (req, res) => {
         }
       })
 
+      const isDayOffType = (type) => ['DAY_OFF', 'VACATION', 'HOLIDAY'].includes(String(type).toUpperCase())
       let isAvailable = true
       let reason = ''
       let type = 'available'
 
       for (const exception of exceptions) {
-        if (exception.exceptionType === 'day_off' || exception.exceptionType === 'vacation' || exception.exceptionType === 'holiday') {
+        if (isDayOffType(exception.exceptionType)) {
           isAvailable = false
           reason = exception.name
-          type = exception.exceptionType
+          type = String(exception.exceptionType).toLowerCase()
           break
         }
         
-        if (exception.exceptionType === 'special_hours') {
+        if (String(exception.exceptionType).toUpperCase() === 'SPECIAL_HOURS') {
           type = 'special_hours'
           reason = exception.name
         }
@@ -756,8 +769,8 @@ router.post('/salon/:username/book', [
         time,
         notes: notes || '',
         totalAmount: service.price,
-                 status: 'PENDIENTE', // Siempre pendiente hasta confirmación del dueño
-         paymentStatus: service.requiresPayment ? 'PENDIENTE' : 'COMPLETO'
+        status: 'PENDIENTE',
+        paymentStatus: (user.requiresDeposit ?? false) ? 'PENDIENTE' : 'COMPLETO'
       }
     })
 
@@ -782,7 +795,8 @@ router.post('/salon/:username/book', [
         date: format(appointmentDate, 'PPP', { locale: es }),
         time,
         price: service.price,
-        depositAmount: service.depositAmount || 0,
+        depositAmount: user.depositAmount ?? 0,
+        requiresDeposit: user.requiresDeposit ?? false,
         salonAddress: user.address || 'Dirección no especificada',
         salonPhone: user.phone || 'Teléfono no especificado',
         bookingId: newAppointment.id.toString()
@@ -866,8 +880,8 @@ router.post('/salon/:username/book', [
         time: newAppointment.time,
         status: newAppointment.status,
         totalAmount: newAppointment.totalAmount,
-        requiresPayment: service.requiresPayment,
-        depositAmount: service.depositAmount
+        requiresDeposit: user.requiresDeposit ?? false,
+        depositAmount: user.depositAmount ?? 0
       }
     })
 
@@ -1013,9 +1027,18 @@ function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppoi
     }
   })
   
+  // Helper: verificar si un descanso aplica en el día
+  const breakAppliesOnDay = (breakItem, dayOfWeek) => {
+    const rt = String(breakItem.recurrenceType || '').toUpperCase()
+    if (rt === 'DAILY') return true
+    if (rt === 'SPECIFIC_DAYS' && Array.isArray(breakItem.specificDays)) return breakItem.specificDays.includes(dayOfWeek)
+    return false
+  }
+
   // Marcar slots ocupados por descansos
+  const targetDayOfWeek = targetDate.getDay()
   breaks.forEach(breakItem => {
-    if (breakItem.appliesOnDay && breakItem.appliesOnDay(targetDate.getDay())) {
+    if (breakAppliesOnDay(breakItem, targetDayOfWeek)) {
       const [breakStartHour, breakStartMin] = breakItem.startTime.split(':').map(Number)
       const [breakEndHour, breakEndMin] = breakItem.endTime.split(':').map(Number)
       

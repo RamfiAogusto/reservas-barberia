@@ -131,7 +131,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService) => {
 
   // Usar debounce para evitar llamadas excesivas
   const debouncedDate = useDebounce(selectedDate, 300) // 300ms de debounce
-  const debouncedService = useDebounce(selectedService?._id, 300)
+  const debouncedService = useDebounce(selectedService?._id || selectedService?.id, 300)
 
   const fetchAvailableSlots = useCallback(async () => {
     if (!debouncedDate || !debouncedService || !username) return
@@ -179,7 +179,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id}`
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id || selectedService.id}`
       )
       const data = await response.json()
 

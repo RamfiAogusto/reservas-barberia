@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import api from '@/utils/api'
+import { formatTime12h } from '@/utils/formatTime'
+import TimeInput12h from '@/components/TimeInput12h'
 
 const AppointmentsPage = () => {
   const router = useRouter()
@@ -555,7 +557,7 @@ const AppointmentsPage = () => {
                         <div className="text-sm text-gray-900">
                           {new Date(appointment.date).toLocaleDateString('es-ES')}
                         </div>
-                        <div className="text-sm text-gray-500">{appointment.time}</div>
+                        <div className="text-sm text-gray-500">{formatTime12h(appointment.time)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${handleGetStatusColor(appointment.status)}`}>
@@ -755,14 +757,11 @@ const AppointmentsPage = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Hora *
                     </label>
-                    <input
-                      type="time"
-                      name="time"
+                    <TimeInput12h
                       value={formData.time}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.time ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      onChange={(val) => setFormData(prev => ({ ...prev, time: val }))}
+                      className={`w-full border ${errors.time ? 'border-red-500' : 'border-gray-300'}`}
+                      aria-label="Hora de la cita"
                     />
                     {errors.time && <p className="mt-1 text-sm text-red-600">{errors.time}</p>}
                   </div>

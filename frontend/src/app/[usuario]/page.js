@@ -61,24 +61,28 @@ const PerfilPublico = () => {
     return acc
   }, {}) || {}
 
-  if (loading) {
+  // Mostrar loading: mientras carga O cuando aún no hay datos ni error (evitar flash de "no encontrado")
+  const isInitialOrLoading = loading || (!salon && !error)
+
+  if (isInitialOrLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-600 border-t-transparent mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando perfil del salón...</p>
         </div>
       </div>
     )
   }
 
-  if (error || !salon) {
+  // Solo mostrar error cuando realmente no se encontró el salón (error explícito de la API)
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
+        <div className="text-center max-w-md px-4">
           <div className="text-6xl mb-4">🚫</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Salón no encontrado</h1>
-          <p className="text-gray-600 mb-6">{error || 'No se pudo cargar la información del salón'}</p>
+          <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => router.push('/')}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -182,8 +186,8 @@ const PerfilPublico = () => {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {salon.gallery.slice(0, 4).map((image) => (
-                <div key={image._id} className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer">
+              {salon.gallery.slice(0, 4).map((image, idx) => (
+                <div key={image._id || image.id || `img-${idx}`} className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer">
                   <img 
                     src={image.imageUrl} 
                     alt={image.title || 'Imagen del salón'} 
@@ -232,9 +236,9 @@ const PerfilPublico = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {services.map((service) => (
                       <div 
-                        key={service._id} 
+                        key={service._id || service.id} 
                         className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-blue-300 hover:bg-blue-50"
-                        onClick={() => router.push(`/${usuario}/book?service=${service._id}`)}
+                        onClick={() => router.push(`/${usuario}/book?service=${service._id || service.id}`)}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-semibold text-gray-800">{service.name}</h4>
@@ -251,9 +255,9 @@ const PerfilPublico = () => {
                             </span>
                           )}
                           
-                          {service.requiresDeposit && (
+                          {salon?.requiresDeposit && salon?.depositAmount > 0 && (
                             <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                              Anticipo: {formatPrice(service.depositAmount)}
+                              Depósito para reservar: {formatPrice(salon.depositAmount)}
                             </span>
                           )}
                         </div>
@@ -358,19 +362,19 @@ const PerfilPublico = () => {
         </div>
 
         {/* Sección de Políticas de Reserva */}
-        {salon?.services?.some(service => service.requiresDeposit) && (
+        {salon?.requiresDeposit && salon?.depositAmount > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
             <div className="flex items-start gap-3">
               <div className="text-yellow-600 text-2xl">⚠️</div>
               <div>
                 <h3 className="text-xl font-bold text-yellow-800 mb-3">Políticas de Reserva</h3>
                 <div className="text-sm text-yellow-700 space-y-2">
-                  <p><strong>IMPORTANTE:</strong> Algunos servicios requieren depósito para confirmar la reserva.</p>
+                  <p><strong>IMPORTANTE:</strong> Se requiere depósito para confirmar tu reserva. El precio completo del servicio se paga al recibir el servicio.</p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li><strong>Política de Inasistencia:</strong> Si no asistes a tu cita confirmada con depósito, el monto <strong>NO será reembolsado</strong></li>
+                    <li><strong>Política de Inasistencia:</strong> Si no asistes a tu cita, el depósito <strong>NO será reembolsado</strong></li>
                     <li><strong>Cancelaciones:</strong> Para cancelar o reprogramar, contacta al salón con <strong>al menos 24 horas de anticipación</strong></li>
                     <li><strong>Confirmación:</strong> Recibirás un email de confirmación con los detalles de tu cita</li>
-                    <li><strong>Pago:</strong> El saldo restante se paga al llegar al salón</li>
+                    <li><strong>Pago del servicio:</strong> El precio completo se paga al llegar al salón</li>
                   </ul>
                   <p className="text-yellow-800 font-medium">
                     Al hacer una reserva, aceptas automáticamente estas condiciones.

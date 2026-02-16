@@ -17,9 +17,7 @@ const ServicesPage = () => {
     price: '',
     duration: '',
     category: 'corte',
-    requiresPayment: false,
-    depositAmount: '',
-    showDuration: true // Descomentado
+    showDuration: true
   })
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -71,12 +69,8 @@ const ServicesPage = () => {
 
     if (!formData.duration || formData.duration < 30) {
       newErrors.duration = 'La duración debe ser al menos 30 minutos'
-    } else if (formData.duration % 30 !== 0) {
+    } else     if (formData.duration % 30 !== 0) {
       newErrors.duration = 'La duración debe ser en bloques de 30 minutos'
-    }
-
-    if (formData.requiresPayment && (!formData.depositAmount || formData.depositAmount <= 0)) {
-      newErrors.depositAmount = 'El monto del depósito es requerido cuando se requiere pago'
     }
 
     setErrors(newErrors)
@@ -99,14 +93,12 @@ const ServicesPage = () => {
         price: parseFloat(formData.price),
         duration: parseInt(formData.duration),
         category: formData.category.toUpperCase(),
-        requiresPayment: formData.requiresPayment,
-        depositAmount: formData.requiresPayment ? parseFloat(formData.depositAmount || 0) : 0,
-        showDuration: formData.showDuration // Descomentado
+        showDuration: formData.showDuration
       }
 
       let response
       if (editingService) {
-        response = await api.put(`/services/${editingService._id}`, serviceData)
+        response = await api.put(`/services/${editingService.id || editingService._id}`, serviceData)
       } else {
         response = await api.post('/services', serviceData)
       }
@@ -114,8 +106,9 @@ const ServicesPage = () => {
       if (response.success) {
         // Actualizar lista de servicios
         if (editingService) {
+          const editingId = editingService.id || editingService._id
           setServices(prev => prev.map(service => 
-            service._id === editingService._id ? response.data : service
+            (service.id || service._id) === editingId ? response.data : service
           ))
         } else {
           setServices(prev => [...prev, response.data])
@@ -141,9 +134,7 @@ const ServicesPage = () => {
       price: service.price.toString(),
       duration: service.duration.toString(),
       category: service.category ? service.category.toLowerCase() : 'corte',
-      requiresPayment: service.requiresPayment || false,
-      depositAmount: service.depositAmount ? service.depositAmount.toString() : '',
-      showDuration: service.showDuration !== undefined ? service.showDuration : true // Descomentado
+      showDuration: service.showDuration !== undefined ? service.showDuration : true
     })
     setShowModal(true)
   }
@@ -156,7 +147,7 @@ const ServicesPage = () => {
     try {
       const response = await api.delete(`/services/${serviceId}`)
       if (response.success) {
-        setServices(prev => prev.filter(service => service._id !== serviceId))
+        setServices(prev => prev.filter(service => (service.id || service._id) !== serviceId))
       } else {
         alert('Error al eliminar el servicio')
       }
@@ -175,9 +166,7 @@ const ServicesPage = () => {
       price: '',
       duration: '',
       category: 'corte',
-      requiresPayment: false,
-      depositAmount: '',
-      showDuration: true // Descomentado
+      showDuration: true
     })
     setErrors({})
   }
@@ -190,9 +179,7 @@ const ServicesPage = () => {
       price: '',
       duration: '',
       category: 'corte',
-      requiresPayment: false,
-      depositAmount: '',
-      showDuration: true // Descomentado
+      showDuration: true
     })
     setErrors({})
     setShowModal(true)
@@ -282,9 +269,6 @@ const ServicesPage = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Visible
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pago
-                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Acciones
                     </th>
@@ -292,7 +276,7 @@ const ServicesPage = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {services && Array.isArray(services) && services.map((service) => (
-                    <tr key={service._id} className="hover:bg-gray-50">
+                    <tr key={service.id || service._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">{service.name}</div>
@@ -323,16 +307,6 @@ const ServicesPage = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {service.requiresPayment ? (
-                          <div className="text-sm">
-                            <div className="text-green-600 font-medium">Requerido</div>
-                            <div className="text-gray-500">${service.depositAmount} anticipo</div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-500 text-sm">No requerido</span>
-                        )}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => handleEdit(service)}
@@ -341,7 +315,7 @@ const ServicesPage = () => {
                           Editar
                         </button>
                         <button
-                          onClick={() => handleDelete(service._id)}
+                          onClick={() => handleDelete(service.id || service._id)}
                           className="text-red-600 hover:text-red-900"
                         >
                           Eliminar
@@ -499,39 +473,9 @@ const ServicesPage = () => {
                     </label>
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="requiresPayment"
-                      checked={formData.requiresPayment}
-                      onChange={handleInputChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label className="ml-2 block text-sm text-gray-900">
-                      Requiere pago por adelantado para reservar
-                    </label>
-                  </div>
-
-                  {formData.requiresPayment && (
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Monto de anticipo *
-                      </label>
-                      <input
-                        type="number"
-                        name="depositAmount"
-                        value={formData.depositAmount}
-                        onChange={handleInputChange}
-                        min="0"
-                        step="0.01"
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          errors.depositAmount ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="0.00"
-                      />
-                      {errors.depositAmount && <p className="mt-1 text-sm text-red-600">{errors.depositAmount}</p>}
-                    </div>
-                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    El depósito para reservas se configura en Configuración del dashboard
+                  </p>
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-6">

@@ -314,7 +314,7 @@ router.post('/', [
         date: format(new Date(date), 'PPP', { locale: es }),
         time,
         price: service.price,
-        depositAmount: service.depositAmount || 0,
+        depositAmount: salonOwner.depositAmount ?? 0,
         salonAddress: salonOwner.address || 'Dirección no especificada',
         salonPhone: salonOwner.phone || 'Teléfono no especificado',
         bookingId: newAppointment.id.toString()
@@ -571,7 +571,7 @@ router.put('/:id', [
           date: format(updatedAppointment.date, 'PPP', { locale: es }),
           time: updatedAppointment.time,
           price: updatedAppointment.service.price,
-          depositAmount: updatedAppointment.service.depositAmount || 0,
+          depositAmount: salonOwner.depositAmount ?? 0,
           salonAddress: salonOwner.address || 'Dirección no especificada',
           salonPhone: salonOwner.phone || 'Teléfono no especificado',
           bookingId: updatedAppointment.id.toString()
@@ -601,7 +601,7 @@ router.put('/:id', [
           date: format(updatedAppointment.date, 'PPP', { locale: es }),
           time: updatedAppointment.time,
           price: updatedAppointment.service.price,
-          depositAmount: updatedAppointment.service.depositAmount || 0,
+          depositAmount: salonOwner.depositAmount ?? 0,
           salonAddress: salonOwner.address || 'Dirección no especificada',
           salonPhone: salonOwner.phone || 'Teléfono no especificado',
           bookingId: updatedAppointment.id.toString(),

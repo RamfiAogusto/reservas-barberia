@@ -129,7 +129,23 @@ function formatDateForDisplay(date, timezone = DEFAULT_TIMEZONE) {
   return dateObj.toLocaleDateString('es-MX', { timeZone: timezone })
 }
 
+/**
+ * Convierte hora de formato 24h (HH:MM) a formato 12h (h:MM AM/PM)
+ * @param {string} time24 - Hora en formato 24h, ej: "14:30", "09:00"
+ * @returns {string} Hora en formato 12h, ej: "2:30 PM", "9:00 AM"
+ */
+function formatTime12h(time24) {
+  if (!time24 || typeof time24 !== 'string') return time24 || ''
+  const parts = time24.trim().split(':')
+  const hour = parseInt(parts[0], 10)
+  const min = parts[1] ? parseInt(parts[1], 10) : 0
+  if (isNaN(hour)) return time24
 
+  const period = hour >= 12 ? 'PM' : 'AM'
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+  const minStr = min.toString().padStart(2, '0')
+  return `${hour12}:${minStr} ${period}`
+}
 
 module.exports = {
   getCurrentDateTime,
@@ -140,5 +156,6 @@ module.exports = {
   isTimePassed,
   filterPastSlots,
   formatDateForDisplay,
+  formatTime12h,
   DEFAULT_TIMEZONE
 } 

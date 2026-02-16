@@ -21,6 +21,8 @@ router.get('/profile', async (req, res) => {
         role: true,
         isActive: true,
         avatar: true,
+        requiresDeposit: true,
+        depositAmount: true,
         createdAt: true,
         updatedAt: true
       }
@@ -50,11 +52,14 @@ router.get('/profile', async (req, res) => {
 // PUT /api/users/profile - Actualizar perfil del usuario autenticado
 router.put('/profile', async (req, res) => {
   try {
-    const { salonName, phone, address, avatar } = req.body
+    const { salonName, phone, address, avatar, requiresDeposit, depositAmount } = req.body
+    const updateData = { salonName, phone, address, avatar }
+    if (requiresDeposit !== undefined) updateData.requiresDeposit = !!requiresDeposit
+    if (depositAmount !== undefined) updateData.depositAmount = parseFloat(depositAmount) || 0
     
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: { salonName, phone, address, avatar },
+      data: updateData,
       select: {
         id: true,
         username: true,
@@ -65,6 +70,8 @@ router.put('/profile', async (req, res) => {
         role: true,
         isActive: true,
         avatar: true,
+        requiresDeposit: true,
+        depositAmount: true,
         createdAt: true,
         updatedAt: true
       }

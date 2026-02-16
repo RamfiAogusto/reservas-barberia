@@ -581,8 +581,12 @@ router.get('/availability/advanced', async (req, res) => {
       }
     })
     
+    const isDayOffType = (type) => ['DAY_OFF', 'VACATION', 'HOLIDAY'].includes(String(type).toUpperCase())
+    const hasSpecialHours = (ex) => String(ex.exceptionType).toUpperCase() === 'SPECIAL_HOURS' && ex.specialStartTime && ex.specialEndTime
+    const getExceptionTypeLabel = (type) => ({ DAY_OFF: 'Día libre', SPECIAL_HOURS: 'Horario especial', VACATION: 'Vacaciones', HOLIDAY: 'Día festivo' }[String(type).toUpperCase()] || type)
+
     // Si hay excepción de día libre
-    const dayOffException = exceptions.find(ex => ex.isDayOff)
+    const dayOffException = exceptions.find(ex => isDayOffType(ex.exceptionType))
     if (dayOffException) {
       return res.json({
         success: true,
@@ -590,7 +594,7 @@ router.get('/availability/advanced', async (req, res) => {
           date: targetDate.toISOString().split('T')[0],
           isBusinessDay: false,
           availableSlots: [],
-          reason: `${dayOffException.typeDescription}: ${dayOffException.name}`
+          reason: `${getExceptionTypeLabel(dayOffException.exceptionType)}: ${dayOffException.name}`
         }
       })
     }
@@ -599,7 +603,7 @@ router.get('/availability/advanced', async (req, res) => {
     let effectiveStartTime = businessHours.startTime
     let effectiveEndTime = businessHours.endTime
 
-    const specialHoursException = exceptions.find(ex => ex.hasSpecialHours)
+    const specialHoursException = exceptions.find(ex => hasSpecialHours(ex))
     if (specialHoursException) {
       effectiveStartTime = specialHoursException.specialStartTime
       effectiveEndTime = specialHoursException.specialEndTime
@@ -719,36 +723,43 @@ function generateAdvancedSlots({ startTime, endTime, breaks = [], existingAppoin
     
     console.log(`   📅 Después de filtrar citas: ${availableSlots.length}`)
     
+    // Helper: verificar si un descanso aplica en el día
+    const breakAppliesOnDay = (breakItem, dayOfWeek) => {
+      const rt = String(breakItem.recurrenceType || '').toUpperCase()
+      if (rt === 'DAILY') return true
+      if (rt === 'WEEKLY') return true
+      if (rt === 'SPECIFIC_DAYS' && Array.isArray(breakItem.specificDays)) return breakItem.specificDays.includes(dayOfWeek)
+      return false
+    }
+
     // Filtrar slots ocupados por descansos
+    const targetDayOfWeek = targetDate.getDay()
     if (breaks && breaks.length > 0) {
       console.log(`   ☕ Procesando ${breaks.length} descansos...`)
       breaks.forEach((breakItem, index) => {
         console.log(`     Descanso ${index + 1}: ${breakItem.name} (${breakItem.startTime}-${breakItem.endTime})`)
         
-        if (breakItem.appliesOnDay && typeof breakItem.appliesOnDay === 'function') {
-          const applies = breakItem.appliesOnDay(targetDate.getDay())
-          console.log(`       Aplica en día ${targetDate.getDay()}: ${applies}`)
+        if (breakAppliesOnDay(breakItem, targetDayOfWeek)) {
+          console.log(`       Aplica en día ${targetDayOfWeek}: true`)
           
-          if (applies) {
-            const [breakStartHour, breakStartMin] = breakItem.startTime.split(':').map(Number)
-            const [breakEndHour, breakEndMin] = breakItem.endTime.split(':').map(Number)
+          const [breakStartHour, breakStartMin] = breakItem.startTime.split(':').map(Number)
+          const [breakEndHour, breakEndMin] = breakItem.endTime.split(':').map(Number)
+          
+          const breakStartMinutes = breakStartHour * 60 + breakStartMin
+          const breakEndMinutes = breakEndHour * 60 + breakEndMin
+          
+          const beforeFilter = availableSlots.length
+          availableSlots = availableSlots.filter(slot => {
+            const [slotHour, slotMin] = slot.split(':').map(Number)
+            const slotMinutes = slotHour * 60 + slotMin
             
-            const breakStartMinutes = breakStartHour * 60 + breakStartMin
-            const breakEndMinutes = breakEndHour * 60 + breakEndMin
-            
-            const beforeFilter = availableSlots.length
-            availableSlots = availableSlots.filter(slot => {
-              const [slotHour, slotMin] = slot.split(':').map(Number)
-              const slotMinutes = slotHour * 60 + slotMin
-              
-              // El slot no debe estar dentro del rango del descanso
-              return !(slotMinutes >= breakStartMinutes && slotMinutes < breakEndMinutes)
-            })
-            
-            console.log(`       Slots filtrados: ${beforeFilter} -> ${availableSlots.length}`)
-          }
+            // El slot no debe estar dentro del rango del descanso
+            return !(slotMinutes >= breakStartMinutes && slotMinutes < breakEndMinutes)
+          })
+          
+          console.log(`       Slots filtrados: ${beforeFilter} -> ${availableSlots.length}`)
         } else {
-          console.log(`       ⚠️ Método appliesOnDay no disponible`)
+          console.log(`       Aplica en día ${targetDayOfWeek}: false`)
         }
       })
     } else {

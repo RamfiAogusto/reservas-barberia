@@ -150,7 +150,7 @@ export default function PublicGallery({ username }) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {filteredImages.map((image, index) => (
           <div
-            key={image._id}
+            key={image._id || image.id || `img-${index}`}
             className="relative overflow-hidden rounded-lg cursor-pointer group"
             onClick={() => openLightbox(index)}
           >

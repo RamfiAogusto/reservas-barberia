@@ -14,6 +14,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "health": "node -e \"require('dotenv').config(); console.log('✅ Server config OK:', {env: process.env.NODE_ENV, port: process.env.PORT})\"",
     "db-check": "node -e \"require('dotenv').config(); require('./lib/prisma').checkConnection().then(() => console.log('✅ PostgreSQL connection OK')).catch(e => console.error('❌ PostgreSQL error:', e.message))\"",
+    "db-setup": "node scripts/setup-local-db.js",
     "db-migrate": "prisma migrate dev",
     "db-migrate-deploy": "prisma migrate deploy",
     "force-migrate": "node force-migrate.js",

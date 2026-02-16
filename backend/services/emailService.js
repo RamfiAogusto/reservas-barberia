@@ -1,4 +1,5 @@
 const { Resend } = require('resend');
+const { formatTime12h } = require('../utils/timeUtils');
 
 // Manejo seguro de la API key
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -38,6 +39,7 @@ class EmailService {
       salonPhone, 
       bookingId 
     } = bookingData;
+    const time12h = formatTime12h(time || '');
 
     return `
       <!DOCTYPE html>
@@ -76,7 +78,7 @@ class EmailService {
               <h3>📅 Detalles de tu Cita</h3>
               <p><strong>Servicio:</strong> ${serviceName}</p>
               <p><strong>Fecha:</strong> ${date}</p>
-              <p><strong>Hora:</strong> ${time}</p>
+              <p><strong>Hora:</strong> ${time12h}</p>
               <p><strong>ID de Reserva:</strong> ${bookingId}</p>
             </div>
 
@@ -89,11 +91,10 @@ class EmailService {
 
             <div class="highlight">
               <h3>💰 Información de Pago</h3>
-              <p><strong>Precio Total:</strong> <span class="price">$${price}</span></p>
+              <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
               ${depositAmount > 0 ? `
-                <p><strong>Depósito Pagado:</strong> <span class="price">$${depositAmount}</span></p>
-                <p><strong>Saldo Pendiente:</strong> <span class="price">$${price - depositAmount}</span></p>
-                <p><em>Paga el saldo restante al llegar al salón.</em></p>
+                <p><strong>Depósito para confirmar reserva:</strong> <span class="price">$${depositAmount}</span></p>
+                <p><em>El depósito asegura tu cita. El precio completo del servicio se paga al recibir el servicio.</em></p>
               ` : ''}
             </div>
 
@@ -139,6 +140,7 @@ class EmailService {
       salonAddress,
       salonPhone 
     } = bookingData;
+    const time12h = formatTime12h(time || '');
 
     return `
       <!DOCTYPE html>
@@ -171,7 +173,7 @@ class EmailService {
               <h3>📅 Detalles de tu Cita</h3>
               <p><strong>Servicio:</strong> ${serviceName}</p>
               <p><strong>Fecha:</strong> ${date}</p>
-              <p><strong>Hora:</strong> ${time}</p>
+              <p><strong>Hora:</strong> ${time12h}</p>
               <p><strong>Lugar:</strong> ${salonAddress}</p>
             </div>
 
@@ -209,7 +211,7 @@ class EmailService {
       const result = await resend.emails.send({
         from: this.fromEmail,
         to: bookingData.clientEmail,
-        subject: `✅ Cita Confirmada - ${bookingData.salonName} | ${bookingData.date} ${bookingData.time}`,
+        subject: `✅ Cita Confirmada - ${bookingData.salonName} | ${bookingData.date} ${formatTime12h(bookingData.time || '')}`,
         html: emailContent
       });
 
@@ -264,6 +266,7 @@ class EmailService {
       salonPhone, 
       bookingId 
     } = bookingData;
+    const time12h = formatTime12h(time || '');
 
     return `
       <!DOCTYPE html>
@@ -300,7 +303,7 @@ class EmailService {
               <h3>📅 Detalles de tu Solicitud</h3>
               <p><strong>Servicio:</strong> ${serviceName}</p>
               <p><strong>Fecha:</strong> ${date}</p>
-              <p><strong>Hora:</strong> ${time}</p>
+              <p><strong>Hora:</strong> ${time12h}</p>
               <p><strong>ID de Solicitud:</strong> ${bookingId}</p>
             </div>
 
@@ -319,10 +322,10 @@ class EmailService {
 
             <div class="highlight">
               <h3>💰 Información de Pago</h3>
-              <p><strong>Precio Total:</strong> <span class="price">$${price}</span></p>
+              <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
               ${depositAmount > 0 ? `
-                <p><strong>Depósito Requerido:</strong> <span class="price">$${depositAmount}</span></p>
-                <p><strong>Saldo Pendiente:</strong> <span class="price">$${price - depositAmount}</span></p>
+                <p><strong>Depósito para confirmar reserva:</strong> <span class="price">$${depositAmount}</span></p>
+                <p><em>El depósito asegura tu cita. El precio completo del servicio se paga al recibir el servicio.</em></p>
               ` : `
                 <p><strong>Pago:</strong> Al llegar al salón</p>
               `}
@@ -365,7 +368,7 @@ class EmailService {
       const result = await resend.emails.send({
         from: this.fromEmail,
         to: bookingData.clientEmail,
-        subject: `📋 Solicitud Enviada - ${bookingData.salonName} | ${bookingData.date} ${bookingData.time}`,
+        subject: `📋 Solicitud Enviada - ${bookingData.salonName} | ${bookingData.date} ${formatTime12h(bookingData.time || '')}`,
         html: emailContent
       });
 
@@ -392,6 +395,7 @@ class EmailService {
       bookingId,
       notes
     } = bookingData;
+    const time12h = formatTime12h(time || '');
 
     return `
       <!DOCTYPE html>
@@ -430,7 +434,7 @@ class EmailService {
               <h3>📅 Detalles de la Cita</h3>
               <p><strong>Servicio:</strong> ${serviceName}</p>
               <p><strong>Fecha:</strong> ${date}</p>
-              <p><strong>Hora:</strong> ${time}</p>
+              <p><strong>Hora:</strong> ${time12h}</p>
               <p><strong>ID de Reserva:</strong> ${bookingId}</p>
               ${notes ? `<p><strong>Notas:</strong> ${notes}</p>` : ''}
             </div>
@@ -444,10 +448,10 @@ class EmailService {
 
             <div class="highlight">
               <h3>💰 Información de Pago</h3>
-              <p><strong>Precio Total:</strong> <span class="price">$${price}</span></p>
+              <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
               ${depositAmount > 0 ? `
-                <p><strong>Depósito Requerido:</strong> <span class="price">$${depositAmount}</span></p>
-                <p><strong>Saldo Pendiente:</strong> <span class="price">$${price - depositAmount}</span></p>
+                <p><strong>Depósito para confirmar reserva:</strong> <span class="price">$${depositAmount}</span></p>
+                <p><em>El depósito asegura la cita. El cliente paga el precio completo del servicio al recibirlo.</em></p>
               ` : `
                 <p><strong>Pago:</strong> Al llegar al salón</p>
               `}
@@ -493,7 +497,7 @@ class EmailService {
       const result = await resend.emails.send({
         from: this.fromEmail,
         to: bookingData.ownerEmail,
-        subject: `📅 Nueva Reserva - ${bookingData.salonName} | ${bookingData.date} ${bookingData.time}`,
+        subject: `📅 Nueva Reserva - ${bookingData.salonName} | ${bookingData.date} ${formatTime12h(bookingData.time || '')}`,
         html: emailContent
       });
 
@@ -522,6 +526,7 @@ class EmailService {
       oldDate,
       oldTime
     } = bookingData;
+    const time12h = formatTime12h(time || '');
 
     return `
       <!DOCTYPE html>
@@ -565,7 +570,7 @@ class EmailService {
               <h3>📅 Detalles Actualizados de tu Cita</h3>
               <p><strong>Servicio:</strong> ${serviceName}</p>
               <p><strong>Fecha:</strong> ${date}</p>
-              <p><strong>Hora:</strong> ${time}</p>
+              <p><strong>Hora:</strong> ${time12h}</p>
               <p><strong>ID de Reserva:</strong> ${bookingId}</p>
             </div>
 
@@ -578,10 +583,10 @@ class EmailService {
 
             <div class="highlight">
               <h3>💰 Información de Pago</h3>
-              <p><strong>Precio Total:</strong> <span class="price">$${price}</span></p>
+              <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
               ${depositAmount > 0 ? `
-                <p><strong>Depósito Requerido:</strong> <span class="price">$${depositAmount}</span></p>
-                <p><strong>Saldo Pendiente:</strong> <span class="price">$${price - depositAmount}</span></p>
+                <p><strong>Depósito para confirmar reserva:</strong> <span class="price">$${depositAmount}</span></p>
+                <p><em>El depósito asegura tu cita. El precio completo del servicio se paga al recibir el servicio.</em></p>
               ` : `
                 <p><strong>Pago:</strong> Al llegar al salón</p>
               `}
@@ -625,7 +630,7 @@ class EmailService {
       const result = await resend.emails.send({
         from: this.fromEmail,
         to: bookingData.clientEmail,
-        subject: `✏️ Reserva Modificada - ${bookingData.salonName} | ${bookingData.date} ${bookingData.time}`,
+        subject: `✏️ Reserva Modificada - ${bookingData.salonName} | ${bookingData.date} ${formatTime12h(bookingData.time || '')}`,
         html: emailContent
       });
 
@@ -671,7 +676,7 @@ class EmailService {
               <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0;">
                 <p><strong>Servicio:</strong> ${bookingData.serviceName}</p>
                 <p><strong>Fecha:</strong> ${bookingData.date}</p>
-                <p><strong>Hora:</strong> ${bookingData.time}</p>
+                <p><strong>Hora:</strong> ${formatTime12h(bookingData.time || '')}</p>
               </div>
 
               <p>Para más información, contacta al salón:</p>

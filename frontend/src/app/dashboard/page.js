@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import api, { getUserData, getAuthToken, clearAuthData } from '@/utils/api'
+import { formatTime12h } from '@/utils/formatTime'
 
 const Dashboard = () => {
   const router = useRouter()
@@ -253,6 +254,32 @@ const Dashboard = () => {
               </div>
             </div>
           </Link>
+
+          <Link href="/dashboard/settings" className="group">
+            <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 group-hover:border-indigo-300">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="ml-4 flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600">
+                    Configuración
+                  </h3>
+                  <p className="text-gray-600">
+                    Depósito para reservas y opciones del negocio
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Personaliza cómo funcionan las reservas
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
 
         {/* Stats Cards */}
@@ -389,12 +416,12 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-4">
                 {todayAppointments.map((appointment) => (
-                  <div key={appointment.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
+                  <div key={appointment.id || appointment._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                            {appointment.time}
+                            {formatTime12h(appointment.time)}
                           </div>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             appointment.status === 'CONFIRMADA' ? 'bg-green-100 text-green-800' :

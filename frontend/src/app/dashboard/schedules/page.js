@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/utils/api'
+import { formatTime12h } from '@/utils/formatTime'
+import TimeInput12h from '@/components/TimeInput12h'
 
 const SchedulesPage = () => {
   const router = useRouter()
@@ -40,6 +42,32 @@ const SchedulesPage = () => {
   })
 
   const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+
+  const formatRecurrence = (recurrenceType, specificDays = []) => {
+    if (recurrenceType === 'DAILY' || recurrenceType === 'daily') return 'Todos los días'
+    if (recurrenceType === 'WEEKLY' || recurrenceType === 'weekly') return 'Semanalmente'
+    if (recurrenceType === 'SPECIFIC_DAYS' || recurrenceType === 'specific_days') {
+      if (specificDays?.length > 0) {
+        return specificDays.map(d => dayNames[d]).join(', ')
+      }
+      return 'Días específicos'
+    }
+    return ''
+  }
+
+  const formatExceptionType = (exceptionType) => {
+    const types = {
+      DAY_OFF: 'Día libre',
+      day_off: 'Día libre',
+      SPECIAL_HOURS: 'Horario especial',
+      special_hours: 'Horario especial',
+      VACATION: 'Vacaciones',
+      vacation: 'Vacaciones',
+      HOLIDAY: 'Día festivo',
+      holiday: 'Día festivo'
+    }
+    return types[exceptionType] || exceptionType || ''
+  }
 
   // Función auxiliar para normalizar horarios (asegurar que tenemos los 7 días)
   const normalizeBusinessHours = (data) => {
@@ -172,6 +200,10 @@ const SchedulesPage = () => {
   }
 
   const handleDeleteBreak = async (breakId) => {
+    if (!breakId) {
+      setError('Error: ID del descanso no encontrado')
+      return
+    }
     if (!confirm('¿Estás seguro de eliminar este descanso?')) return
 
     try {
@@ -234,6 +266,10 @@ const SchedulesPage = () => {
   }
 
   const handleDeleteException = async (exceptionId) => {
+    if (!exceptionId) {
+      setError('Error: ID de la excepción no encontrado')
+      return
+    }
     if (!confirm('¿Estás seguro de eliminar esta excepción?')) return
 
     try {
@@ -357,21 +393,19 @@ const SchedulesPage = () => {
                     <>
                       <div className="flex items-center space-x-2">
                         <label className="text-sm text-gray-600">Desde:</label>
-                        <input
-                          type="time"
+                        <TimeInput12h
                           value={day.startTime || '09:00'}
-                          onChange={(e) => handleBusinessHoursChange(index, 'startTime', e.target.value)}
-                          className="border border-gray-300 rounded px-2 py-1"
+                          onChange={(val) => handleBusinessHoursChange(index, 'startTime', val)}
+                          className="border-gray-300 rounded px-2 py-1 min-w-[120px]"
                         />
                       </div>
 
                       <div className="flex items-center space-x-2">
                         <label className="text-sm text-gray-600">Hasta:</label>
-                        <input
-                          type="time"
+                        <TimeInput12h
                           value={day.endTime || '18:00'}
-                          onChange={(e) => handleBusinessHoursChange(index, 'endTime', e.target.value)}
-                          className="border border-gray-300 rounded px-2 py-1"
+                          onChange={(val) => handleBusinessHoursChange(index, 'endTime', val)}
+                          className="border-gray-300 rounded px-2 py-1 min-w-[120px]"
                         />
                       </div>
                     </>
@@ -400,17 +434,17 @@ const SchedulesPage = () => {
 
             {/* Lista de descansos */}
             <div className="space-y-4 mb-6">
-              {breaks.map((breakItem) => (
-                <div key={breakItem._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+              {breaks.map((breakItem, index) => (
+                <div key={breakItem.id || breakItem._id || `break-${index}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div>
                     <h3 className="font-semibold">{breakItem.name}</h3>
                     <p className="text-sm text-gray-600">
-                      {breakItem.startTime} - {breakItem.endTime}
+                      {formatTime12h(breakItem.startTime)} - {formatTime12h(breakItem.endTime)}
                     </p>
-                    <p className="text-xs text-gray-500">{breakItem.recurrenceDescription}</p>
+                    <p className="text-xs text-gray-500">{breakItem.recurrenceDescription || formatRecurrence(breakItem.recurrenceType, breakItem.specificDays)}</p>
                   </div>
                   <button
-                    onClick={() => handleDeleteBreak(breakItem._id)}
+                    onClick={() => handleDeleteBreak(breakItem.id || breakItem._id)}
                     className="text-red-600 hover:text-red-800"
                   >
                     Eliminar
@@ -449,12 +483,12 @@ const SchedulesPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Hora de inicio
                       </label>
-                      <input
-                        type="time"
+                      <TimeInput12h
                         required
                         value={breakForm.startTime}
-                        onChange={(e) => setBreakForm(prev => ({ ...prev, startTime: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        onChange={(val) => setBreakForm(prev => ({ ...prev, startTime: val }))}
+                        className="w-full border-gray-300"
+                        aria-label="Hora de inicio del descanso"
                       />
                     </div>
 
@@ -462,12 +496,12 @@ const SchedulesPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Hora de fin
                       </label>
-                      <input
-                        type="time"
+                      <TimeInput12h
                         required
                         value={breakForm.endTime}
-                        onChange={(e) => setBreakForm(prev => ({ ...prev, endTime: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        onChange={(val) => setBreakForm(prev => ({ ...prev, endTime: val }))}
+                        className="w-full border-gray-300"
+                        aria-label="Hora de fin del descanso"
                       />
                     </div>
                   </div>
@@ -556,16 +590,16 @@ const SchedulesPage = () => {
 
             {/* Lista de excepciones */}
             <div className="space-y-4 mb-6">
-              {exceptions.map((exception) => (
-                <div key={exception._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+              {exceptions.map((exception, index) => (
+                <div key={exception.id || exception._id || `exception-${index}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div>
                     <h3 className="font-semibold">{exception.name}</h3>
                     <p className="text-sm text-gray-600">
-                      {exception.typeDescription} • {new Date(exception.startDate).toLocaleDateString()} - {new Date(exception.endDate).toLocaleDateString()}
+                      {exception.typeDescription || formatExceptionType(exception.exceptionType)} • {new Date(exception.startDate).toLocaleDateString()} - {new Date(exception.endDate).toLocaleDateString()}
                     </p>
-                    {exception.hasSpecialHours && (
+                    {(exception.specialStartTime || exception.specialEndTime) && (
                       <p className="text-xs text-blue-600">
-                        Horario especial: {exception.specialStartTime} - {exception.specialEndTime}
+                        Horario especial: {formatTime12h(exception.specialStartTime)} - {formatTime12h(exception.specialEndTime)}
                       </p>
                     )}
                     {exception.reason && (
@@ -573,7 +607,7 @@ const SchedulesPage = () => {
                     )}
                   </div>
                   <button
-                    onClick={() => handleDeleteException(exception._id)}
+                    onClick={() => handleDeleteException(exception.id || exception._id)}
                     className="text-red-600 hover:text-red-800"
                   >
                     Eliminar
@@ -657,12 +691,12 @@ const SchedulesPage = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Hora especial de inicio
                         </label>
-                        <input
-                          type="time"
+                        <TimeInput12h
                           required
                           value={exceptionForm.specialStartTime}
-                          onChange={(e) => setExceptionForm(prev => ({ ...prev, specialStartTime: e.target.value }))}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                          onChange={(val) => setExceptionForm(prev => ({ ...prev, specialStartTime: val }))}
+                          className="w-full border-gray-300"
+                          aria-label="Hora especial de inicio"
                         />
                       </div>
 
@@ -670,12 +704,12 @@ const SchedulesPage = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Hora especial de fin
                         </label>
-                        <input
-                          type="time"
+                        <TimeInput12h
                           required
                           value={exceptionForm.specialEndTime}
-                          onChange={(e) => setExceptionForm(prev => ({ ...prev, specialEndTime: e.target.value }))}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                          onChange={(val) => setExceptionForm(prev => ({ ...prev, specialEndTime: val }))}
+                          className="w-full border-gray-300"
+                          aria-label="Hora especial de fin"
                         />
                       </div>
                     </div>

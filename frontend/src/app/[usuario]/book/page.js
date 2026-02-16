@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useSalonDataOptimized } from '@/utils/SalonContext'
 import { useDaysStatus, useAvailableSlots } from '@/utils/useSalonData'
 import { cachedRequest } from '@/utils/cache'
+import { formatTime12h } from '@/utils/formatTime'
 
 const BookingPage = () => {
   const params = useParams()
@@ -16,6 +17,7 @@ const BookingPage = () => {
   // Estados principales
   const [currentStep, setCurrentStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState(null)
 
   // Estados del formulario
   const [selectedService, setSelectedService] = useState(null)
@@ -46,7 +48,7 @@ const BookingPage = () => {
   useEffect(() => {
     const serviceId = searchParams.get('service')
     if (serviceId && salon?.services && !selectedService) {
-      const service = salon.services.find(s => s._id === serviceId)
+      const service = salon.services.find(s => (s._id || s.id) === serviceId)
       if (service) {
         setSelectedService(service)
         setCurrentStep(2) // Ir directamente al paso de selección de fecha
@@ -105,7 +107,7 @@ const BookingPage = () => {
       setError('')
 
       const bookingData = {
-        serviceId: selectedService._id,
+        serviceId: selectedService._id || selectedService.id,
         clientName: clientData.name,
         clientEmail: clientData.email,
         clientPhone: clientData.phone,
@@ -123,9 +125,10 @@ const BookingPage = () => {
       })
 
       if (data.success) {
-        // Redirigir a página de confirmación o mostrar mensaje
-        alert(`¡Reserva confirmada! ID: ${data.data.appointmentId}`)
-        router.push(`/${username}`)
+        setSuccessMessage(`¡Reserva confirmada! Te hemos enviado un correo con los detalles.`)
+        setTimeout(() => {
+          router.push(`/${username}`)
+        }, 2500)
       } else {
         setError(data.message || 'Error al crear la reserva')
       }
@@ -152,37 +155,6 @@ const BookingPage = () => {
     }
     
     return dayInfo
-  }
-
-  // Función para obtener las clases CSS según el estado del día
-  const getDayClasses = (dayInfo) => {
-    const baseClasses = "p-3 border rounded-lg text-left transition-all relative"
-    
-    if (dayInfo.type === 'loading') {
-      return `${baseClasses} border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed`
-    }
-    
-    if (!dayInfo.available) {
-      switch (dayInfo.type) {
-        case 'closed':
-          return `${baseClasses} border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed`
-        case 'vacation':
-          return `${baseClasses} border-purple-300 bg-purple-50 text-purple-700 cursor-not-allowed`
-        case 'holiday':
-          return `${baseClasses} border-red-300 bg-red-50 text-red-700 cursor-not-allowed`
-        case 'day_off':
-          return `${baseClasses} border-orange-300 bg-orange-50 text-orange-700 cursor-not-allowed`
-        default:
-          return `${baseClasses} border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed`
-      }
-    }
-    
-    if (dayInfo.type === 'special_hours') {
-      return `${baseClasses} border-blue-300 bg-blue-50 text-blue-700 hover:border-blue-500 hover:bg-blue-100 cursor-pointer`
-    }
-    
-    // Día disponible normal
-    return `${baseClasses} border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer`
   }
 
   // Función para obtener el icono según el tipo de día
@@ -261,26 +233,30 @@ const BookingPage = () => {
     }).format(price)
   }
 
-  if (loading) {
+  // Mostrar loading: mientras carga O cuando aún no hay datos ni error (evitar flash de error)
+  const isInitialOrLoading = loading || (!salon && !error)
+
+  if (isInitialOrLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-600 border-t-transparent mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando...</p>
         </div>
       </div>
     )
   }
 
-  if (error && !salon) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-          <p className="text-gray-600 mb-4">{error}</p>
+        <div className="text-center max-w-md px-4">
+          <div className="text-6xl mb-4">🚫</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Salón no encontrado</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
           <Link
             href="/"
-            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Volver al inicio
           </Link>
@@ -289,512 +265,510 @@ const BookingPage = () => {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <Link
-                href={`/${username}`}
-                className="text-blue-600 hover:text-blue-800 flex items-center"
-              >
-                ← Volver al perfil
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900 mt-2">
-                Reservar cita en {salon?.salonName}
-              </h1>
-            </div>
-            
-            {/* Indicador de pasos */}
-            <div className="flex items-center space-x-2">
-              {[1, 2, 3, 4].map((step) => (
-                <div
-                  key={step}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step === currentStep
-                      ? 'bg-blue-600 text-white'
-                      : step < currentStep
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-300 text-gray-600'
-                  }`}
-                >
-                  {step < currentStep ? '✓' : step}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+  const steps = [
+    { num: 1, label: 'Servicio', short: 'Servicio' },
+    { num: 2, label: 'Fecha', short: 'Fecha' },
+    { num: 3, label: 'Hora', short: 'Hora' },
+    { num: 4, label: 'Confirmar', short: 'Datos' }
+  ]
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Toast de éxito */}
+      {successMessage && (
+        <div
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md mx-4 px-6 py-4 bg-emerald-600 text-white rounded-xl shadow-lg flex items-center gap-3"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="text-2xl">✓</span>
+          <p className="font-medium">{successMessage}</p>
+        </div>
+      )}
+
+      {/* Header limpio */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <Link
+            href={`/${username}`}
+            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 text-sm mb-4 transition-colors"
+            aria-label="Volver al perfil del salón"
+          >
+            <span aria-hidden>←</span> {salon?.salonName}
+          </Link>
+          <h1 className="text-xl font-semibold text-slate-900">Reservar cita</h1>
+
+          {/* Stepper con etiquetas */}
+          <nav aria-label="Progreso de la reserva" className="mt-4">
+            <ol className="flex justify-between gap-2">
+              {steps.map((step) => (
+                <li
+                  key={step.num}
+                  className="flex flex-col items-center flex-1 min-w-0"
+                  aria-current={step.num === currentStep ? 'step' : undefined}
+                >
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 transition-colors ${
+                      step.num === currentStep
+                        ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
+                        : step.num < currentStep
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-200 text-slate-500'
+                    }`}
+                  >
+                    {step.num < currentStep ? '✓' : step.num}
+                  </div>
+                  <span className={`mt-1.5 text-xs font-medium truncate w-full text-center hidden sm:block ${
+                    step.num === currentStep ? 'text-emerald-600' : step.num < currentStep ? 'text-slate-600' : 'text-slate-400'
+                  }`}>
+                    {step.label}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        </div>
+      </header>
+
+      <div className="max-w-3xl mx-auto px-4 py-8">
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">{error}</p>
+          <div
+            className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3"
+            role="alert"
+          >
+            <span className="text-red-500 text-lg shrink-0">⚠</span>
+            <p className="text-red-800 text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Resumen flotante - siempre visible cuando hay selección */}
+        {(selectedService || selectedDate || selectedTime) && currentStep > 1 && (
+          <div
+            className="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm"
+            aria-label="Resumen de tu selección"
+          >
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Tu selección</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {selectedService && (
+                <span className="text-slate-700">
+                  <strong>{selectedService.name}</strong> · {formatPrice(selectedService.price)}
+                </span>
+              )}
+              {selectedDate && (
+                <span className="text-slate-600">
+                  📅 {formatDate(selectedDate)}
+                </span>
+              )}
+              {selectedTime && (
+                <span className="text-slate-600">
+                  🕐 {formatTime12h(selectedTime)}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentStep(1)}
+              className="mt-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+              aria-label="Modificar selección"
+            >
+              Cambiar reserva
+            </button>
           </div>
         )}
 
         {/* Paso 1: Seleccionar Servicio */}
         {currentStep === 1 && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-6">Paso 1: Selecciona tu servicio</h2>
+          <section
+            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            aria-labelledby="step1-title"
+          >
+            <h2 id="step1-title" className="text-lg font-semibold text-slate-900 mb-1">
+              ¿Qué servicio deseas?
+            </h2>
+            <p className="text-slate-500 text-sm mb-6">Elige el servicio que mejor se adapte a ti</p>
             
-            {/* Indicador si hay servicio preseleccionado */}
-            {selectedService && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <span className="text-green-600 text-xl">✅</span>
-                  <div>
-                    <p className="text-green-800 font-medium">Servicio preseleccionado:</p>
-                    <p className="text-green-700 text-sm">{selectedService.name} - {formatPrice(selectedService.price)}</p>
-                  </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {salon?.services?.map((service) => {
+                const isSelected = (selectedService?._id || selectedService?.id) === (service._id || service.id)
+                return (
                   <button
-                    onClick={() => {
-                      setSelectedService(null)
-                      setSelectedDate('')
-                      setSelectedTime('')
-                      setAvailableSlots([])
-                      setAllSlots([])
-                    }}
-                    className="ml-auto text-green-600 hover:text-green-800 text-sm font-medium"
+                    key={service._id || service.id}
+                    type="button"
+                    onClick={() => handleSelectService(service)}
+                    className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
+                    }`}
+                    aria-pressed={isSelected}
+                    aria-label={`Seleccionar ${service.name}, ${formatPrice(service.price)}`}
                   >
-                    Cambiar
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            <div className="grid gap-4 md:grid-cols-2">
-              {salon?.services?.map((service) => (
-                <div
-                  key={service._id}
-                  onClick={() => handleSelectService(service)}
-                  className={`border rounded-lg p-4 cursor-pointer hover:shadow-md transition-all ${
-                    selectedService?._id === service._id 
-                      ? 'border-green-500 bg-green-50' 
-                      : 'border-gray-200 hover:border-blue-500'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-lg">{service.name}</h3>
-                    <div className="flex items-center gap-2">
-                      {selectedService?._id === service._id && (
-                        <span className="text-green-600 text-sm">✅ Seleccionado</span>
+                    <div className="flex justify-between items-start gap-3">
+                      <h3 className="font-semibold text-slate-900">{service.name}</h3>
+                      <span className={`font-bold shrink-0 ${isSelected ? 'text-emerald-600' : 'text-slate-700'}`}>
+                        {formatPrice(service.price)}
+                      </span>
+                    </div>
+                    {service.description && (
+                      <p className="text-slate-500 text-sm mt-1 line-clamp-2">{service.description}</p>
+                    )}
+                    <div className="flex items-center justify-between mt-3 text-xs text-slate-400">
+                      {service.showDuration !== false && (
+                        <span>⏱ {service.duration} min</span>
                       )}
-                      <span className="text-blue-600 font-bold">{formatPrice(service.price)}</span>
+                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full capitalize">
+                        {service.category}
+                      </span>
                     </div>
-                  </div>
-                  
-                  {service.description && (
-                    <p className="text-gray-600 text-sm mb-2">{service.description}</p>
-                  )}
-                  
-                  <div className="flex justify-between items-center text-sm text-gray-500">
-                    <span>⏱️ {service.duration} minutos</span>
-                    <span className="bg-gray-100 px-2 py-1 rounded">
-                      {service.category}
-                    </span>
-                  </div>
-                  
-                  {service.requiresDeposit && (
-                    <div className="mt-2 text-sm text-orange-600">
-                      💳 Requiere depósito: {formatPrice(service.depositAmount)}
-                    </div>
-                  )}
-                </div>
-              ))}
+                    {salon?.requiresDeposit && salon?.depositAmount > 0 && (
+                      <p className="mt-2 text-xs text-amber-600">
+                        Depósito: {formatPrice(salon.depositAmount)}
+                      </p>
+                    )}
+                    {isSelected && (
+                      <div className="mt-3 flex items-center gap-1.5 text-emerald-600 text-sm font-medium">
+                        <span>✓</span> Seleccionado
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
-          </div>
+          </section>
         )}
 
         {/* Paso 2: Seleccionar Fecha */}
         {currentStep === 2 && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-6">Paso 2: Selecciona la fecha</h2>
-            
-            {/* Servicio seleccionado */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-semibold">{selectedService?.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    {selectedService?.duration} min • {formatPrice(selectedService?.price)}
-                  </p>
-                  {selectedService?.description && (
-                    <p className="text-xs text-gray-500 mt-1">{selectedService.description}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => {
-                    setSelectedService(null)
-                    setCurrentStep(1)
-                  }}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  Cambiar servicio
-                </button>
-              </div>
-            </div>
+          <section
+            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            aria-labelledby="step2-title"
+          >
+            <h2 id="step2-title" className="text-lg font-semibold text-slate-900 mb-1">
+              ¿Cuándo prefieres?
+            </h2>
+            <p className="text-slate-500 text-sm mb-6">
+              {selectedService?.name} · {formatPrice(selectedService?.price)}
+            </p>
 
-            {/* Leyenda */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-              <h3 className="text-sm font-semibold mb-3">Leyenda:</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                <div className="flex items-center space-x-1">
-                  <span>✅</span>
-                  <span>Disponible</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span>⏰</span>
-                  <span>Horario especial</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span>🚫</span>
-                  <span>Cerrado</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span>🏖️</span>
-                  <span>Vacaciones</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span>🎉</span>
-                  <span>Día festivo</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span>📅</span>
-                  <span>Día libre</span>
-                </div>
+            {/* Leyenda compacta */}
+            <details className="mb-6 group">
+              <summary className="text-sm text-slate-500 cursor-pointer hover:text-slate-700 list-none flex items-center gap-1">
+                <span className="group-open:rotate-90 transition-transform">▸</span> Ver significado de los iconos
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                <span>✅ Disponible</span>
+                <span>⏰ Horario especial</span>
+                <span>🚫 Cerrado</span>
+                <span>🏖️ Vacaciones</span>
+                <span>🎉 Festivo</span>
+                <span>📅 Día libre</span>
               </div>
-            </div>
+            </details>
 
             {loadingDays ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Cargando disponibilidad...</p>
+              <div className="py-12 flex flex-col items-center justify-center">
+                <div className="w-10 h-10 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                <p className="mt-3 text-slate-500 text-sm">Buscando días disponibles...</p>
               </div>
             ) : daysStatus.length > 0 ? (
-              <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
                 {getDisplayDates().map((date) => {
                   const dateString = getDateString(date)
                   const dayInfo = getDayStatus(dateString)
-                  
+                  const isToday = getDateString(new Date()) === dateString
+                  const isAvailable = dayInfo.available
                   return (
                     <button
                       key={dateString}
+                      type="button"
                       onClick={() => {
-                        if (dayInfo.available) {
+                        if (isAvailable) {
                           setSelectedDate(dateString)
                           setSelectedTime('')
                           setError('')
                           handleNextStep()
                         }
                       }}
-                      disabled={!dayInfo.available}
-                      className={getDayClasses(dayInfo)}
-                      title={dayInfo.available ? 'Día disponible' : dayInfo.reason}
+                      disabled={!isAvailable}
+                      className={`
+                        relative p-3 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+                        ${isAvailable
+                          ? 'bg-white border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 cursor-pointer'
+                          : 'bg-slate-50 border-2 border-slate-100 text-slate-400 cursor-not-allowed'
+                        }
+                        ${isToday && isAvailable ? 'ring-2 ring-emerald-200' : ''}
+                      `}
+                      title={isAvailable ? 'Seleccionar este día' : dayInfo.reason}
+                      aria-label={isAvailable ? `${date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} - Disponible` : dayInfo.reason}
                     >
-                      <div className="font-semibold">{date.getDate()}</div>
-                      <div className="text-sm text-gray-600">
-                        {date.toLocaleDateString('es-ES', { month: 'short' })}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {date.toLocaleDateString('es-ES', { weekday: 'short' })}
-                      </div>
-                      <div className="absolute top-1 right-1 text-xs">
-                        {getDayIcon(dayInfo)}
-                      </div>
-                      
-                      {/* Información adicional para días especiales */}
-                      {dayInfo.type === 'special_hours' && (
-                        <div className="text-xs text-blue-600 mt-1">
-                          Horario especial
-                        </div>
-                      )}
-                      {!dayInfo.available && (
-                        <div className="text-xs mt-1 font-medium">
-                          {dayInfo.reason}
-                        </div>
+                      <span className="text-xs text-slate-400 block">{date.toLocaleDateString('es-ES', { weekday: 'short' })}</span>
+                      <span className="text-lg font-semibold text-slate-900 block">{date.getDate()}</span>
+                      <span className="text-xs text-slate-500 block">{date.toLocaleDateString('es-ES', { month: 'short' })}</span>
+                      {!isAvailable && (
+                        <span className="absolute top-1 right-1 text-xs" aria-hidden>{getDayIcon(dayInfo)}</span>
                       )}
                     </button>
                   )
                 })}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-600">No se pudieron cargar los días disponibles.</p>
+              <div className="py-12 text-center">
+                <p className="text-slate-500">No se pudieron cargar los días.</p>
                 <button
+                  type="button"
                   onClick={() => window.location.reload()}
-                  className="mt-2 text-blue-600 hover:text-blue-800"
+                  className="mt-3 text-emerald-600 hover:text-emerald-700 text-sm font-medium"
                 >
-                  Recargar página
+                  Recargar
                 </button>
               </div>
             )}
 
-            <div className="mt-6 flex justify-between">
+            <div className="mt-8 pt-6 border-t border-slate-100">
               <button
+                type="button"
                 onClick={handlePreviousStep}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="text-slate-600 hover:text-slate-900 text-sm font-medium flex items-center gap-2"
+                aria-label="Volver a seleccionar servicio"
               >
-                Anterior
+                ← Cambiar servicio
               </button>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Paso 3: Seleccionar Hora */}
         {currentStep === 3 && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-6">Paso 3: Selecciona la hora</h2>
-            
-            {/* Resumen */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-semibold">{selectedService?.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    📅 {formatDate(selectedDate)} • ⏱️ {selectedService?.duration} minutos
-                  </p>
-                </div>
-                <button
-                  onClick={handlePreviousStep}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  Cambiar fecha
-                </button>
-              </div>
-            </div>
+          <section
+            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            aria-labelledby="step3-title"
+          >
+            <h2 id="step3-title" className="text-lg font-semibold text-slate-900 mb-1">
+              ¿A qué hora?
+            </h2>
+            <p className="text-slate-500 text-sm mb-6">
+              {formatDate(selectedDate)}
+              {selectedService?.showDuration !== false && selectedService?.duration != null && (
+                <span className="text-slate-400"> · {selectedService.duration} min</span>
+              )}
+            </p>
 
-            {/* Información sobre la duración */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-yellow-800">
-                💡 <strong>Nota:</strong> Cada horario reserva {selectedService?.duration} minutos completos. 
-                El servicio terminará {selectedService?.duration} minutos después de la hora seleccionada.
+            {selectedService?.showDuration !== false && selectedService?.duration != null && (
+              <p className="text-xs text-slate-500 mb-4">
+                Cada horario reserva {selectedService?.duration} minutos. El servicio termina {selectedService?.duration} min después de la hora elegida.
               </p>
-            </div>
-
-            {/* Leyenda de estados */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
-              <h3 className="text-sm font-semibold mb-2">Estados de horarios:</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border border-gray-200 bg-white rounded"></div>
-                  <span>Disponible</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border border-gray-300 bg-gray-100 rounded"></div>
-                  <span>Ocupado</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border border-gray-300 bg-gray-100 rounded"></div>
-                  <span>Descanso</span>
-                </div>
-              </div>
-            </div>
+            )}
 
             {loadingSlots ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Verificando disponibilidad...</p>
+              <div className="py-12 flex flex-col items-center justify-center">
+                <div className="w-10 h-10 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                <p className="mt-3 text-slate-500 text-sm">Buscando horarios disponibles...</p>
               </div>
             ) : allSlots.length > 0 ? (
-              <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                 {allSlots.map((slot) => {
-                  // Calcular hora de finalización
                   const [hour, min] = slot.time.split(':').map(Number)
                   const startMinutes = hour * 60 + min
                   const endMinutes = startMinutes + (selectedService?.duration || 30)
                   const endHour = Math.floor(endMinutes / 60)
                   const endMin = endMinutes % 60
                   const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`
-                  
+                  const showEndTime = selectedService?.showDuration !== false && selectedService?.duration != null
                   return (
                     <button
                       key={slot.time}
-                      onClick={() => slot.available ? handleSelectTime(slot.time) : null}
+                      type="button"
+                      onClick={() => slot.available && handleSelectTime(slot.time)}
                       disabled={!slot.available}
-                      className={`p-3 border rounded-lg text-center transition-all ${
-                        slot.available 
-                          ? 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer'
-                          : 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
-                      title={slot.available ? 'Horario disponible' : slot.reason}
+                      className={`
+                        p-3 sm:p-4 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+                        ${slot.available
+                          ? 'bg-white border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 cursor-pointer'
+                          : 'bg-slate-50 border-2 border-slate-100 text-slate-400 cursor-not-allowed'
+                        }
+                      `}
+                      title={slot.available ? `Reservar a las ${formatTime12h(slot.time)}` : slot.reason}
+                      aria-label={slot.available ? `Horario disponible: ${formatTime12h(slot.time)}` : `No disponible: ${slot.reason}`}
                     >
-                      <div className={`font-semibold text-lg ${slot.available ? 'text-gray-900' : 'text-gray-400'}`}>
-                        {slot.time}
-                      </div>
-                      <div className={`text-xs ${slot.available ? 'text-gray-500' : 'text-gray-400'}`}>
-                        hasta {endTime}
-                      </div>
-                      <div className={`text-xs mt-1 ${slot.available ? 'text-blue-600' : 'text-gray-400'}`}>
-                        {slot.available ? `${selectedService?.duration} min` : slot.reason}
-                      </div>
+                      <span className={`block font-semibold text-base ${slot.available ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {formatTime12h(slot.time)}
+                      </span>
+                      {showEndTime && (
+                        <span className="block text-xs text-slate-500 mt-0.5">
+                          hasta {formatTime12h(endTime)}
+                        </span>
+                      )}
+                      {!slot.available && (
+                        <span className="block text-xs mt-1 text-slate-400 truncate" title={slot.reason}>
+                          {slot.reason}
+                        </span>
+                      )}
                     </button>
                   )
                 })}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-600">No hay horarios configurados para esta fecha.</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Los horarios consideran la duración completa del servicio ({selectedService?.duration} minutos)
-                </p>
+              <div className="py-12 text-center">
+                <p className="text-slate-500">No hay horarios para esta fecha.</p>
                 <button
+                  type="button"
                   onClick={handlePreviousStep}
-                  className="mt-4 text-blue-600 hover:text-blue-800"
+                  className="mt-3 text-emerald-600 hover:text-emerald-700 text-sm font-medium"
                 >
-                  Seleccionar otra fecha
+                  Elegir otra fecha
                 </button>
               </div>
             )}
 
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="mt-6 flex justify-between">
+            <div className="mt-8 pt-6 border-t border-slate-100">
               <button
+                type="button"
                 onClick={handlePreviousStep}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="text-slate-600 hover:text-slate-900 text-sm font-medium flex items-center gap-2"
+                aria-label="Volver a seleccionar fecha"
               >
-                Anterior
+                ← Cambiar fecha
               </button>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Paso 4: Datos del Cliente */}
         {currentStep === 4 && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-6">Paso 4: Tus datos</h2>
+          <section
+            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            aria-labelledby="step4-title"
+          >
+            <h2 id="step4-title" className="text-lg font-semibold text-slate-900 mb-1">
+              Tus datos para confirmar
+            </h2>
+            <p className="text-slate-500 text-sm mb-6">Te enviaremos un correo con los detalles de la reserva</p>
             
-            {/* Resumen de la reserva */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold mb-2">Resumen de tu reserva</h3>
-              <div className="text-sm space-y-1">
-                <p><strong>Servicio:</strong> {selectedService?.name}</p>
-                <p><strong>Fecha:</strong> {formatDate(selectedDate)}</p>
-                <p><strong>Hora:</strong> {selectedTime}</p>
-                <p><strong>Duración:</strong> {selectedService?.duration} minutos</p>
-                <p><strong>Precio:</strong> {formatPrice(selectedService?.price)}</p>
-                {selectedService?.requiresDeposit && (
-                  <p className="text-orange-600">
-                    <strong>Depósito requerido:</strong> {formatPrice(selectedService?.depositAmount)}
-                  </p>
-                )}
+            {/* Resumen compacto */}
+            <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700">
+                <span><strong>{selectedService?.name}</strong> · {formatPrice(selectedService?.price)}</span>
+                <span>📅 {formatDate(selectedDate)}</span>
+                <span>🕐 {formatTime12h(selectedTime)}</span>
               </div>
-              <button
-                onClick={() => setCurrentStep(1)}
-                className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-              >
-                Modificar reserva
-              </button>
+              {salon?.requiresDeposit && salon?.depositAmount > 0 && (
+                <p className="text-amber-600 text-sm mt-2">
+                  Depósito: {formatPrice(salon.depositAmount)} (para confirmar)
+                </p>
+              )}
             </div>
 
-            {/* Formulario de datos */}
-            <form onSubmit={(e) => {
-              e.preventDefault()
-              handleConfirmBooking()
-            }} className="space-y-4">
-
-              {/* Política de No-Show - NUEVA SECCIÓN */}
-              {selectedService?.requiresDeposit && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-start space-x-3">
-                    <div className="text-red-500 text-xl">⚠️</div>
-                    <div>
-                      <h4 className="font-semibold text-red-800 mb-2">Política de Inasistencia</h4>
-                      <div className="text-sm text-red-700 space-y-2">
-                        <p><strong>IMPORTANTE:</strong> Este servicio requiere un depósito de {formatPrice(selectedService.depositAmount)} para confirmar tu cita.</p>
-                        <ul className="list-disc list-inside space-y-1 ml-2">
-                          <li>Si <strong>NO asistes</strong> a tu cita confirmada, el depósito <strong>NO será reembolsado</strong></li>
-                          <li>Para cancelar o reprogramar, contacta al salón con <strong>al menos 24 horas de anticipación</strong></li>
-                          <li>Paga el saldo restante ({formatPrice(selectedService.price - selectedService.depositAmount)}) al llegar al salón</li>
-                        </ul>
-                        <p className="font-medium">Al continuar, aceptas estas condiciones.</p>
-                      </div>
-                    </div>
-                  </div>
+            {/* Política de No-Show - solo si hay depósito */}
+            {salon?.requiresDeposit && salon?.depositAmount > 0 && (
+              <details className="mb-6 group">
+                <summary className="text-sm text-slate-600 cursor-pointer hover:text-slate-800 flex items-center gap-2 list-none">
+                  <span className="group-open:rotate-90 transition-transform">▸</span>
+                  Política de inasistencia (importante)
+                </summary>
+                <div className="mt-3 p-4 bg-amber-50 rounded-xl border border-amber-100 text-sm text-amber-900">
+                  <p className="font-medium mb-2">Se requiere depósito de {formatPrice(salon.depositAmount)} para confirmar.</p>
+                  <ul className="list-disc list-inside space-y-1 text-amber-800">
+                    <li>Si no asistes, el depósito no se reembolsa</li>
+                    <li>Cancelar o reprogramar: mínimo 24 h antes</li>
+                    <li>El precio completo ({formatPrice(selectedService?.price)}) se paga al llegar</li>
+                  </ul>
+                  <p className="mt-2 font-medium">Al confirmar, aceptas estas condiciones.</p>
                 </div>
-              )}
+              </details>
+            )}
 
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleConfirmBooking()
+              }}
+              className="space-y-4"
+            >
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre completo *
+                <label htmlFor="client-name" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Nombre completo
                 </label>
                 <input
+                  id="client-name"
                   type="text"
                   required
                   value={clientData.name}
-                  onChange={(e) => setClientData({...clientData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Tu nombre completo"
+                  onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                  placeholder="Tu nombre"
+                  autoComplete="name"
+                  aria-required="true"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
+                <label htmlFor="client-email" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Correo electrónico
                 </label>
                 <input
+                  id="client-email"
                   type="email"
                   required
                   value={clientData.email}
-                  onChange={(e) => setClientData({...clientData, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="tu@email.com"
+                  onChange={(e) => setClientData({ ...clientData, email: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                  placeholder="tu@correo.com"
+                  autoComplete="email"
+                  aria-required="true"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono *
+                <label htmlFor="client-phone" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Teléfono
                 </label>
                 <input
+                  id="client-phone"
                   type="tel"
                   required
                   value={clientData.phone}
-                  onChange={(e) => setClientData({...clientData, phone: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
                   placeholder="55 1234 5678"
+                  autoComplete="tel"
+                  aria-required="true"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notas adicionales (opcional)
+                <label htmlFor="client-notes" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Notas (opcional)
                 </label>
                 <textarea
+                  id="client-notes"
                   value={clientData.notes}
-                  onChange={(e) => setClientData({...clientData, notes: e.target.value})}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) => setClientData({ ...clientData, notes: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow resize-none"
                   placeholder="Alguna preferencia o comentario..."
                 />
               </div>
 
-              <div className="mt-6 flex justify-between">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-between sm:items-center pt-6 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={handlePreviousStep}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="text-slate-600 hover:text-slate-900 text-sm font-medium"
+                  aria-label="Volver a seleccionar hora"
                 >
-                  Anterior
+                  ← Cambiar hora
                 </button>
-                
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                  aria-busy={submitting}
                 >
-                  {submitting ? 'Confirmando...' : 'Confirmar Reserva'}
+                  {submitting ? 'Confirmando...' : 'Confirmar reserva'}
                 </button>
               </div>
             </form>
-          </div>
+          </section>
         )}
       </div>
     </div>
