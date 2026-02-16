@@ -92,23 +92,26 @@ export default function PublicGallery({ username }) {
 
   if (loading) {
     return (
-      <div className="text-center py-10">
-        <div className="animate-pulse">Cargando galería...</div>
+      <div className="py-12 flex justify-center" role="status" aria-live="polite">
+        <div className="flex items-center gap-3 text-stone-500">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-amber-600 border-t-transparent" aria-hidden="true" />
+          <span>Cargando galería...</span>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-center py-10 text-red-500">
-        {error}
+      <div className="py-12 text-center">
+        <p className="text-red-600">{error}</p>
       </div>
     )
   }
 
   if (images.length === 0) {
     return (
-      <div className="text-center py-10 text-gray-500">
+      <div className="py-12 text-center text-stone-500 rounded-2xl border border-stone-200 bg-white">
         Aún no hay imágenes para mostrar
       </div>
     )
@@ -118,26 +121,25 @@ export default function PublicGallery({ username }) {
     <div className="space-y-6">
       {/* Filtro de categorías */}
       {categories.length > 0 && (
-        <div className="flex justify-center space-x-2 overflow-x-auto pb-2">
+        <div className="flex justify-center gap-2 overflow-x-auto pb-4">
           <button
             onClick={() => setSelectedCategory('all')}
-            className={`px-4 py-2 text-sm rounded-full transition-colors ${
+            className={`px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
               selectedCategory === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-amber-600 text-white'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
             }`}
           >
             Todas
           </button>
-          
           {categories.map(category => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 text-sm rounded-full whitespace-nowrap transition-colors ${
+              className={`px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
                 selectedCategory === category
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
               }`}
             >
               {category.charAt(0).toUpperCase() + category.slice(1)}
@@ -149,10 +151,12 @@ export default function PublicGallery({ username }) {
       {/* Galería */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {filteredImages.map((image, index) => (
-          <div
+          <button
+            type="button"
             key={image._id || image.id || `img-${index}`}
-            className="relative overflow-hidden rounded-lg cursor-pointer group"
+            className="relative overflow-hidden rounded-2xl cursor-pointer group text-left"
             onClick={() => openLightbox(index)}
+            aria-label={image.title || `Ver imagen ${index + 1}`}
           >
             <div className="aspect-square overflow-hidden">
               <img
@@ -163,18 +167,18 @@ export default function PublicGallery({ username }) {
             </div>
             
             {image.title && (
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <h4 className="text-white font-medium text-sm truncate">
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <p className="text-white font-medium text-sm truncate">
                   {image.title}
-                </h4>
+                </p>
                 {image.description && (
-                  <p className="text-white/80 text-xs truncate">
+                  <p className="text-white/80 text-xs truncate mt-0.5">
                     {image.description}
                   </p>
                 )}
               </div>
             )}
-          </div>
+          </button>
         ))}
       </div>
 
@@ -205,8 +209,9 @@ export default function PublicGallery({ username }) {
             
             {/* Botón de cierre */}
             <button
-              className="absolute top-4 right-4 text-white p-2 rounded-full bg-black/50 hover:bg-black"
+              className="absolute top-4 right-4 text-white p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
               onClick={closeLightbox}
+              aria-label="Cerrar"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

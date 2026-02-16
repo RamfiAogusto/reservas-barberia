@@ -1,4 +1,5 @@
 'use client'
+
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import PublicGallery from '@/components/PublicGallery'
@@ -21,9 +22,7 @@ const PerfilPublico = () => {
   }
 
   const formatDuration = (minutes) => {
-    if (minutes < 60) {
-      return `${minutes} min`
-    }
+    if (minutes < 60) return `${minutes} min`
     const hours = Math.floor(minutes / 60)
     const remainingMinutes = minutes % 60
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}min` : `${hours}h`
@@ -31,423 +30,378 @@ const PerfilPublico = () => {
 
   const getCategoryName = (category) => {
     const categories = {
-      'corte': 'Cortes',
-      'barba': 'Barba',
-      'combo': 'Combos',
-      'tratamiento': 'Tratamientos',
-      'otro': 'Otros Servicios'
+      corte: 'Cortes',
+      barba: 'Barba',
+      combo: 'Combos',
+      tratamiento: 'Tratamientos',
+      otro: 'Otros Servicios'
     }
     return categories[category] || 'Servicios'
   }
 
   const getCategoryIcon = (category) => {
     const icons = {
-      'corte': '✂️',
-      'barba': '🧔',
-      'combo': '💫',
-      'tratamiento': '💆',
-      'otro': '⭐'
+      corte: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+        </svg>
+      ),
+      barba: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+      combo: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+        </svg>
+      ),
+      tratamiento: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      ),
+      otro: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      )
     }
-    return icons[category] || '📝'
+    return icons[category] || icons.otro
   }
 
-  // Agrupar servicios por categoría
   const servicesByCategory = salon?.services?.reduce((acc, service) => {
     const category = (service.category || 'OTRO').toLowerCase()
-    if (!acc[category]) {
-      acc[category] = []
-    }
+    if (!acc[category]) acc[category] = []
     acc[category].push(service)
     return acc
   }, {}) || {}
 
-  // Mostrar loading: mientras carga O cuando aún no hay datos ni error (evitar flash de "no encontrado")
+  const heroImage = salon?.gallery?.[0]?.imageUrl
   const isInitialOrLoading = loading || (!salon && !error)
 
   if (isInitialOrLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center" role="status" aria-live="polite">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-600 border-t-transparent mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando perfil del salón...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-amber-600 border-t-transparent mx-auto" aria-hidden="true" />
+          <p className="mt-4 text-stone-600">Cargando perfil del salón...</p>
         </div>
       </div>
     )
   }
 
-  // Solo mostrar error cuando realmente no se encontró el salón (error explícito de la API)
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <div className="text-6xl mb-4">🚫</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Salón no encontrado</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => router.push('/')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-stone-200 flex items-center justify-center">
+            <svg className="w-8 h-8 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-semibold text-stone-900 mb-2">Salón no encontrado</h1>
+          <p className="text-stone-600 mb-8">{error}</p>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
           >
             Volver al inicio
-          </button>
+          </Link>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Banner promocional para nuevos usuarios */}
-      <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-center sm:text-left">
-            <p className="text-sm font-medium">
-              💡 <strong>¿Tienes tu propia barbería?</strong> Crea tu perfil profesional gratis
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link
-              href="/register"
-              className="px-4 py-2 bg-white text-green-600 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors duration-200"
-            >
-              Crear Perfil
-            </Link>
-            <Link
-              href="/"
-              className="px-4 py-2 border border-white text-white rounded-lg text-sm font-semibold hover:bg-white hover:text-green-600 transition-colors duration-200"
-            >
-              Ver Demo
-            </Link>
-          </div>
+    <div className="min-h-screen bg-stone-50">
+      {/* Barra superior minimalista */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-b border-stone-200/80">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-sm text-stone-500 hover:text-stone-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
+            aria-label="Ir al inicio"
+          >
+            ReservaBarber
+          </Link>
+          <button
+            onClick={handleReservar}
+            className="bg-amber-600 text-white px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+          >
+            Reservar cita
+          </button>
         </div>
-      </div>
+      </header>
 
-      {/* Header del Salón */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="max-w-6xl mx-auto px-4 py-12">
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            {/* Avatar del Salón */}
-            <div className="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-4xl">
-              {salon?.avatar ? (
-                <img src={salon.avatar} alt={salon.salonName || 'Salón'} className="w-full h-full rounded-full object-cover" />
-              ) : (
-                '💈'
-              )}
-            </div>
-
-            {/* Información Principal */}
-            <div className="text-center md:text-left flex-1">
-              <h1 className="text-4xl md:text-5xl font-bold mb-2">{salon?.salonName || 'Salón'}</h1>
-              <p className="text-xl text-blue-100 mb-4">@{salon?.username || usuario}</p>
-              
-              {/* Información de Contacto */}
-              <div className="flex flex-col md:flex-row gap-4 text-blue-100">
-                <div className="flex items-center justify-center md:justify-start gap-2">
-                  <span>📍</span>
-                  <span>{salon?.address || 'Dirección no disponible'}</span>
-                </div>
-                <div className="flex items-center justify-center md:justify-start gap-2">
-                  <span>📞</span>
-                  <span>{salon?.phone || 'Teléfono no disponible'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Botón CTA Principal */}
-            <div className="text-center">
-              <button
-                onClick={handleReservar}
-                className="bg-white text-blue-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 mb-4"
-              >
-                📅 Reservar Cita
-              </button>
-              
-              {/* Botón secundario para crear perfil */}
-              <div className="mt-3">
-                <Link
-                  href="/register"
-                  className="inline-block px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-400 transition-colors duration-200 text-sm"
-                >
-                  💼 ¿Tienes barbería? Crear perfil gratis
-                </Link>
-              </div>
-            </div>
+      {/* Hero */}
+      <section className="relative pt-16 min-h-[85vh] flex flex-col justify-end">
+        {heroImage ? (
+          <div className="absolute inset-0">
+            <img
+              src={heroImage}
+              alt=""
+              className="w-full h-full object-cover"
+              aria-hidden="true"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" aria-hidden="true" />
           </div>
-        </div>
-      </div>
-
-      {/* Contenido Principal */}
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        {/* Galería destacada */}
-        {salon?.gallery && salon.gallery.length > 0 && (
-          <div className="mb-12">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">Galería de Fotos</h2>
-              <p className="text-gray-600">Conoce nuestras instalaciones y servicios</p>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {salon.gallery.slice(0, 4).map((image, idx) => (
-                <div key={image._id || image.id || `img-${idx}`} className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer">
-                  <img 
-                    src={image.imageUrl} 
-                    alt={image.title || 'Imagen del salón'} 
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
-                  {image.title && (
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <h4 className="text-white font-medium text-sm truncate">
-                        {image.title}
-                      </h4>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            
-            {salon.gallery.length > 4 && (
-              <div className="text-center mt-6">
-                <button 
-                  onClick={() => document.getElementById('galeria-completa').scrollIntoView({ behavior: 'smooth' })}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Ver galería completa
-                </button>
-              </div>
-            )}
-          </div>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-stone-800 via-stone-700 to-stone-900" aria-hidden="true" />
         )}
 
-        {/* Sección de Servicios */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">Nuestros Servicios</h2>
-            <p className="text-gray-600">Descubre todos los servicios que ofrecemos</p>
+        <div className="relative max-w-6xl mx-auto w-full px-4 pb-16 md:pb-24">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
+            <div className="flex items-end gap-6">
+              <div className="flex-shrink-0 w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden bg-white/10 backdrop-blur border border-white/20 shadow-xl">
+                {salon?.avatar ? (
+                  <img
+                    src={salon.avatar}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl">💈</div>
+                )}
+              </div>
+              <div>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight">
+                  {salon?.salonName || 'Salón'}
+                </h1>
+                <p className="text-white/80 text-lg mt-1">@{salon?.username || usuario}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleReservar}
+              className="self-start md:self-end w-full md:w-auto bg-amber-500 hover:bg-amber-400 text-stone-900 font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-transparent shadow-lg"
+            >
+              Reservar cita
+            </button>
           </div>
+        </div>
+      </section>
 
-          {servicesByCategory && Object.keys(servicesByCategory).length > 0 ? (
-            <div className="space-y-8">
+      {/* Contenido principal */}
+      <main className="max-w-6xl mx-auto px-4 py-16 md:py-24">
+        {/* Servicios */}
+        <section className="mb-24" id="servicios" aria-labelledby="servicios-titulo">
+          <h2 id="servicios-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
+            Servicios
+          </h2>
+          <p className="text-stone-600 mb-12">
+            Reserva en línea en pocos pasos
+          </p>
+
+          {Object.keys(servicesByCategory).length > 0 ? (
+            <div className="space-y-14">
               {Object.entries(servicesByCategory).map(([category, services]) => (
-                <div key={category} className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <span className="text-3xl">{getCategoryIcon(category)}</span>
+                <div key={category}>
+                  <h3 className="flex items-center gap-3 text-lg font-semibold text-stone-800 mb-6">
+                    <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 text-amber-700">
+                      {getCategoryIcon(category)}
+                    </span>
                     {getCategoryName(category)}
                   </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {services.map((service) => (
-                      <div 
-                        key={service._id || service.id} 
-                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-blue-300 hover:bg-blue-50"
+                      <button
+                        key={service._id || service.id}
+                        type="button"
                         onClick={() => router.push(`/${usuario}/book?service=${service._id || service.id}`)}
+                        className="group text-left w-full bg-white rounded-2xl p-6 border border-stone-200 hover:border-amber-300 hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
                       >
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-semibold text-gray-800">{service.name}</h4>
-                          <span className="text-xl font-bold text-blue-600">{formatPrice(service.price)}</span>
+                        <div className="flex justify-between items-start gap-4 mb-3">
+                          <h4 className="font-semibold text-stone-900 group-hover:text-amber-700 transition-colors">
+                            {service.name}
+                          </h4>
+                          <span className="flex-shrink-0 font-bold text-amber-600">
+                            {formatPrice(service.price)}
+                          </span>
                         </div>
-                        
-                        <p className="text-gray-600 text-sm mb-3">{service.description}</p>
-                        
-                        <div className="flex justify-between items-center text-sm">
-                          {service.showDuration && (
-                            <span className="text-gray-500 flex items-center gap-1">
-                              <span>⏱️</span>
+                        {service.description && (
+                          <p className="text-stone-600 text-sm mb-4 line-clamp-2">
+                            {service.description}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                          {service.showDuration !== false && (
+                            <span className="inline-flex items-center gap-1.5 text-stone-500">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
                               {formatDuration(service.duration)}
                             </span>
                           )}
-                          
                           {salon?.requiresDeposit && salon?.depositAmount > 0 && (
-                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                              Depósito para reservar: {formatPrice(salon.depositAmount)}
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium">
+                              Depósito: {formatPrice(salon.depositAmount)}
                             </span>
                           )}
                         </div>
-                        
-                        {/* Indicador de que es clickeable */}
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <span className="text-blue-600 text-sm font-medium flex items-center gap-1">
-                            📅 Reservar este servicio
-                          </span>
-                        </div>
-                      </div>
+                        <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-amber-600 group-hover:gap-3 transition-all">
+                          Reservar
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                      </button>
                     ))}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📋</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">No hay servicios disponibles</h3>
-              <p className="text-gray-600">El salón aún no ha publicado sus servicios.</p>
+            <div className="text-center py-16 bg-white rounded-2xl border border-stone-200">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-stone-100 flex items-center justify-center">
+                <svg className="w-8 h-8 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-stone-900 mb-2">Sin servicios publicados</h3>
+              <p className="text-stone-600">El salón aún no ha agregado sus servicios.</p>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Sección promocional intermedia */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 mb-12 text-white text-center">
-          <div className="max-w-3xl mx-auto">
-            <h3 className="text-3xl font-bold mb-4">¿Te gusta lo que ves?</h3>
-            <p className="text-xl text-indigo-100 mb-6">
-              Crea tu propio perfil profesional y gestiona tu barbería de forma digital. 
-              Es completamente gratis y solo toma 5 minutos configurarlo.
+        {/* Galería destacada */}
+        {salon?.gallery && salon.gallery.length > 0 && (
+          <section className="mb-24" id="galeria" aria-labelledby="galeria-titulo">
+            <h2 id="galeria-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
+              Galería
+            </h2>
+            <p className="text-stone-600 mb-12">
+              Conoce nuestras instalaciones
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/register"
-                className="px-8 py-3 bg-white text-indigo-600 rounded-lg font-bold hover:bg-gray-100 transition-colors duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                🚀 Crear Mi Perfil Gratis
-              </Link>
-              <Link
-                href="/"
-                className="px-8 py-3 border-2 border-white text-white rounded-lg font-bold hover:bg-white hover:text-indigo-600 transition-colors duration-200"
-              >
-                ℹ️ Conocer Más
-              </Link>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              {salon.gallery.slice(0, 4).map((image, idx) => (
+                <div
+                  key={image._id || image.id || `img-${idx}`}
+                  className="relative aspect-square rounded-2xl overflow-hidden group"
+                >
+                  <img
+                    src={image.imageUrl}
+                    alt={image.title || 'Imagen del salón'}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  {image.title && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <p className="text-white font-medium text-sm truncate">{image.title}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
-
-        {/* Sección de Información Adicional */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          {/* Información de Contacto */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <span>📞</span>
-              Información de Contacto
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏪</span>
-                <div>
-                  <p className="font-semibold text-gray-800">Nombre del Salón</p>
-                  <p className="text-gray-600">{salon?.salonName || 'No disponible'}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📍</span>
-                <div>
-                  <p className="font-semibold text-gray-800">Dirección</p>
-                  <p className="text-gray-600">{salon?.address || 'No disponible'}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📞</span>
-                <div>
-                  <p className="font-semibold text-gray-800">Teléfono</p>
-                  <p className="text-gray-600">{salon?.phone || 'No disponible'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Sección CTA Secundaria */}
-          <div className="bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-xl shadow-lg p-6">
-            <h3 className="text-2xl font-bold mb-4">¿Listo para tu nueva imagen?</h3>
-            <p className="mb-6 text-blue-100">
-              Reserva tu cita ahora y déjanos cuidar de tu estilo. 
-              Nuestros profesionales están listos para atenderte.
-            </p>
-            
-            <button
-              onClick={handleReservar}
-              className="w-full bg-white text-blue-600 px-6 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors"
-            >
-              📅 Reservar Mi Cita Ahora
-            </button>
-          </div>
-        </div>
-
-        {/* Sección de Políticas de Reserva */}
-        {salon?.requiresDeposit && salon?.depositAmount > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
-            <div className="flex items-start gap-3">
-              <div className="text-yellow-600 text-2xl">⚠️</div>
-              <div>
-                <h3 className="text-xl font-bold text-yellow-800 mb-3">Políticas de Reserva</h3>
-                <div className="text-sm text-yellow-700 space-y-2">
-                  <p><strong>IMPORTANTE:</strong> Se requiere depósito para confirmar tu reserva. El precio completo del servicio se paga al recibir el servicio.</p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li><strong>Política de Inasistencia:</strong> Si no asistes a tu cita, el depósito <strong>NO será reembolsado</strong></li>
-                    <li><strong>Cancelaciones:</strong> Para cancelar o reprogramar, contacta al salón con <strong>al menos 24 horas de anticipación</strong></li>
-                    <li><strong>Confirmación:</strong> Recibirás un email de confirmación con los detalles de tu cita</li>
-                    <li><strong>Pago del servicio:</strong> El precio completo se paga al llegar al salón</li>
-                  </ul>
-                  <p className="text-yellow-800 font-medium">
-                    Al hacer una reserva, aceptas automáticamente estas condiciones.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          </section>
         )}
 
-        {/* Galería Completa */}
-        <div id="galeria-completa" className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">Nuestra Galería Completa</h2>
-            <p className="text-gray-600">Descubre más imágenes de nuestro salón</p>
+        {/* Info y contacto */}
+        <section className="mb-24 grid md:grid-cols-2 gap-8">
+          <div className="bg-white rounded-2xl border border-stone-200 p-8">
+            <h2 className="text-xl font-bold text-stone-900 mb-6 flex items-center gap-3">
+              <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-stone-100 text-stone-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </span>
+              Ubicación y contacto
+            </h2>
+            <dl className="space-y-4">
+              {salon?.address && (
+                <div>
+                  <dt className="text-sm font-medium text-stone-500">Dirección</dt>
+                  <dd className="text-stone-900 mt-0.5">{salon.address}</dd>
+                </div>
+              )}
+              {salon?.phone && (
+                <div>
+                  <dt className="text-sm font-medium text-stone-500">Teléfono</dt>
+                  <dd>
+                    <a
+                      href={`tel:${salon.phone}`}
+                      className="text-amber-600 hover:text-amber-700 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
+                    >
+                      {salon.phone}
+                    </a>
+                  </dd>
+                </div>
+              )}
+              {(!salon?.address && !salon?.phone) && (
+                <p className="text-stone-500">Información de contacto no disponible</p>
+              )}
+            </dl>
           </div>
-          
+
+          {salon?.requiresDeposit && salon?.depositAmount > 0 && (
+            <div className="bg-amber-50 rounded-2xl border border-amber-200/60 p-8">
+              <h2 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-3">
+                <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 text-amber-700">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </span>
+                Política de reserva
+              </h2>
+              <details className="group">
+                <summary className="cursor-pointer list-none flex items-center justify-between text-amber-900 font-medium">
+                  Ver condiciones
+                  <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="mt-4 space-y-3 text-sm text-amber-800">
+                  <p>
+                    Se requiere depósito de {formatPrice(salon.depositAmount)} para confirmar la reserva. 
+                    El importe total del servicio se paga al llegar.
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-amber-700">
+                    <li>No se reembolsa el depósito si no asistes</li>
+                    <li>Cancelar o reprogramar con al menos 24 h de anticipación</li>
+                    <li>Recibirás un correo de confirmación</li>
+                  </ul>
+                </div>
+              </details>
+            </div>
+          )}
+        </section>
+
+        {/* Galería completa */}
+        <section className="mb-24" id="galeria-completa" aria-labelledby="galeria-completa-titulo">
+          <h2 id="galeria-completa-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
+            Todas las fotos
+          </h2>
           <PublicGallery username={usuario} />
-        </div>
+        </section>
+      </main>
 
-        {/* Botón de Reserva Flotante para Móvil */}
-        <div className="fixed bottom-4 right-4 md:hidden">
-          <button
-            onClick={handleReservar}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            📅 Reservar Cita
-          </button>
-        </div>
+      {/* CTA flotante móvil */}
+      <div className="fixed bottom-6 left-4 right-4 z-30 md:hidden">
+        <button
+          onClick={handleReservar}
+          className="w-full bg-amber-600 text-white py-4 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+        >
+          Reservar cita
+        </button>
       </div>
 
-      {/* Footer */}
-      <div className="bg-gray-800 text-white py-8">
+      {/* Footer minimalista */}
+      <footer className="border-t border-stone-200 bg-white py-12 mt-12">
         <div className="max-w-6xl mx-auto px-4">
-          {/* Sección de navegación para nuevos usuarios */}
-          <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold mb-4">¿Tienes tu propia barbería?</h3>
-            <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-              Crea tu perfil profesional y gestiona tus citas de forma digital. 
-              Es gratis y solo toma 5 minutos configurarlo.
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <p className="text-stone-500 text-sm">
+              © {new Date().getFullYear()} {salon?.salonName} · ReservaBarber
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/register"
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                🚀 Crear Mi Perfil Gratis
-              </Link>
-              <Link
-                href="/"
-                className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg font-semibold hover:border-white hover:text-white transition-colors duration-200"
-              >
-                ℹ️ Más Información
-              </Link>
-            </div>
-          </div>
-          
-          {/* Separador */}
-          <div className="border-t border-gray-700 pt-6">
-            <div className="text-center">
-              <p className="text-gray-400 mb-2">
-                © 2025 {salon.salonName} - Powered by ReservaBarber
-              </p>
-              <p className="text-gray-500 text-sm">
-                Sistema profesional de gestión para barberías
-              </p>
-            </div>
+            <Link
+              href="/register"
+              className="text-sm text-stone-500 hover:text-amber-600 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
+            >
+              ¿Tienes barbería? Crea tu perfil gratis
+            </Link>
           </div>
         </div>
-      </div>
+      </footer>
     </div>
   )
 }
 
-export default PerfilPublico 
+export default PerfilPublico
