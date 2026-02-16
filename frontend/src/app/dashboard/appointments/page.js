@@ -359,17 +359,17 @@ const AppointmentsPage = () => {
   const handleGetStatusColor = (status) => {
     switch (status) {
       case 'CONFIRMADA':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200'
       case 'PENDIENTE':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200'
       case 'COMPLETADA':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200'
       case 'CANCELADA':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200'
       case 'NO_ASISTIO':
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
     }
   }
 
@@ -384,30 +384,30 @@ const AppointmentsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando citas...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando citas...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 mr-4">
+              <Link href="/dashboard" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mr-4">
                 ← Volver al Dashboard
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Gestión de Citas</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Gestión de Citas</h1>
             </div>
             <button
               onClick={handleOpenCreateModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              className="bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
             >
               + Nueva Cita
             </button>
@@ -417,17 +417,17 @@ const AppointmentsPage = () => {
 
       {/* Filtros */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap items-end gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Estado
               </label>
               <select
                 name="status"
                 value={filters.status}
                 onChange={handleFilterChange}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todos los estados</option>
                 <option value="PENDIENTE">Pendiente</option>
@@ -439,7 +439,7 @@ const AppointmentsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Fecha específica
               </label>
               <input
@@ -447,12 +447,12 @@ const AppointmentsPage = () => {
                 name="date"
                 value={filters.date}
                 onChange={handleFilterChange}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Desde
               </label>
               <input
@@ -460,12 +460,12 @@ const AppointmentsPage = () => {
                 name="startDate"
                 value={filters.startDate}
                 onChange={handleFilterChange}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Hasta
               </label>
               <input
@@ -473,13 +473,13 @@ const AppointmentsPage = () => {
                 name="endDate"
                 value={filters.endDate}
                 onChange={handleFilterChange}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <button
               onClick={handleClearFilters}
-              className="px-4 py-2 text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+              className="px-4 py-2 text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-lg transition-colors"
             >
               Limpiar filtros
             </button>
@@ -492,8 +492,8 @@ const AppointmentsPage = () => {
             <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay citas</h3>
-            <p className="text-gray-600 mb-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay citas</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               {Object.values(filters).some(f => f) 
                 ? 'No se encontraron citas con los filtros aplicados'
                 : 'Comienza programando tu primera cita'
@@ -501,70 +501,70 @@ const AppointmentsPage = () => {
             </p>
             <button
               onClick={handleOpenCreateModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+              className="bg-blue-600 dark:bg-blue-700 text-white px-6 py-3 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
             >
               Programar primera cita
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Citas programadas ({appointments.length})
               </h2>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Cliente
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Servicio
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Fecha y Hora
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Estado
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Monto
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {appointments && Array.isArray(appointments) && appointments.map((appointment) => (
-                    <tr key={appointment.id || appointment._id} className="hover:bg-gray-50">
+                    <tr key={appointment.id || appointment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{appointment.clientName}</div>
-                          <div className="text-sm text-gray-500">{appointment.clientEmail}</div>
-                          <div className="text-sm text-gray-500">{appointment.clientPhone}</div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{appointment.clientName}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{appointment.clientEmail}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{appointment.clientPhone}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{appointment.service?.name || appointment.serviceId?.name}</div>
+                        <div className="text-sm text-gray-900 dark:text-gray-100">{appointment.service?.name || appointment.serviceId?.name}</div>
                         {appointment.staffMember && (
                           <div className="text-sm text-gray-500">con {appointment.staffMember}</div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
                           {new Date(appointment.date).toLocaleDateString('es-ES')}
                         </div>
-                        <div className="text-sm text-gray-500">{formatTime12h(appointment.time)}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{formatTime12h(appointment.time)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${handleGetStatusColor(appointment.status)}`}>
                           {appointment.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         ${appointment.totalAmount}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -577,7 +577,7 @@ const AppointmentsPage = () => {
                                 console.log('🔘 appointment._id:', appointment._id)
                                 handleUpdateStatus(appointment.id || appointment._id, 'CONFIRMADA')
                               }}
-                              className="text-green-600 hover:text-green-900 text-xs"
+                              className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 text-xs"
                             >
                               Confirmar
                             </button>
@@ -590,20 +590,20 @@ const AppointmentsPage = () => {
                                 console.log('🔘 appointment._id:', appointment._id)
                                 handleUpdateStatus(appointment.id || appointment._id, 'COMPLETADA')
                               }}
-                              className="text-blue-600 hover:text-blue-900 text-xs"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 text-xs"
                             >
                               Completar
                             </button>
                           )}
                           <button
                             onClick={() => handleEdit(appointment)}
-                            className="text-blue-600 hover:text-blue-900 text-xs"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 text-xs"
                           >
                             Editar
                           </button>
                           <button
                             onClick={() => handleDelete(appointment.id || appointment._id)}
-                            className="text-red-600 hover:text-red-900 text-xs"
+                            className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 text-xs"
                           >
                             Eliminar
                           </button>
@@ -620,16 +620,16 @@ const AppointmentsPage = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl bg-white rounded-lg shadow-lg">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-gray-900 bg-opacity-50 dark:bg-opacity-80 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   {editingAppointment ? 'Editar Cita' : 'Nueva Cita'}
                 </h3>
                 <button
                   onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -638,14 +638,14 @@ const AppointmentsPage = () => {
               </div>
 
               {errors.general && (
-                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-200 rounded">
                   {errors.general}
                 </div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Servicio *
                   </label>
                   <select
@@ -653,7 +653,7 @@ const AppointmentsPage = () => {
                     value={formData.serviceId}
                     onChange={handleInputChange}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.serviceId ? 'border-red-500' : 'border-gray-300'
+                      errors.serviceId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100'
                     }`}
                   >
                     <option value="">Seleccionar servicio</option>
@@ -663,12 +663,12 @@ const AppointmentsPage = () => {
                       </option>
                     ))}
                   </select>
-                  {errors.serviceId && <p className="mt-1 text-sm text-red-600">{errors.serviceId}</p>}
+                  {errors.serviceId && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.serviceId}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Nombre del Cliente *
                     </label>
                     <input
@@ -677,15 +677,15 @@ const AppointmentsPage = () => {
                       value={formData.clientName}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.clientName ? 'border-red-500' : 'border-gray-300'
+                        errors.clientName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100'
                       }`}
                       placeholder="Nombre completo"
                     />
-                    {errors.clientName && <p className="mt-1 text-sm text-red-600">{errors.clientName}</p>}
+                    {errors.clientName && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.clientName}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Email *
                     </label>
                     <input
@@ -694,17 +694,17 @@ const AppointmentsPage = () => {
                       value={formData.clientEmail}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.clientEmail ? 'border-red-500' : 'border-gray-300'
+                        errors.clientEmail ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100'
                       }`}
                       placeholder="correo@ejemplo.com"
                     />
-                    {errors.clientEmail && <p className="mt-1 text-sm text-red-600">{errors.clientEmail}</p>}
+                    {errors.clientEmail && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.clientEmail}</p>}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Teléfono *
                     </label>
                     <input
@@ -713,15 +713,15 @@ const AppointmentsPage = () => {
                       value={formData.clientPhone}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.clientPhone ? 'border-red-500' : 'border-gray-300'
+                        errors.clientPhone ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100'
                       }`}
                       placeholder="+1234567890"
                     />
-                    {errors.clientPhone && <p className="mt-1 text-sm text-red-600">{errors.clientPhone}</p>}
+                    {errors.clientPhone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.clientPhone}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Estilista (opcional)
                     </label>
                     <input
@@ -729,7 +729,7 @@ const AppointmentsPage = () => {
                       name="staffMember"
                       value={formData.staffMember}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Nombre del estilista"
                     />
                   </div>
@@ -737,7 +737,7 @@ const AppointmentsPage = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Fecha *
                     </label>
                     <input
@@ -747,36 +747,36 @@ const AppointmentsPage = () => {
                       onChange={handleInputChange}
                       min={new Date().toISOString().split('T')[0]}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.date ? 'border-red-500' : 'border-gray-300'
+                        errors.date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100'
                       }`}
                     />
-                    {errors.date && <p className="mt-1 text-sm text-red-600">{errors.date}</p>}
+                    {errors.date && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.date}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Hora *
                     </label>
                     <TimeInput12h
                       value={formData.time}
                       onChange={(val) => setFormData(prev => ({ ...prev, time: val }))}
-                      className={`w-full border ${errors.time ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full border dark:bg-gray-700 dark:text-gray-100 ${errors.time ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                       aria-label="Hora de la cita"
                     />
-                    {errors.time && <p className="mt-1 text-sm text-red-600">{errors.time}</p>}
+                    {errors.time && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.time}</p>}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Notas
                     </label>
                     <textarea
                       name="notes"
                       value={formData.notes}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
                       placeholder="Notas adicionales"
                     />
@@ -784,14 +784,14 @@ const AppointmentsPage = () => {
 
                   {editingAppointment && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Estado de la Cita
                       </label>
                       <select
                         name="status"
                         value={formData.status}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="PENDIENTE">Pendiente</option>
                         <option value="CONFIRMADA">Confirmada</option>
@@ -799,7 +799,7 @@ const AppointmentsPage = () => {
                         <option value="CANCELADA">Cancelada</option>
                         <option value="NO_ASISTIO">No asistió</option>
                       </select>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         {formData.status === 'CANCELADA' && '⚠️ Se enviará email de cancelación al cliente'}
                       </p>
                     </div>
@@ -808,7 +808,7 @@ const AppointmentsPage = () => {
 
                 {editingAppointment && formData.status === 'CANCELADA' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Razón de Cancelación (opcional)
                     </label>
                     <input
@@ -816,7 +816,7 @@ const AppointmentsPage = () => {
                       name="cancelReason"
                       value={formData.cancelReason || ''}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Ej: Cliente canceló, Emergencia, etc."
                     />
                     <p className="mt-1 text-xs text-yellow-600">
@@ -827,7 +827,7 @@ const AppointmentsPage = () => {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="w-full bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   {editingAppointment ? 'Actualizar Cita' : 'Crear Cita'}
                 </button>

@@ -127,7 +127,7 @@ export default function GalleryManager() {
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando galería...</p>
@@ -137,16 +137,16 @@ export default function GalleryManager() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 mr-4">
+              <Link href="/dashboard" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mr-4">
                 ← Volver al Dashboard
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Galería de Imágenes</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Galería de Imágenes</h1>
             </div>
           </div>
         </div>
@@ -157,26 +157,26 @@ export default function GalleryManager() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Panel de subida */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Subir Nueva Imagen</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Subir Nueva Imagen</h3>
               <ImageUploader onImageUploaded={handleImageUploaded} />
             </div>
           </div>
           
           {/* Panel de galería */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-900">Mis Imágenes ({filteredImages.length})</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Mis Imágenes ({filteredImages.length})</h3>
                   
                   {/* Filtro de categorías */}
                   <div className="flex items-center">
-                    <label className="mr-2 text-sm font-medium text-gray-700">Filtrar:</label>
+                    <label className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar:</label>
                     <select
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     >
                       <option value="all">Todas</option>
                       {categories
@@ -194,24 +194,24 @@ export default function GalleryManager() {
             
               <div className="p-6">
                 {error && (
-                  <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                  <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-200 rounded">
                     {error}
                   </div>
                 )}
                 
                 {filteredImages.length === 0 ? (
                   <div className="text-center py-12">
-                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No hay imágenes</h3>
-                    <p className="text-gray-600 mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay imágenes</h3>
+                    <p className="text-gray-600 dark:text-gray-300 mb-6">
                       {selectedCategory !== 'all' 
                         ? `No se encontraron imágenes en la categoría "${selectedCategory}"`
                         : 'Comienza subiendo fotos de tu negocio para mostrar a tus clientes'
                       }
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       💡 Las imágenes marcadas como destacadas aparecerán en la sección principal de tu perfil
                     </p>
                   </div>
@@ -222,7 +222,7 @@ export default function GalleryManager() {
                       return (
                         <div
                           key={imageId}
-                          className="group relative rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
+                          className="group relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200"
                           draggable
                           onDragStart={(e) => handleDragStart(e, index)}
                           onDragOver={(e) => handleDragOver(e, index)}
@@ -244,11 +244,11 @@ export default function GalleryManager() {
                             )}
                           </div>
                           
-                          <div className="p-3 bg-white">
-                            <h4 className="font-medium text-sm truncate text-gray-900">
+                          <div className="p-3 bg-white dark:bg-gray-700">
+                            <h4 className="font-medium text-sm truncate text-gray-900 dark:text-gray-100">
                               {image.title || 'Sin título'}
                             </h4>
-                            <p className="text-xs text-gray-500 truncate capitalize">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">
                               {image.category}
                             </p>
                           </div>
@@ -258,7 +258,7 @@ export default function GalleryManager() {
                             <div className="flex space-x-2">
                               <button
                                 onClick={() => handleToggleFeatured(imageId, image.isFeatured)}
-                                className={`p-3 rounded-full transition-colors ${image.isFeatured ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-white hover:bg-gray-100'}`}
+                                className={`p-3 rounded-full transition-colors ${image.isFeatured ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-white dark:bg-gray-600 hover:bg-gray-100 dark:hover:bg-gray-500'}`}
                                 title={image.isFeatured ? 'Quitar destacado' : 'Destacar imagen'}
                               >
                                 <svg 

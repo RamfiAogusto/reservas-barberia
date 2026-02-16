@@ -123,10 +123,10 @@ export default function ImageUploader({ onImageUploaded }) {
   return (
     <div className="space-y-4">
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-2">Subir Nueva Imagen</h4>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Subir Nueva Imagen</h4>
       
         {error && (
-          <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-200 rounded">
             {error}
           </div>
         )}
@@ -134,7 +134,7 @@ export default function ImageUploader({ onImageUploaded }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* File input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Seleccionar imagen
             </label>
             <input
@@ -142,7 +142,7 @@ export default function ImageUploader({ onImageUploaded }) {
               ref={fileInputRef}
               onChange={handleFileChange}
               accept="image/jpeg,image/png,image/jpg,image/webp"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900/40 file:text-blue-700 dark:file:text-blue-200 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/60"
               disabled={isUploading}
             />
           </div>
@@ -150,10 +150,10 @@ export default function ImageUploader({ onImageUploaded }) {
           {/* Image preview */}
           {imagePreview && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Vista previa
               </label>
-              <div className="relative aspect-video overflow-hidden rounded-lg border border-gray-200">
+              <div className="relative aspect-video overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600">
                 <img 
                   src={imagePreview} 
                   alt="Preview" 
@@ -165,7 +165,7 @@ export default function ImageUploader({ onImageUploaded }) {
           
           {/* Image metadata */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Título
             </label>
             <input
@@ -173,21 +173,21 @@ export default function ImageUploader({ onImageUploaded }) {
               name="title"
               value={imageData.title}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Título de la imagen"
               disabled={isUploading}
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Descripción
             </label>
             <textarea
               name="description"
               value={imageData.description}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows="3"
               placeholder="Descripción de la imagen"
               disabled={isUploading}
@@ -195,14 +195,14 @@ export default function ImageUploader({ onImageUploaded }) {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Categoría
             </label>
             <select
               name="category"
               value={imageData.category}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isUploading}
             >
               <option value="exterior">Exterior</option>
@@ -220,10 +220,10 @@ export default function ImageUploader({ onImageUploaded }) {
                 name="isFeatured"
                 checked={imageData.isFeatured}
                 onChange={handleInputChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                 disabled={isUploading}
               />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Destacar en perfil público
               </span>
             </label>
@@ -232,13 +232,13 @@ export default function ImageUploader({ onImageUploaded }) {
           {/* Upload progress */}
           {isUploading && (
             <div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
                 <div 
                   className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
               </div>
-              <p className="text-sm text-gray-500 mt-2 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
                 {uploadProgress < 100 ? 'Subiendo imagen...' : '¡Subida completada!'}
               </p>
             </div>

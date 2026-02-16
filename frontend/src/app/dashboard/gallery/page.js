@@ -42,8 +42,8 @@ export default function GalleryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-lg">Cargando...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-pulse text-lg text-gray-600 dark:text-gray-400">Cargando...</div>
       </div>
     )
   }
