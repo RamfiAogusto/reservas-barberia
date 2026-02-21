@@ -263,6 +263,40 @@ const PerfilPublico = () => {
           )}
         </section>
 
+        {/* Barberos */}
+        {salon?.barbers && salon.barbers.length > 0 && (
+          <section className="mb-24" id="barberos" aria-labelledby="barberos-titulo">
+            <h2 id="barberos-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
+              Nuestro equipo
+            </h2>
+            <p className="text-stone-600 mb-12">
+              Conoce a nuestros barberos
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {salon.barbers.map((barber) => (
+                <div
+                  key={barber.id}
+                  className="bg-white rounded-2xl border border-stone-200 p-6 flex items-center gap-4"
+                >
+                  <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
+                    {barber.avatar ? (
+                      <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
+                    ) : (
+                      '✂️'
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-stone-900">{barber.name}</h3>
+                    {barber.specialty && (
+                      <p className="text-sm text-amber-600">{barber.specialty}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Galería destacada */}
         {salon?.gallery && salon.gallery.length > 0 && (
           <section className="mb-24" id="galeria" aria-labelledby="galeria-titulo">

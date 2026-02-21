@@ -255,6 +255,29 @@ const Dashboard = () => {
             </div>
           </Link>
 
+          <Link href="/dashboard/barbers" className="group">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all p-6 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 group-hover:border-teal-300 dark:group-hover:border-teal-500">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-teal-100 dark:bg-teal-900/40 rounded-lg flex items-center justify-center">
+                    <span className="text-2xl">✂️</span>
+                  </div>
+                </div>
+                <div className="ml-4 flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-teal-600 dark:group-hover:text-teal-400">
+                    Barberos
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    Administra el equipo de barberos de tu negocio
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Asigna citas por barbero
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Link>
+
           <Link href="/dashboard/settings" className="group">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all p-6 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 group-hover:border-indigo-300 dark:group-hover:border-indigo-500">
               <div className="flex items-center">
@@ -271,7 +294,7 @@ const Dashboard = () => {
                     Configuración
                   </h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    Depósito para reservas y opciones del negocio
+                    Perfil, depósito y opciones del negocio
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Personaliza cómo funcionan las reservas

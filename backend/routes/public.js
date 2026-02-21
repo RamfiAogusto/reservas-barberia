@@ -6,6 +6,7 @@ const emailService = require('../services/emailService')
 const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
+const { createAppointmentWithOverlapCheck } = require('../utils/availabilityUtils')
 
 // GET /api/public/salon/:username - Obtener perfil público del salón
 router.get('/salon/:username', async (req, res) => {
@@ -63,6 +64,15 @@ router.get('/salon/:username', async (req, res) => {
       take: 6
     })
 
+    // Buscar barberos activos del salón
+    const barbers = await prisma.barber.findMany({
+      where: {
+        userId: user.id,
+        isActive: true
+      },
+      orderBy: { name: 'asc' }
+    })
+
     // Estructura de respuesta pública
     // Depósito: a nivel salón, para confirmar la reserva. El precio del servicio se paga completo al llegar.
     const salonProfile = {
@@ -88,6 +98,14 @@ router.get('/salon/:username', async (req, res) => {
         title: img.title,
         description: img.description,
         category: img.category
+      })),
+      barbers: barbers.map(b => ({
+        id: b.id,
+        _id: b.id,
+        name: b.name,
+        phone: b.phone,
+        avatar: b.avatar,
+        specialty: b.specialty
       }))
     }
 
@@ -311,18 +329,17 @@ router.get('/salon/:username/availability', async (req, res) => {
     })
 
     // 5. Obtener citas existentes
+    const appointmentWhere = {
+      userId: user.id,
+      date: requestedDate,
+      status: { not: 'CANCELADA' }
+    }
+    if (req.query.barberId) appointmentWhere.barberId = req.query.barberId
+
     const existingAppointments = await prisma.appointment.findMany({
-             where: {
-         userId: user.id,
-         date: requestedDate,
-         status: { 
-           not: 'CANCELADA'
-         }
-       },
-      select: {
-        id: true,
-        time: true,
-        serviceId: true
+      where: appointmentWhere,
+      include: {
+        service: { select: { duration: true } }
       }
     })
 
@@ -497,18 +514,17 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
     })
 
     // 4. Obtener citas existentes para esa fecha
+    const advAppointmentWhere = {
+      userId: user.id,
+      date: targetDate,
+      status: { in: ['CONFIRMADA', 'PENDIENTE'] }
+    }
+    if (req.query.barberId) advAppointmentWhere.barberId = req.query.barberId
+
     const existingAppointments = await prisma.appointment.findMany({
-             where: {
-         userId: user.id,
-         date: targetDate,
-         status: { 
-           in: ['CONFIRMADA', 'PENDIENTE'] 
-         }
-       },
-      select: {
-        id: true,
-        time: true,
-        serviceId: true
+      where: advAppointmentWhere,
+      include: {
+        service: { select: { duration: true } }
       }
     })
 
@@ -689,7 +705,8 @@ router.post('/salon/:username/book', [
   body('clientPhone').trim().notEmpty().withMessage('El teléfono es requerido'),
   body('date').isISO8601().withMessage('Fecha inválida'),
   body('time').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora inválida'),
-  body('notes').optional().trim()
+  body('notes').optional().trim(),
+  body('barberId').optional().isString().withMessage('Barbero inválido')
 ], async (req, res) => {
   try {
     // Verificar errores de validación
@@ -703,7 +720,7 @@ router.post('/salon/:username/book', [
     }
 
     const { username } = req.params
-    const { serviceId, clientName, clientEmail, clientPhone, date, time, notes } = req.body
+    const { serviceId, clientName, clientEmail, clientPhone, date, time, notes, barberId } = req.body
 
     // Buscar el usuario
     const user = await prisma.user.findFirst({ 
@@ -736,43 +753,82 @@ router.post('/salon/:username/book', [
       })
     }
 
+    // Si se especifica barbero, verificar que exista
+    if (barberId) {
+      const barber = await prisma.barber.findFirst({
+        where: { id: barberId, userId: user.id, isActive: true }
+      })
+      if (!barber) {
+        return res.status(404).json({
+          success: false,
+          message: 'Barbero no encontrado'
+        })
+      }
+    }
+
     // Verificar disponibilidad usando parsing manual de fecha
     const [dateYear, dateMonth, dateDay] = date.split('-').map(Number)
     const appointmentDate = new Date(dateYear, dateMonth - 1, dateDay)
     appointmentDate.setHours(0, 0, 0, 0)
 
-    const existingAppointment = await prisma.appointment.findFirst({
-      where: {
-        userId: user.id,
-        date: appointmentDate,
-        time: time,
-        serviceId: serviceId
-      }
+    // Verificar que es un día laboral
+    const dayOfWeek = appointmentDate.getDay()
+    const businessHour = await prisma.businessHour.findFirst({
+      where: { userId: user.id, dayOfWeek }
     })
-
-    if (existingAppointment) {
-      return res.status(409).json({
+    if (!businessHour || !businessHour.isActive) {
+      return res.status(400).json({
         success: false,
-        message: 'Este horario ya está ocupado o no hay suficiente tiempo disponible'
+        message: 'El salón no está disponible en la fecha seleccionada'
       })
     }
 
-    // Crear la cita
-    const newAppointment = await prisma.appointment.create({
-      data: {
+    // Verificar que no es un día de excepción (día libre/vacaciones)
+    const exception = await prisma.scheduleException.findFirst({
+      where: {
         userId: user.id,
-        serviceId: service.id,
-        clientName,
-        clientEmail,
-        clientPhone,
-        date: appointmentDate,
-        time,
-        notes: notes || '',
-        totalAmount: service.price,
-        status: 'PENDIENTE',
-        paymentStatus: (user.requiresDeposit ?? false) ? 'PENDIENTE' : 'COMPLETO'
+        startDate: { lte: appointmentDate },
+        endDate: { gte: appointmentDate },
+        exceptionType: { in: ['DAY_OFF', 'VACATION', 'HOLIDAY'] }
       }
     })
+    if (exception) {
+      return res.status(400).json({
+        success: false,
+        message: `El salón no está disponible: ${exception.name || 'Día no laborable'}`
+      })
+    }
+
+    // Crear cita con verificación atómica de solapamiento (previene race conditions)
+    let newAppointment
+    try {
+      newAppointment = await createAppointmentWithOverlapCheck({
+        appointmentData: {
+          userId: user.id,
+          serviceId: service.id,
+          barberId: barberId || null,
+          clientName,
+          clientEmail,
+          clientPhone,
+          date: appointmentDate,
+          time,
+          notes: notes || '',
+          totalAmount: service.price,
+          status: 'PENDIENTE',
+          paymentStatus: (user.requiresDeposit ?? false) ? 'PENDIENTE' : 'COMPLETO'
+        },
+        serviceDuration: service.duration,
+        barberId: barberId || null
+      })
+    } catch (overlapError) {
+      if (overlapError.message === 'OVERLAP_CONFLICT') {
+        return res.status(409).json({
+          success: false,
+          message: 'Este horario ya no está disponible. Por favor, selecciona otro horario.'
+        })
+      }
+      throw overlapError
+    }
 
     // Obtener datos del servicio para la respuesta
     const serviceData = await prisma.service.findFirst({
@@ -1004,7 +1060,7 @@ function generateAdvancedSlotsPublic({ startTime, endTime, breaks, existingAppoi
   existingAppointments.forEach(apt => {
     const [aptHour, aptMin] = apt.time.split(':').map(Number)
     const aptStartMinutes = aptHour * 60 + aptMin
-    const aptDuration = apt.serviceId?.duration || 30 // Usar duración del servicio o 30 min por defecto
+    const aptDuration = apt.service?.duration || 30 // Usar duración real del servicio de la cita
     
     // Marcar todos los minutos ocupados por esta cita
     for (let i = 0; i < aptDuration; i++) {

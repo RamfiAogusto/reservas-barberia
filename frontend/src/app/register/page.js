@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { authAPI, saveAuthToken } from '@/utils/api'
+import { authAPI, saveAuthToken, saveUserData } from '@/utils/api'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -42,7 +42,6 @@ export default function RegisterPage() {
     }
 
     try {
-      setIsLoading(true)
       setError('')
 
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -56,10 +55,15 @@ export default function RegisterPage() {
       const data = await response.json()
 
       if (data.success) {
-        setSuccess('¡Cuenta creada exitosamente! Redirigiendo...')
+        // Guardar token y datos del usuario para auto-login
+        if (data.token) saveAuthToken(data.token)
+        if (data.user) saveUserData(data.user)
+        
+        setSuccess('¡Cuenta creada exitosamente! Redirigiendo a la configuración...')
         setTimeout(() => {
-          router.push('/login')
-        }, 2000)
+          // Redirigir al wizard de configuración inicial
+          router.push('/dashboard/setup')
+        }, 1500)
       } else {
         setError(data.message || 'Error al crear la cuenta')
       }
@@ -78,26 +82,26 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <Link href="/" className="text-3xl font-bold text-primary-800">
+          <Link href="/" className="text-3xl font-bold text-primary-800 dark:text-primary-300">
             💈 ReservaBarber
           </Link>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100">
           Registra tu barbería
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
           ¿Ya tienes cuenta?{' '}
-          <Link href="/login" className="font-medium text-primary-600 hover:text-primary-500">
+          <Link href="/login" className="font-medium text-primary-600 dark:text-primary-400 hover:text-primary-500">
             Inicia sesión aquí
           </Link>
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
           {/* Mensajes de error y éxito */}
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -113,7 +117,7 @@ export default function RegisterPage() {
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="salonName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="salonName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Nombre de la barbería
               </label>
               <div className="mt-1">
@@ -132,8 +136,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Nombre de usuario (URL)
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               </label>
               <div className="mt-1">
                 <div className="flex">
@@ -159,8 +162,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Correo electrónico
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               </label>
               <div className="mt-1">
                 <input
@@ -179,8 +181,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                Teléfono
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               </label>
               <div className="mt-1">
                 <input
@@ -198,8 +199,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                Dirección
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               </label>
               <div className="mt-1">
                 <input
@@ -217,8 +217,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Contraseña
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               </label>
               <div className="mt-1">
                 <input
@@ -237,8 +236,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirmar contraseña
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               </label>
               <div className="mt-1">
                 <input
@@ -265,7 +263,7 @@ export default function RegisterPage() {
                 className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 disabled={isLoading}
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
+              <label htmlFor="terms" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                 Acepto los{' '}
                 <a href="#" className="text-primary-600 hover:text-primary-500">
                   términos y condiciones
@@ -292,7 +290,7 @@ export default function RegisterPage() {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">O regístrate con</span>
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">O regístrate con</span>
               </div>
             </div>
 

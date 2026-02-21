@@ -123,7 +123,7 @@ export const useDaysStatus = (username, selectedService) => {
 }
 
 // Hook para slots disponibles
-export const useAvailableSlots = (username, selectedDate, selectedService) => {
+export const useAvailableSlots = (username, selectedDate, selectedService, barberId = null) => {
   const [availableSlots, setAvailableSlots] = useState([])
   const [allSlots, setAllSlots] = useState([])
   const [loading, setLoading] = useState(false)
@@ -132,6 +132,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService) => {
   // Usar debounce para evitar llamadas excesivas
   const debouncedDate = useDebounce(selectedDate, 300) // 300ms de debounce
   const debouncedService = useDebounce(selectedService?._id || selectedService?.id, 300)
+  const debouncedBarber = useDebounce(barberId, 300)
 
   const fetchAvailableSlots = useCallback(async () => {
     if (!debouncedDate || !debouncedService || !username) return
@@ -140,10 +141,15 @@ export const useAvailableSlots = (username, selectedDate, selectedService) => {
       setLoading(true)
       setError('')
 
-      const data = await cachedRequest(`/public/salon/${username}/availability/advanced`, {
+      const params = {
         date: debouncedDate,
         serviceId: debouncedService
-      }, 1 * 60 * 1000) // 1 minuto de caché para slots
+      }
+      if (debouncedBarber) {
+        params.barberId = debouncedBarber
+      }
+
+      const data = await cachedRequest(`/public/salon/${username}/availability/advanced`, params, 1 * 60 * 1000) // 1 minuto de caché para slots
 
       if (data.success) {
         if (data.data.isBusinessDay) {
@@ -167,7 +173,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService) => {
     } finally {
       setLoading(false)
     }
-  }, [debouncedDate, debouncedService, username])
+  }, [debouncedDate, debouncedService, debouncedBarber, username])
 
   useEffect(() => {
     fetchAvailableSlots()
@@ -178,9 +184,11 @@ export const useAvailableSlots = (username, selectedDate, selectedService) => {
     if (!selectedDate || !selectedService || !username) return false
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id || selectedService.id}`
-      )
+      let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id || selectedService.id}`
+      if (barberId) {
+        url += `&barberId=${barberId}`
+      }
+      const response = await fetch(url)
       const data = await response.json()
 
       if (data.success && data.data.isBusinessDay) {
@@ -191,7 +199,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService) => {
       console.error('Error verificando disponibilidad:', error)
       return false
     }
-  }, [selectedDate, selectedService, username])
+  }, [selectedDate, selectedService, barberId, username])
 
   return {
     availableSlots,

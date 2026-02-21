@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useSalonDataOptimized } from '@/utils/SalonContext'
@@ -21,6 +21,7 @@ const BookingPage = () => {
 
   // Estados del formulario
   const [selectedService, setSelectedService] = useState(null)
+  const [selectedBarber, setSelectedBarber] = useState(null)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
   
@@ -34,6 +35,16 @@ const BookingPage = () => {
   // Hooks optimizados con caché
   const { salon, loading, error } = useSalonDataOptimized(username)
   const { daysStatus, loading: loadingDays } = useDaysStatus(username, selectedService)
+
+  // Determinar si hay barberos
+  const hasBarbers = salon?.barbers && salon.barbers.length > 0
+
+  // Calcular pasos dinámicos (memoizar para evitar re-renders innecesarios)
+  const STEPS = useMemo(() => hasBarbers
+    ? { SERVICE: 1, BARBER: 2, DATE: 3, TIME: 4, CONFIRM: 5 }
+    : { SERVICE: 1, BARBER: -1, DATE: 2, TIME: 3, CONFIRM: 4 }, [hasBarbers])
+  const totalSteps = hasBarbers ? 5 : 4
+
   const { 
     availableSlots, 
     allSlots, 
@@ -42,7 +53,7 @@ const BookingPage = () => {
     setAvailableSlots,
     setAllSlots,
     setError
-  } = useAvailableSlots(username, selectedDate, selectedService)
+  } = useAvailableSlots(username, selectedDate, selectedService, selectedBarber?.id || null)
 
   // Efecto para manejar servicio preseleccionado desde URL
   useEffect(() => {
@@ -51,14 +62,14 @@ const BookingPage = () => {
       const service = salon.services.find(s => (s._id || s.id) === serviceId)
       if (service) {
         setSelectedService(service)
-        setCurrentStep(2) // Ir directamente al paso de selección de fecha
+        setCurrentStep(STEPS.BARBER > 0 ? STEPS.BARBER : STEPS.DATE)
       }
     }
-  }, [salon, searchParams, selectedService])
+  }, [salon, searchParams, selectedService, STEPS])
 
   // Función para avanzar al siguiente paso
   const handleNextStep = () => {
-    if (currentStep < 4) {
+    if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -73,11 +84,22 @@ const BookingPage = () => {
   // Función para seleccionar servicio
   const handleSelectService = (service) => {
     setSelectedService(service)
+    setSelectedBarber(null)
     setSelectedDate('')
     setSelectedTime('')
     setAvailableSlots([])
     setAllSlots([])
-    handleNextStep()
+    setCurrentStep(STEPS.BARBER > 0 ? STEPS.BARBER : STEPS.DATE)
+  }
+
+  // Función para seleccionar barbero
+  const handleSelectBarber = (barber) => {
+    setSelectedBarber(barber)
+    setSelectedDate('')
+    setSelectedTime('')
+    setAvailableSlots([])
+    setAllSlots([])
+    setCurrentStep(STEPS.DATE)
   }
 
   // Función para seleccionar hora
@@ -113,7 +135,8 @@ const BookingPage = () => {
         clientPhone: clientData.phone,
         date: selectedDate,
         time: selectedTime,
-        notes: clientData.notes
+        notes: clientData.notes,
+        ...(selectedBarber && { barberId: selectedBarber._id || selectedBarber.id })
       }
 
       const data = await cachedRequest(`/public/salon/${username}/book`, {}, null, {
@@ -265,12 +288,20 @@ const BookingPage = () => {
     )
   }
 
-  const steps = [
-    { num: 1, label: 'Servicio', short: 'Servicio' },
-    { num: 2, label: 'Fecha', short: 'Fecha' },
-    { num: 3, label: 'Hora', short: 'Hora' },
-    { num: 4, label: 'Confirmar', short: 'Datos' }
-  ]
+  const steps = hasBarbers
+    ? [
+        { num: 1, label: 'Servicio', short: 'Servicio' },
+        { num: 2, label: 'Barbero', short: 'Barbero' },
+        { num: 3, label: 'Fecha', short: 'Fecha' },
+        { num: 4, label: 'Hora', short: 'Hora' },
+        { num: 5, label: 'Confirmar', short: 'Datos' }
+      ]
+    : [
+        { num: 1, label: 'Servicio', short: 'Servicio' },
+        { num: 2, label: 'Fecha', short: 'Fecha' },
+        { num: 3, label: 'Hora', short: 'Hora' },
+        { num: 4, label: 'Confirmar', short: 'Datos' }
+      ]
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -354,6 +385,11 @@ const BookingPage = () => {
                   <strong>{selectedService.name}</strong> · {formatPrice(selectedService.price)}
                 </span>
               )}
+              {selectedBarber && (
+                <span className="text-slate-600">
+                  ✂️ {selectedBarber.name}
+                </span>
+              )}
               {selectedDate && (
                 <span className="text-slate-600">
                   📅 {formatDate(selectedDate)}
@@ -377,7 +413,7 @@ const BookingPage = () => {
         )}
 
         {/* Paso 1: Seleccionar Servicio */}
-        {currentStep === 1 && (
+        {currentStep === STEPS.SERVICE && (
           <section
             className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
             aria-labelledby="step1-title"
@@ -437,8 +473,71 @@ const BookingPage = () => {
           </section>
         )}
 
-        {/* Paso 2: Seleccionar Fecha */}
-        {currentStep === 2 && (
+        {/* Paso Barbero: Seleccionar Barbero (solo si hay barberos) */}
+        {currentStep === STEPS.BARBER && hasBarbers && (
+          <section
+            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            aria-labelledby="step-barber-title"
+          >
+            <h2 id="step-barber-title" className="text-lg font-semibold text-slate-900 mb-1">
+              ¿Con quién prefieres?
+            </h2>
+            <p className="text-slate-500 text-sm mb-6">Elige tu barbero preferido</p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {salon.barbers.map((barber) => {
+                const isSelected = (selectedBarber?._id || selectedBarber?.id) === (barber._id || barber.id)
+                return (
+                  <button
+                    key={barber.id}
+                    type="button"
+                    onClick={() => handleSelectBarber(barber)}
+                    className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
+                    }`}
+                    aria-pressed={isSelected}
+                    aria-label={`Seleccionar barbero ${barber.name}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-xl shrink-0">
+                        {barber.avatar ? (
+                          <img src={barber.avatar} alt={barber.name} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          '✂️'
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900">{barber.name}</h3>
+                        {barber.specialty && (
+                          <p className="text-slate-500 text-sm truncate">{barber.specialty}</p>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <span className="text-emerald-600 text-sm font-medium shrink-0">✓</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={handlePreviousStep}
+                className="text-slate-600 hover:text-slate-900 text-sm font-medium flex items-center gap-2"
+                aria-label="Volver a seleccionar servicio"
+              >
+                ← Cambiar servicio
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Paso Fecha: Seleccionar Fecha */}
+        {currentStep === STEPS.DATE && (
           <section
             className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
             aria-labelledby="step2-title"
@@ -537,8 +636,8 @@ const BookingPage = () => {
           </section>
         )}
 
-        {/* Paso 3: Seleccionar Hora */}
-        {currentStep === 3 && (
+        {/* Paso Hora: Seleccionar Hora */}
+        {currentStep === STEPS.TIME && (
           <section
             className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
             aria-labelledby="step3-title"
@@ -633,8 +732,8 @@ const BookingPage = () => {
           </section>
         )}
 
-        {/* Paso 4: Datos del Cliente */}
-        {currentStep === 4 && (
+        {/* Paso Confirmar: Datos del Cliente */}
+        {currentStep === STEPS.CONFIRM && (
           <section
             className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
             aria-labelledby="step4-title"
@@ -648,6 +747,7 @@ const BookingPage = () => {
             <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700">
                 <span><strong>{selectedService?.name}</strong> · {formatPrice(selectedService?.price)}</span>
+                {selectedBarber && <span>✂️ {selectedBarber.name}</span>}
                 <span>📅 {formatDate(selectedDate)}</span>
                 <span>🕐 {formatTime12h(selectedTime)}</span>
               </div>

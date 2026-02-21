@@ -97,6 +97,7 @@ router.post('/register', [
         role: true,
         isActive: true,
         avatar: true,
+        onboardingCompleted: true,
         createdAt: true,
         updatedAt: true
       }
@@ -174,7 +175,7 @@ router.post('/login', [
       })
     }
 
-    // Excluir password de la respuesta
+    // Excluir password de la respuesta (onboardingCompleted ya viene del modelo)
     const { password: _, ...userWithoutPassword } = user
 
     // Generar token

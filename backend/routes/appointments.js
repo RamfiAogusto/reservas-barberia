@@ -6,6 +6,7 @@ const emailService = require('../services/emailService')
 const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
+const { checkTimeOverlap } = require('../utils/availabilityUtils')
 const router = express.Router()
 
 // Middleware de autenticación para todas las rutas
@@ -214,7 +215,11 @@ router.post('/', [
     .optional()
     .trim()
     .isLength({ max: 100 })
-    .withMessage('El nombre del staff no puede tener más de 100 caracteres')
+    .withMessage('El nombre del staff no puede tener más de 100 caracteres'),
+  body('barberId')
+    .optional()
+    .isString()
+    .withMessage('ID de barbero inválido')
 ], async (req, res) => {
   try {
     // Verificar errores de validación
@@ -227,7 +232,7 @@ router.post('/', [
       })
     }
 
-    const { serviceId, clientName, clientEmail, clientPhone, date, time, notes, staffMember } = req.body
+    const { serviceId, clientName, clientEmail, clientPhone, date, time, notes, staffMember, barberId } = req.body
 
     // Verificar que el servicio existe y pertenece al usuario
     const service = await prisma.service.findFirst({
@@ -245,19 +250,32 @@ router.post('/', [
       })
     }
 
-    // Verificar disponibilidad del horario
-    const existingAppointment = await prisma.appointment.findFirst({
-      where: {
-        userId: req.user.id,
-        date: new Date(date),
-        time: time,
-        serviceId: serviceId
+    // Si se especifica barbero, verificar que exista y pertenezca al usuario
+    if (barberId) {
+      const barber = await prisma.barber.findFirst({
+        where: { id: barberId, userId: req.user.id, isActive: true }
+      })
+      if (!barber) {
+        return res.status(400).json({
+          success: false,
+          message: 'Barbero no encontrado o inactivo'
+        })
       }
+    }
+
+    // Verificar solapamiento de horario (considerando duración del servicio)
+    const hasOverlap = await checkTimeOverlap({
+      userId: req.user.id,
+      date: date,
+      time: time,
+      serviceDuration: service.duration,
+      barberId: barberId || null
     })
-    if (existingAppointment) {
+
+    if (hasOverlap) {
       return res.status(400).json({
         success: false,
-        message: 'Ya tienes una cita programada en este horario'
+        message: 'Ya existe una cita que se cruza con este horario'
       })
     }
 
@@ -285,6 +303,7 @@ router.post('/', [
         time: time,
         notes: notes,
         staffMember: staffMember,
+        barberId: barberId || null,
         totalAmount: service.price,
         status: 'PENDIENTE'
       }
@@ -469,20 +488,25 @@ router.put('/:id', [
       const newDate = req.body.date ? new Date(req.body.date) : appointment.date
       const newTime = req.body.time || appointment.time
 
-      const existingAppointment = await prisma.appointment.findFirst({
-        where: {
-          userId: req.user.id,
-          date: newDate,
-          time: newTime,
-          serviceId: appointment.serviceId,
-          NOT: { id: appointment.id }
-        }
+      // Obtener duración del servicio
+      const appointmentService = await prisma.service.findFirst({
+        where: { id: req.body.serviceId || appointment.serviceId },
+        select: { duration: true }
       })
 
-      if (existingAppointment) {
+      const hasOverlap = await checkTimeOverlap({
+        userId: req.user.id,
+        date: newDate,
+        time: newTime,
+        serviceDuration: appointmentService?.duration || 30,
+        barberId: req.body.barberId || appointment.barberId || null,
+        excludeAppointmentId: appointment.id
+      })
+
+      if (hasOverlap) {
         return res.status(400).json({
           success: false,
-          message: 'Ya tienes una cita programada en este horario'
+          message: 'Ya existe una cita que se cruza con este horario'
         })
       }
     }
@@ -799,7 +823,7 @@ router.get('/stats/summary', async (req, res) => {
         thisWeek: thisWeekCount,
         thisMonth: thisMonthCount,
         byStatus: statusStats,
-        monthlyRevenue: monthlyRevenue._sum.total || 0
+        monthlyRevenue: monthlyRevenue._sum.paidAmount || 0
       }
     })
   } catch (error) {

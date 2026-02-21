@@ -21,9 +21,10 @@ model User {
   role             UserRole @default(OWNER)
   isActive         Boolean  @default(true)
   avatar           String?
-  requiresDeposit  Boolean  @default(false)  // Depósito para confirmar reserva (aplica a todos los servicios)
-  depositAmount    Float    @default(0)     // Monto del depósito para reservar
-  createdAt        DateTime @default(now())
+  requiresDeposit    Boolean  @default(false)  // Depósito para confirmar reserva (aplica a todos los servicios)
+  depositAmount      Float    @default(0)     // Monto del depósito para reservar
+  onboardingCompleted Boolean @default(false) // Si el wizard de configuración inicial se completó
+  createdAt          DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   // Relaciones
@@ -33,6 +34,7 @@ model User {
   businessImages    BusinessImage[]
   recurringBreaks   RecurringBreak[]
   scheduleExceptions ScheduleException[]
+  barbers           Barber[]
 
   @@map("users")
 }
@@ -81,9 +83,12 @@ model Appointment {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
+  barberId      String?
+
   // Relaciones
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  barber  Barber? @relation(fields: [barberId], references: [id], onDelete: SetNull)
 
   @@map("appointments")
 }
@@ -162,6 +167,26 @@ model ScheduleException {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("schedule_exceptions")
+}
+
+model Barber {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  phone       String?
+  email       String?
+  avatar      String?
+  specialty   String?
+  isOwner     Boolean  @default(false) // Si este barbero es el dueño del salón
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@map("barbers")
 }
 
 // Enums
