@@ -6,7 +6,7 @@ const emailService = require('../services/emailService')
 const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
-const { createAppointmentWithOverlapCheck } = require('../utils/availabilityUtils')
+const { createAppointmentWithOverlapCheck, createAppointmentWithAutoAssign, getAvailableBarbersForSlot } = require('../utils/availabilityUtils')
 
 // GET /api/public/salon/:username - Obtener perfil público del salón
 router.get('/salon/:username', async (req, res) => {
@@ -328,13 +328,23 @@ router.get('/salon/:username/availability', async (req, res) => {
       return false
     })
 
-    // 5. Obtener citas existentes
+    // 5. Obtener barberos activos del salón
+    const barbers = await prisma.barber.findMany({
+      where: { userId: user.id, isActive: true }
+    })
+    const hasBarbers = barbers.length > 0
+    const requestedBarberId = req.query.barberId // puede ser un ID, 'any', o undefined
+
+    // 6. Obtener citas existentes según el modo de barbero
     const appointmentWhere = {
       userId: user.id,
       date: requestedDate,
       status: { not: 'CANCELADA' }
     }
-    if (req.query.barberId) appointmentWhere.barberId = req.query.barberId
+    // Solo filtrar por barbero específico si se pasa un ID real (no 'any')
+    if (requestedBarberId && requestedBarberId !== 'any' && hasBarbers) {
+      appointmentWhere.barberId = requestedBarberId
+    }
 
     const existingAppointments = await prisma.appointment.findMany({
       where: appointmentWhere,
@@ -343,18 +353,47 @@ router.get('/salon/:username/availability', async (req, res) => {
       }
     })
 
-    // 6. Generar slots disponibles usando el motor avanzado con duración del servicio
-    const allSlots = generateAdvancedSlotsPublic({
-      startTime: effectiveStartTime,
-      endTime: effectiveEndTime,
-      breaks,
-      existingAppointments,
-      serviceDuration: service.duration, // Usar duración real del servicio
-      targetDate: requestedDate
-    })
+    // 7. Generar slots base (sin filtro de citas — lo haremos después por barbero)
+    const isAnyBarberMode = hasBarbers && (!requestedBarberId || requestedBarberId === 'any')
 
-    // Separar slots disponibles para compatibilidad
-    const availableSlots = allSlots.filter(slot => slot.available).map(slot => slot.time)
+    let slotsToUse
+    if (isAnyBarberMode) {
+      // Modo "cualquier barbero": generar slots sin citas, luego marcar por disponibilidad multi-barbero
+      const baseSlots = generateAdvancedSlotsPublic({
+        startTime: effectiveStartTime,
+        endTime: effectiveEndTime,
+        breaks,
+        existingAppointments: [], // Sin citas — verificaremos por barbero
+        serviceDuration: service.duration,
+        targetDate: requestedDate
+      })
+
+      // Para cada slot, verificar si AL MENOS un barbero está disponible
+      for (const slot of baseSlots) {
+        if (!slot.available) continue // Ya bloqueado por horario/descanso/pasado
+        const freeBarberIds = getAvailableBarbersForSlot(barbers, existingAppointments, slot.time, service.duration)
+        if (freeBarberIds.length === 0) {
+          slot.available = false
+          slot.reason = 'Todos los barberos ocupados'
+        } else {
+          slot.availableBarbers = freeBarberIds
+          slot.totalBarbers = barbers.length
+        }
+      }
+      slotsToUse = baseSlots
+    } else {
+      // Modo barbero específico o sin barberos: lógica original
+      slotsToUse = generateAdvancedSlotsPublic({
+        startTime: effectiveStartTime,
+        endTime: effectiveEndTime,
+        breaks,
+        existingAppointments,
+        serviceDuration: service.duration,
+        targetDate: requestedDate
+      })
+    }
+
+    const availableSlots = slotsToUse.filter(slot => slot.available).map(slot => slot.time)
 
     res.json({
       success: true,
@@ -372,7 +411,7 @@ router.get('/salon/:username/availability', async (req, res) => {
           isSpecial: !!specialHoursException
         },
         availableSlots: availableSlots,
-        allSlots: allSlots, // Incluir todos los slots con su estado
+        allSlots: slotsToUse,
         totalSlots: availableSlots.length
       }
     })
@@ -513,13 +552,23 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
       return false
     })
 
-    // 4. Obtener citas existentes para esa fecha
+    // 4. Obtener barberos activos del salón
+    const barbers = await prisma.barber.findMany({
+      where: { userId: user.id, isActive: true }
+    })
+    const hasBarbers = barbers.length > 0
+    const requestedBarberId = req.query.barberId
+
+    // 5. Obtener citas existentes para esa fecha
     const advAppointmentWhere = {
       userId: user.id,
       date: targetDate,
       status: { in: ['CONFIRMADA', 'PENDIENTE'] }
     }
-    if (req.query.barberId) advAppointmentWhere.barberId = req.query.barberId
+    // Solo filtrar por barbero específico si se pasa un ID real (no 'any')
+    if (requestedBarberId && requestedBarberId !== 'any' && hasBarbers) {
+      advAppointmentWhere.barberId = requestedBarberId
+    }
 
     const existingAppointments = await prisma.appointment.findMany({
       where: advAppointmentWhere,
@@ -528,18 +577,46 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
       }
     })
 
-    // 5. Generar slots disponibles usando el motor avanzado
-    const allSlots = generateAdvancedSlotsPublic({
-      startTime: effectiveStartTime,
-      endTime: effectiveEndTime,
-      breaks: applicableBreaks,
-      existingAppointments,
-      serviceDuration: service.duration, // Usar duración real del servicio
-      targetDate
-    })
+    // 6. Generar slots según modo de barbero
+    const isAnyBarberMode = hasBarbers && (!requestedBarberId || requestedBarberId === 'any')
 
-    // Separar slots disponibles para compatibilidad
-    const availableSlots = allSlots.filter(slot => slot.available).map(slot => slot.time)
+    let slotsToUse
+    if (isAnyBarberMode) {
+      // Modo "cualquier barbero": calcular disponibilidad multi-barbero
+      const baseSlots = generateAdvancedSlotsPublic({
+        startTime: effectiveStartTime,
+        endTime: effectiveEndTime,
+        breaks: applicableBreaks,
+        existingAppointments: [], // Sin citas — verificaremos por barbero
+        serviceDuration: service.duration,
+        targetDate
+      })
+
+      for (const slot of baseSlots) {
+        if (!slot.available) continue
+        const freeBarberIds = getAvailableBarbersForSlot(barbers, existingAppointments, slot.time, service.duration)
+        if (freeBarberIds.length === 0) {
+          slot.available = false
+          slot.reason = 'Todos los barberos ocupados'
+        } else {
+          slot.availableBarbers = freeBarberIds
+          slot.totalBarbers = barbers.length
+        }
+      }
+      slotsToUse = baseSlots
+    } else {
+      // Modo barbero específico o sin barberos
+      slotsToUse = generateAdvancedSlotsPublic({
+        startTime: effectiveStartTime,
+        endTime: effectiveEndTime,
+        breaks: applicableBreaks,
+        existingAppointments,
+        serviceDuration: service.duration,
+        targetDate
+      })
+    }
+
+    const availableSlots = slotsToUse.filter(slot => slot.available).map(slot => slot.time)
 
     res.json({
       success: true,
@@ -558,7 +635,7 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
           recurrenceType: b.recurrenceType
         })),
         availableSlots: availableSlots,
-        allSlots: allSlots, // Incluir todos los slots con su estado
+        allSlots: slotsToUse,
         totalSlots: availableSlots.length
       }
     })
@@ -753,8 +830,11 @@ router.post('/salon/:username/book', [
       })
     }
 
-    // Si se especifica barbero, verificar que exista
-    if (barberId) {
+    // Si se especifica barbero (y no es 'any'), verificar que exista
+    let resolvedBarberId = null
+    const isAutoAssign = !barberId || barberId === 'any'
+
+    if (barberId && barberId !== 'any') {
       const barber = await prisma.barber.findFirst({
         where: { id: barberId, userId: user.id, isActive: true }
       })
@@ -764,7 +844,14 @@ router.post('/salon/:username/book', [
           message: 'Barbero no encontrado'
         })
       }
+      resolvedBarberId = barberId
     }
+
+    // Verificar si el salón tiene barberos (necesario para decidir flujo)
+    const salonBarbers = await prisma.barber.findMany({
+      where: { userId: user.id, isActive: true }
+    })
+    const salonHasBarbers = salonBarbers.length > 0
 
     // Verificar disponibilidad usando parsing manual de fecha
     const [dateYear, dateMonth, dateDay] = date.split('-').map(Number)
@@ -801,30 +888,51 @@ router.post('/salon/:username/book', [
 
     // Crear cita con verificación atómica de solapamiento (previene race conditions)
     let newAppointment
+    let assignedBarber = null
     try {
-      newAppointment = await createAppointmentWithOverlapCheck({
-        appointmentData: {
-          userId: user.id,
-          serviceId: service.id,
-          barberId: barberId || null,
-          clientName,
-          clientEmail,
-          clientPhone,
-          date: appointmentDate,
-          time,
-          notes: notes || '',
-          totalAmount: service.price,
-          status: 'PENDIENTE',
-          paymentStatus: (user.requiresDeposit ?? false) ? 'PENDIENTE' : 'COMPLETO'
-        },
-        serviceDuration: service.duration,
-        barberId: barberId || null
-      })
+      const baseAppointmentData = {
+        userId: user.id,
+        serviceId: service.id,
+        clientName,
+        clientEmail,
+        clientPhone,
+        date: appointmentDate,
+        time,
+        notes: notes || '',
+        totalAmount: service.price,
+        status: 'PENDIENTE',
+        paymentStatus: (user.requiresDeposit ?? false) ? 'PENDIENTE' : 'COMPLETO'
+      }
+
+      if (salonHasBarbers && isAutoAssign) {
+        // Auto-asignar el barbero con menos carga (cualquier barbero disponible)
+        const result = await createAppointmentWithAutoAssign({
+          appointmentData: baseAppointmentData,
+          serviceDuration: service.duration,
+          userId: user.id
+        })
+        newAppointment = result.appointment
+        assignedBarber = result.assignedBarber
+      } else {
+        // Barbero específico o salón sin barberos
+        baseAppointmentData.barberId = resolvedBarberId
+        newAppointment = await createAppointmentWithOverlapCheck({
+          appointmentData: baseAppointmentData,
+          serviceDuration: service.duration,
+          barberId: resolvedBarberId
+        })
+      }
     } catch (overlapError) {
       if (overlapError.message === 'OVERLAP_CONFLICT') {
         return res.status(409).json({
           success: false,
           message: 'Este horario ya no está disponible. Por favor, selecciona otro horario.'
+        })
+      }
+      if (overlapError.message === 'NO_BARBER_AVAILABLE') {
+        return res.status(409).json({
+          success: false,
+          message: 'No hay barberos disponibles en este horario. Por favor, selecciona otro horario.'
         })
       }
       throw overlapError
@@ -937,7 +1045,8 @@ router.post('/salon/:username/book', [
         status: newAppointment.status,
         totalAmount: newAppointment.totalAmount,
         requiresDeposit: user.requiresDeposit ?? false,
-        depositAmount: user.depositAmount ?? 0
+        depositAmount: user.depositAmount ?? 0,
+        barber: assignedBarber ? { id: assignedBarber.id, name: assignedBarber.name } : null
       }
     })
 

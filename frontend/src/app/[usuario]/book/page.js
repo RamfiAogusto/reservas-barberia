@@ -148,16 +148,17 @@ const BookingPage = () => {
       })
 
       if (data.success) {
-        setSuccessMessage(`¡Reserva confirmada! Te hemos enviado un correo con los detalles.`)
+        const barberInfo = data.barber ? ` Tu barbero asignado: ${data.barber.name}.` : ''
+        setSuccessMessage(`¡Reserva confirmada!${barberInfo} Te hemos enviado un correo con los detalles.`)
         setTimeout(() => {
           router.push(`/${username}`)
-        }, 2500)
+        }, 3000)
       } else {
         setError(data.message || 'Error al crear la reserva')
       }
     } catch (error) {
       console.error('Error creando reserva:', error)
-      setError('Error interno del servidor')
+      setError(error.message || 'Error interno del servidor')
     } finally {
       setSubmitting(false)
     }
@@ -482,9 +483,35 @@ const BookingPage = () => {
             <h2 id="step-barber-title" className="text-lg font-semibold text-slate-900 mb-1">
               ¿Con quién prefieres?
             </h2>
-            <p className="text-slate-500 text-sm mb-6">Elige tu barbero preferido</p>
+            <p className="text-slate-500 text-sm mb-6">Elige tu barbero preferido o déjanos asignarte al primero disponible</p>
 
             <div className="grid gap-3 sm:grid-cols-2">
+              {/* Opción: Cualquier barbero disponible */}
+              <button
+                type="button"
+                onClick={() => handleSelectBarber({ id: 'any', _id: 'any', name: 'Cualquier barbero disponible' })}
+                className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:col-span-2 ${
+                  selectedBarber?.id === 'any'
+                    ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
+                    : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
+                }`}
+                aria-pressed={selectedBarber?.id === 'any'}
+                aria-label="Cualquier barbero disponible"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-xl shrink-0">
+                    🎲
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-slate-900">Cualquier barbero disponible</h3>
+                    <p className="text-slate-500 text-sm">Te asignamos al barbero con más disponibilidad</p>
+                  </div>
+                  {selectedBarber?.id === 'any' && (
+                    <span className="text-emerald-600 text-sm font-medium shrink-0">✓</span>
+                  )}
+                </div>
+              </button>
+
               {salon.barbers.map((barber) => {
                 const isSelected = (selectedBarber?._id || selectedBarber?.id) === (barber._id || barber.id)
                 return (
