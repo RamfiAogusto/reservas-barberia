@@ -1,17 +1,40 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import ThemeToggle from '@/components/ThemeToggle'
+import Sidebar from '@/components/Sidebar'
 import { useSocket } from '@/contexts/SocketContext'
 import { useRealtimeNotifications } from '@/utils/useRealtimeNotifications'
+import { getUserData, clearAuthData } from '@/utils/api'
+import { cn } from '@/lib/utils'
 
-const DashboardWithTheme = ({ children }) => {
+const DashboardShell = ({ children }) => {
   const { isDark } = useTheme()
+  const router = useRouter()
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const u = getUserData()
+    if (u) setUser(u)
+  }, [])
+
+  const handleLogout = useCallback(() => {
+    clearAuthData()
+    router.push('/')
+  }, [router])
+
   return (
-    <div className={`min-h-screen ${isDark ? 'dark' : ''}`}>
-      {children}
+    <div className={cn("min-h-screen bg-gray-50 dark:bg-gray-950", isDark && 'dark')}>
+      <Sidebar user={user} onLogout={handleLogout} />
+      {/* Main area – offset by sidebar width on desktop */}
+      <div className="lg:pl-64 min-h-screen">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+          {children}
+        </main>
+      </div>
       <div className="fixed bottom-6 right-6 z-50">
         <ThemeToggle />
       </div>
@@ -54,7 +77,7 @@ export default function DashboardLayout({ children }) {
     <ProtectedRoute>
       <ThemeProvider>
         <DashboardRealtime>
-          <DashboardWithTheme>{children}</DashboardWithTheme>
+          <DashboardShell>{children}</DashboardShell>
         </DashboardRealtime>
       </ThemeProvider>
     </ProtectedRoute>
