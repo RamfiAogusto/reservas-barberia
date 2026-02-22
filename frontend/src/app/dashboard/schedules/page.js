@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/utils/api'
 import { formatTime12h } from '@/utils/formatTime'
 import TimeInput12h from '@/components/TimeInput12h'
+import { useSocketEvent } from '@/contexts/SocketContext'
 
 const SchedulesPage = () => {
   const router = useRouter()
@@ -96,6 +97,11 @@ const SchedulesPage = () => {
   useEffect(() => {
     handleLoadData()
   }, [])
+
+  // Real-time: auto-refresh cuando se modifican horarios
+  useSocketEvent('schedule:updated', useCallback(() => {
+    handleLoadData()
+  }, []))
 
   const handleLoadData = async () => {
     await Promise.all([

@@ -7,6 +7,7 @@ const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
 const { checkTimeOverlap } = require('../utils/availabilityUtils')
+const { emitToSalon } = require('../services/socketService')
 const router = express.Router()
 
 /**
@@ -453,6 +454,12 @@ router.post('/', [
       // No afecta la respuesta principal
     }
 
+    // Emitir evento real-time
+    emitToSalon(req.user.id, 'appointment:new', {
+      appointment: newAppointment,
+      message: `Nueva cita de ${newAppointment.clientName}`
+    })
+
     res.status(201).json({
       success: true,
       message: 'Cita creada exitosamente',
@@ -799,6 +806,12 @@ router.put('/:id', [
       }
     }
 
+    // Emitir evento real-time
+    emitToSalon(req.user.id, 'appointment:updated', {
+      appointment: updatedAppointment,
+      message: `Cita de ${updatedAppointment.clientName} actualizada`
+    })
+
     res.json({
       success: true,
       message: 'Cita actualizada exitosamente',
@@ -845,6 +858,13 @@ router.delete('/:id', async (req, res) => {
         where: { id: req.params.id }
       })
     }
+
+    // Emitir evento real-time
+    emitToSalon(req.user.id, 'appointment:deleted', {
+      appointmentId: req.params.id,
+      groupId: appointment.groupId,
+      message: `Cita de ${appointment.clientName} eliminada`
+    })
 
     res.json({
       success: true,
@@ -1130,6 +1150,13 @@ router.put('/:id/status', [
       console.error('❌ Error preparando emails en /status:', emailError)
     }
 
+    // Emitir evento real-time
+    emitToSalon(req.user.id, 'appointment:statusChanged', {
+      appointment: updatedAppointment,
+      newStatus: status,
+      message: `Cita de ${updatedAppointment.clientName}: ${status}`
+    })
+
     res.json({
       success: true,
       message: 'Estado de cita actualizado exitosamente',
@@ -1247,6 +1274,13 @@ router.put('/:id/respond', [
           : console.error('❌ Error email confirmación:', r.error)
         ).catch(e => console.error('❌ Error email:', e))
 
+      // Emitir evento real-time
+      emitToSalon(req.user.id, 'appointment:responded', {
+        appointment: updatedAppointment,
+        paymentMode: 'IN_PERSON',
+        message: `Cita de ${appointment.clientName} confirmada (pago en persona)`
+      })
+
       return res.json({
         success: true,
         message: 'Cita confirmada. Se pagará en persona.',
@@ -1293,6 +1327,15 @@ router.put('/:id/respond', [
           ? console.log('✅ Email de pago requerido enviado a:', bookingData.clientEmail)
           : console.error('❌ Error email pago:', r.error)
         ).catch(e => console.error('❌ Error email:', e))
+
+      // Emitir evento real-time
+      emitToSalon(req.user.id, 'appointment:responded', {
+        appointment: updatedAppointment,
+        paymentMode: 'ONLINE',
+        holdMinutes,
+        holdExpiresAt: holdExpiresAt.toISOString(),
+        message: `Cita de ${appointment.clientName} en espera de pago (${holdMinutes} min)`
+      })
 
       return res.json({
         success: true,
@@ -1417,6 +1460,12 @@ router.post('/:id/confirm-payment', async (req, res) => {
     }).catch(e => console.error('Error email confirmación post-pago:', e))
 
     console.log('✅ Pago confirmado para cita:', appointmentId)
+
+    // Emitir evento real-time al salón
+    emitToSalon(appointment.userId, 'appointment:paymentConfirmed', {
+      appointment: confirmed,
+      message: `💳 ${appointment.clientName} completó el pago`
+    })
 
     res.json({
       success: true,

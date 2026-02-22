@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import api from '@/utils/api'
 import { formatTime12h } from '@/utils/formatTime'
 import TimeInput12h from '@/components/TimeInput12h'
+import { useSocketEvent } from '@/contexts/SocketContext'
 
 const AppointmentsPage = () => {
   const router = useRouter()
@@ -97,6 +98,86 @@ const AppointmentsPage = () => {
       handleLoadAppointments()
     }
   }, [filters])
+
+  // === REAL-TIME: auto-actualizar cuando llegan eventos WebSocket ===
+  
+  // Nueva cita creada (público o dashboard)
+  useSocketEvent('appointment:new', useCallback((data) => {
+    console.log('🔔 RT: Nueva cita recibida', data)
+    handleLoadAppointments()
+  }, []))
+
+  // Cita actualizada
+  useSocketEvent('appointment:updated', useCallback((data) => {
+    console.log('🔔 RT: Cita actualizada', data)
+    if (data.appointment) {
+      setAppointments(prev => prev.map(apt => 
+        (apt.id === data.appointment.id) ? { ...apt, ...data.appointment } : apt
+      ))
+    }
+  }, []))
+
+  // Estado cambiado
+  useSocketEvent('appointment:statusChanged', useCallback((data) => {
+    console.log('🔔 RT: Estado cambiado', data)
+    if (data.appointment) {
+      setAppointments(prev => prev.map(apt => {
+        if (apt.id === data.appointment.id) return { ...apt, ...data.appointment }
+        // Propagar a grupo
+        if (apt.groupId && data.appointment.groupId && apt.groupId === data.appointment.groupId) {
+          return { ...apt, status: data.newStatus }
+        }
+        return apt
+      }))
+    }
+  }, []))
+
+  // Cita eliminada
+  useSocketEvent('appointment:deleted', useCallback((data) => {
+    console.log('🔔 RT: Cita eliminada', data)
+    setAppointments(prev => prev.filter(apt => {
+      if (apt.id === data.appointmentId) return false
+      if (data.groupId && apt.groupId === data.groupId) return false
+      return true
+    }))
+  }, []))
+
+  // Respuesta del barbero (pago en persona / online)
+  useSocketEvent('appointment:responded', useCallback((data) => {
+    console.log('🔔 RT: Barbero respondió', data)
+    if (data.appointment) {
+      const newStatus = data.paymentMode === 'IN_PERSON' ? 'CONFIRMADA' : 'ESPERANDO_PAGO'
+      setAppointments(prev => prev.map(apt => {
+        if (apt.id === data.appointment.id) {
+          return { ...apt, ...data.appointment, status: newStatus, holdExpiresAt: data.holdExpiresAt }
+        }
+        if (apt.groupId && data.appointment.groupId && apt.groupId === data.appointment.groupId) {
+          return { ...apt, status: newStatus, holdExpiresAt: data.holdExpiresAt }
+        }
+        return apt
+      }))
+    }
+  }, []))
+
+  // Pago confirmado
+  useSocketEvent('appointment:paymentConfirmed', useCallback((data) => {
+    console.log('🔔 RT: Pago confirmado', data)
+    if (data.appointment) {
+      setAppointments(prev => prev.map(apt => 
+        (apt.id === data.appointment.id) ? { ...apt, ...data.appointment, status: 'CONFIRMADA' } : apt
+      ))
+    }
+  }, []))
+
+  // Reservas expiradas
+  useSocketEvent('appointment:holdExpired', useCallback((data) => {
+    console.log('🔔 RT: Reservas expiradas', data)
+    if (data.expiredIds) {
+      setAppointments(prev => prev.map(apt =>
+        data.expiredIds.includes(apt.id) ? { ...apt, status: 'EXPIRADA', holdExpiresAt: null } : apt
+      ))
+    }
+  }, []))
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target

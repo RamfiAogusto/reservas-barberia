@@ -1,6 +1,8 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import { SalonProvider } from '@/utils/SalonContext'
+import { SocketProvider } from '@/contexts/SocketContext'
+import { Toaster } from '@/components/ui/sonner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -13,9 +15,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es">
       <body className={inter.className}>
-        <SalonProvider>
-          {children}
-        </SalonProvider>
+        <SocketProvider>
+          <SalonProvider>
+            {children}
+          </SalonProvider>
+          <Toaster />
+        </SocketProvider>
       </body>
     </html>
   )

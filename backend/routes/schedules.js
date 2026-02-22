@@ -3,6 +3,7 @@ const router = express.Router()
 const { body, validationResult } = require('express-validator')
 const { authenticateToken } = require('../middleware/auth')
 const { prisma } = require('../lib/prisma')
+const { emitToSalon } = require('../services/socketService')
 
 // Aplicar middleware de autenticación a todas las rutas
 router.use(authenticateToken)
@@ -131,6 +132,8 @@ router.put('/business-hours', [
       data: updatedSchedule
     })
 
+    emitToSalon(req.user.id, 'schedule:updated', { action: 'business-hours' })
+
   } catch (error) {
     console.error('Error actualizando horarios base:', error)
     res.status(500).json({
@@ -203,6 +206,8 @@ router.post('/recurring-breaks', [
       data: newBreak
     })
 
+    emitToSalon(req.user.id, 'schedule:updated', { action: 'break-created' })
+
   } catch (error) {
     console.error('Error creando descanso:', error)
     res.status(500).json({
@@ -263,6 +268,8 @@ router.put('/recurring-breaks/:id', [
       data: breakRecord
     })
 
+    emitToSalon(req.user.id, 'schedule:updated', { action: 'break-updated' })
+
   } catch (error) {
     console.error('Error actualizando descanso:', error)
     res.status(500).json({
@@ -298,6 +305,8 @@ router.delete('/recurring-breaks/:id', async (req, res) => {
       success: true,
       message: 'Descanso eliminado exitosamente'
     })
+
+    emitToSalon(req.user.id, 'schedule:updated', { action: 'break-deleted' })
 
   } catch (error) {
     console.error('Error eliminando descanso:', error)
@@ -405,6 +414,8 @@ router.post('/exceptions', [
       data: newException
     })
 
+    emitToSalon(req.user.id, 'schedule:updated', { action: 'exception-created' })
+
   } catch (error) {
     console.error('Error creando excepción:', error)
     res.status(500).json({
@@ -472,6 +483,8 @@ router.put('/exceptions/:id', [
       data: exception
     })
 
+    emitToSalon(req.user.id, 'schedule:updated', { action: 'exception-updated' })
+
   } catch (error) {
     console.error('Error actualizando excepción:', error)
     res.status(500).json({
@@ -507,6 +520,8 @@ router.delete('/exceptions/:id', async (req, res) => {
       success: true,
       message: 'Excepción eliminada exitosamente'
     })
+
+    emitToSalon(req.user.id, 'schedule:updated', { action: 'exception-deleted' })
 
   } catch (error) {
     console.error('Error eliminando excepción:', error)

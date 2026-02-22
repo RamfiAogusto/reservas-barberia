@@ -2,6 +2,7 @@ const express = require('express')
 const { body, validationResult } = require('express-validator')
 const { prisma } = require('../lib/prisma')
 const { authenticateToken } = require('../middleware/auth')
+const { emitToSalon } = require('../services/socketService')
 const router = express.Router()
 
 // Middleware de autenticación para todas las rutas
@@ -185,6 +186,9 @@ router.post('/', [
       message: 'Servicio creado exitosamente',
       data: serviceWithId
     })
+
+    // Emitir evento real-time
+    emitToSalon(req.user.id, 'service:updated', { action: 'created', service: serviceWithId })
   } catch (error) {
     console.error('Error creando servicio:', error)
     res.status(500).json({
@@ -330,6 +334,9 @@ router.put('/:id', [
       message: 'Servicio actualizado exitosamente',
       data: serviceWithId
     })
+
+    // Emitir evento real-time
+    emitToSalon(req.user.id, 'service:updated', { action: 'updated', service: serviceWithId })
   } catch (error) {
     console.error('Error actualizando servicio:', error)
     res.status(500).json({
@@ -367,6 +374,9 @@ router.delete('/:id', async (req, res) => {
       success: true,
       message: 'Servicio eliminado exitosamente'
     })
+
+    // Emitir evento real-time
+    emitToSalon(req.user.id, 'service:updated', { action: 'deleted', serviceId: req.params.id })
   } catch (error) {
     console.error('Error eliminando servicio:', error)
     res.status(500).json({

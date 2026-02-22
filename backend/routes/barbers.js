@@ -2,6 +2,7 @@ const express = require('express')
 const { body, validationResult } = require('express-validator')
 const { prisma } = require('../lib/prisma')
 const { authenticateToken } = require('../middleware/auth')
+const { emitToSalon } = require('../services/socketService')
 const router = express.Router()
 
 // Middleware de autenticación para todas las rutas
@@ -142,6 +143,8 @@ router.post('/', [
       message: 'Barbero creado exitosamente',
       data: newBarber
     })
+
+    emitToSalon(req.user.id, 'barber:updated', { action: 'created', barber: newBarber })
   } catch (error) {
     console.error('Error creando barbero:', error)
     res.status(500).json({
@@ -242,6 +245,8 @@ router.put('/:id', [
       message: 'Barbero actualizado exitosamente',
       data: updatedBarber
     })
+
+    emitToSalon(req.user.id, 'barber:updated', { action: 'updated', barber: updatedBarber })
   } catch (error) {
     console.error('Error actualizando barbero:', error)
     res.status(500).json({
@@ -279,6 +284,8 @@ router.delete('/:id', async (req, res) => {
       success: true,
       message: 'Barbero eliminado exitosamente'
     })
+
+    emitToSalon(req.user.id, 'barber:updated', { action: 'deleted', barberId: req.params.id })
   } catch (error) {
     console.error('Error eliminando barbero:', error)
     res.status(500).json({

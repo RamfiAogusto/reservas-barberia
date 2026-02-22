@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import api, { getUserData, getAuthToken, clearAuthData } from '@/utils/api'
 import { formatTime12h } from '@/utils/formatTime'
+import { useSocketEvent } from '@/contexts/SocketContext'
 
 const Dashboard = () => {
   const router = useRouter()
@@ -100,6 +101,35 @@ const Dashboard = () => {
 
     handleLoadData()
   }, [router])
+
+  // === REAL-TIME: refrescar dashboard cuando hay cambios en citas ===
+  const refreshDashboard = useCallback(async () => {
+    try {
+      const [appointmentStats, todayData] = await Promise.all([
+        api.get('/appointments/stats/summary').catch(() => null),
+        api.get('/appointments/today').catch(() => null)
+      ])
+      if (appointmentStats?.success) {
+        setStats(prev => ({
+          ...prev,
+          appointments: appointmentStats.stats,
+          revenue: { monthlyRevenue: appointmentStats.stats.monthlyRevenue || 0 }
+        }))
+      }
+      if (todayData?.success) {
+        setTodayAppointments(todayData.data || [])
+      }
+    } catch (e) {
+      console.error('Error refrescando dashboard:', e)
+    }
+  }, [])
+
+  useSocketEvent('appointment:new', refreshDashboard)
+  useSocketEvent('appointment:statusChanged', refreshDashboard)
+  useSocketEvent('appointment:deleted', refreshDashboard)
+  useSocketEvent('appointment:responded', refreshDashboard)
+  useSocketEvent('appointment:paymentConfirmed', refreshDashboard)
+  useSocketEvent('appointment:holdExpired', refreshDashboard)
 
   const handleAuthError = () => {
     clearAuthData()

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import api from '@/utils/api'
+import { useSocketEvent } from '@/contexts/SocketContext'
 
 const ServicesPage = () => {
   const router = useRouter()
@@ -22,23 +23,32 @@ const ServicesPage = () => {
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
 
+  const reloadServices = useCallback(async () => {
+    try {
+      const response = await api.get('/services')
+      if (response.success) {
+        setServices(response.data || [])
+      }
+    } catch (error) {
+      console.error('Error cargando servicios:', error)
+    }
+  }, [])
+
   useEffect(() => {
     const handleLoadServices = async () => {
       try {
         setLoading(true)
-        const response = await api.get('/services')
-        if (response.success) {
-          setServices(response.data || [])
-        }
-      } catch (error) {
-        console.error('Error cargando servicios:', error)
+        await reloadServices()
       } finally {
         setLoading(false)
       }
     }
 
     handleLoadServices()
-  }, [])
+  }, [reloadServices])
+
+  // Real-time: auto-refresh cuando se modifican servicios
+  useSocketEvent('service:updated', reloadServices)
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target

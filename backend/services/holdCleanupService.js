@@ -88,6 +88,17 @@ class HoldCleanupService {
 
       console.log(`🧹 ${expiredIds.length} cita(s) expirada(s) - ${toExpire.length} reserva(s) liberada(s)`)
 
+      // Emitir evento real-time para cada salón afectado
+      const ownerIds = [...new Set(expiredAppointments.map(a => a.userId))]
+      for (const ownerId of ownerIds) {
+        const ownerExpired = expiredAppointments.filter(a => a.userId === ownerId)
+        emitToSalon(ownerId, 'appointment:holdExpired', {
+          expiredIds: ownerExpired.map(a => a.id),
+          count: ownerExpired.length,
+          message: `${ownerExpired.length} reserva(s) expirada(s) por falta de pago`
+        })
+      }
+
       // Enviar emails de expiración (uno por reserva, no por cita individual)
       for (const apt of toExpire) {
         try {

@@ -1,4 +1,5 @@
 const express = require('express')
+const http = require('http')
 const cors = require('cors')
 const helmet = require('helmet')
 const rateLimit = require('express-rate-limit')
@@ -22,8 +23,10 @@ const barbersRoutes = require('./routes/barbers')
 // Importar servicios
 const queueService = require('./services/queueService')
 const holdCleanupService = require('./services/holdCleanupService')
+const { initializeSocket } = require('./services/socketService')
 
 const app = express()
+const server = http.createServer(app)
 
 // Configurar trust proxy para rate limiting en producción
 app.set('trust proxy', 1)
@@ -92,6 +95,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions))
 
+// Inicializar Socket.IO con la misma configuración CORS
+initializeSocket(server, corsOptions)
+
 // Manejo explícito de preflight requests
 app.options('*', cors(corsOptions))
 
@@ -147,8 +153,9 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 5000
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`)
   console.log(`📍 URL: http://localhost:${PORT}`)
   console.log(`🏥 Health check: http://localhost:${PORT}/api/health`)
+  console.log(`🔌 WebSocket: ws://localhost:${PORT}`)
 }) 

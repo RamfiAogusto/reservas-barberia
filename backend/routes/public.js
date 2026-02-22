@@ -7,6 +7,7 @@ const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
 const { createAppointmentWithOverlapCheck, createAppointmentWithAutoAssign, getAvailableBarbersForSlot, createMultiServiceAppointments } = require('../utils/availabilityUtils')
+const { emitToSalon } = require('../services/socketService')
 
 // GET /api/public/salon/:username - Obtener perfil público del salón
 router.get('/salon/:username', async (req, res) => {
@@ -1042,6 +1043,24 @@ router.post('/salon/:username/book', [
     } catch (emailError) {
       console.error('Error preparando email de confirmación:', emailError)
     }
+
+    // Emitir evento real-time al dueño del salón
+    emitToSalon(user.id, 'appointment:new', {
+      appointment: {
+        id: mainAppointment.id,
+        groupId,
+        clientName: mainAppointment.clientName,
+        clientEmail: mainAppointment.clientEmail,
+        date: mainAppointment.date,
+        time: mainAppointment.time,
+        status: mainAppointment.status,
+        totalAmount: totalPrice,
+        services: orderedServices.map(s => ({ name: s.name, price: s.price, duration: s.duration })),
+        barber: assignedBarber ? { name: assignedBarber.name } : null
+      },
+      message: `Nueva reserva de ${mainAppointment.clientName}`,
+      source: 'public'
+    })
 
     res.status(201).json({
       success: true,

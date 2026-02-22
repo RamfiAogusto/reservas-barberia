@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import api from '@/utils/api'
 import ImageUploader from './ImageUploader'
+import { useSocketEvent } from '@/contexts/SocketContext'
 
 export default function GalleryManager() {
   const [images, setImages] = useState([])
@@ -18,6 +19,11 @@ export default function GalleryManager() {
   useEffect(() => {
     loadImages()
   }, [])
+
+  // Real-time: auto-refresh cuando se modifica la galería
+  useSocketEvent('gallery:updated', useCallback(() => {
+    loadImages()
+  }, []))
   
   const loadImages = async () => {
     try {

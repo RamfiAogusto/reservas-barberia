@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/utils/api'
+import { useSocketEvent } from '@/contexts/SocketContext'
 
 const BarbersPage = () => {
   const router = useRouter()
@@ -22,6 +23,11 @@ const BarbersPage = () => {
   useEffect(() => {
     loadBarbers()
   }, [])
+
+  // Real-time: auto-refresh cuando se modifican barberos
+  useSocketEvent('barber:updated', useCallback(() => {
+    loadBarbers()
+  }, []))
 
   const loadBarbers = async () => {
     try {

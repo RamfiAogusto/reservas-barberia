@@ -4,6 +4,7 @@ const { authenticateToken } = require('../middleware/auth')
 const { upload, handleUploadErrors } = require('../middleware/uploadMiddleware')
 const cloudinaryService = require('../services/cloudinaryService')
 const { prisma } = require('../lib/prisma')
+const { emitToSalon } = require('../services/socketService')
 
 // Aplicar middleware de autenticación a todas las rutas
 router.use(authenticateToken)
@@ -113,6 +114,8 @@ router.post('/', upload.single('image'), handleUploadErrors, async (req, res) =>
       message: 'Imagen subida exitosamente',
       data: newImage
     })
+
+    emitToSalon(req.user.id, 'gallery:updated', { action: 'uploaded' })
   } catch (error) {
     console.error('Error subiendo imagen:', error)
     res.status(500).json({
@@ -162,6 +165,8 @@ router.put('/:id', async (req, res) => {
       message: 'Imagen actualizada exitosamente',
       data: image
     })
+
+    emitToSalon(req.user.id, 'gallery:updated', { action: 'updated' })
   } catch (error) {
     console.error('Error actualizando imagen:', error)
     res.status(500).json({
@@ -206,6 +211,8 @@ router.delete('/:id', async (req, res) => {
       success: true,
       message: 'Imagen eliminada exitosamente'
     })
+
+    emitToSalon(req.user.id, 'gallery:updated', { action: 'deleted' })
   } catch (error) {
     console.error('Error eliminando imagen:', error)
     res.status(500).json({
@@ -245,6 +252,8 @@ router.put('/reorder', async (req, res) => {
       success: true,
       message: 'Orden de imágenes actualizado exitosamente'
     })
+
+    emitToSalon(req.user.id, 'gallery:updated', { action: 'reordered' })
   } catch (error) {
     console.error('Error reordenando imágenes:', error)
     res.status(500).json({
