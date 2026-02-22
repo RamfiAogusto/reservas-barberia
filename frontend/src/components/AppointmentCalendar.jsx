@@ -5,7 +5,7 @@ import {
   format,
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
-  addMonths, subMonths, addWeeks, subWeeks,
+  addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ import {
   ChevronRight,
   LayoutGrid,
   List,
+  CalendarDays,
 } from 'lucide-react'
 import { formatTime12h } from '@/utils/formatTime'
 
@@ -90,8 +91,12 @@ export default function AppointmentCalendar({
 
   const selectedDate = controlledSelectedDate || internalSelectedDate
 
-  const goNext = () => setCurrentDate(prev => view === 'month' ? addMonths(prev, 1) : addWeeks(prev, 1))
-  const goPrev = () => setCurrentDate(prev => view === 'month' ? subMonths(prev, 1) : subWeeks(prev, 1))
+  const goNext = () => setCurrentDate(prev =>
+    view === 'month' ? addMonths(prev, 1) : view === 'week' ? addWeeks(prev, 1) : addDays(prev, 1)
+  )
+  const goPrev = () => setCurrentDate(prev =>
+    view === 'month' ? subMonths(prev, 1) : view === 'week' ? subWeeks(prev, 1) : subDays(prev, 1)
+  )
   const goToday = () => setCurrentDate(new Date())
 
   const days = useMemo(() => {
@@ -153,15 +158,22 @@ export default function AppointmentCalendar({
   const handleDayClick = (day) => {
     setInternalSelectedDate(day)
     onSelectDate?.(day)
+    // Switch to day view when clicking a specific day
+    if (view !== 'day') {
+      setCurrentDate(day)
+      setView('day')
+    }
   }
 
   const title = view === 'month'
     ? format(currentDate, 'MMMM yyyy', { locale: es })
-    : (() => {
-        const ws = startOfWeek(currentDate, { locale: es })
-        const we = endOfWeek(currentDate, { locale: es })
-        return `${format(ws, 'd MMM', { locale: es })} – ${format(we, 'd MMM yyyy', { locale: es })}`
-      })()
+    : view === 'week'
+      ? (() => {
+          const ws = startOfWeek(currentDate, { locale: es })
+          const we = endOfWeek(currentDate, { locale: es })
+          return `${format(ws, 'd MMM', { locale: es })} – ${format(we, 'd MMM yyyy', { locale: es })}`
+        })()
+      : format(currentDate, "EEEE d 'de' MMMM yyyy", { locale: es })
 
   return (
     <div className="flex flex-col h-full">
@@ -174,6 +186,15 @@ export default function AppointmentCalendar({
           <h2 className="ml-2 text-lg font-semibold text-gray-900 dark:text-gray-100 capitalize">{title}</h2>
         </div>
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-0.5">
+          <button onClick={() => setView('day')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+              view === 'day'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            )}>
+            <CalendarDays className="w-4 h-4" />Día
+          </button>
           <button onClick={() => setView('week')}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
@@ -232,11 +253,19 @@ export default function AppointmentCalendar({
           appointmentsByDate={appointmentsByDate} barberColorMap={barberColorMap}
           onDayClick={handleDayClick} onSelectAppointment={onSelectAppointment}
         />
-      ) : (
+      ) : view === 'week' ? (
         <WeekView
           days={days} selectedDate={selectedDate}
           appointmentsByDate={appointmentsByDate} barberColorMap={barberColorMap}
           onDayClick={handleDayClick} onSelectAppointment={onSelectAppointment}
+        />
+      ) : (
+        <DayView
+          date={currentDate}
+          appointmentsByDate={appointmentsByDate}
+          barberColorMap={barberColorMap}
+          barberLegend={barberLegend}
+          onSelectAppointment={onSelectAppointment}
         />
       )}
     </div>
@@ -427,6 +456,134 @@ function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDa
                             {!isOverlap && hasMultipleBarbers && apt.barber?.name && (
                               <p className="text-[9px] text-gray-400 dark:text-gray-500 truncate leading-tight">
                                 {apt.barber.name}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ─────────────────────────────────────
+// DAY VIEW (one column per barber)
+// ─────────────────────────────────────
+function DayView({ date, appointmentsByDate, barberColorMap, barberLegend, onSelectAppointment }) {
+  const dateStr = format(date, 'yyyy-MM-dd')
+  const dayAppts = appointmentsByDate[dateStr] || []
+
+  // If no barbers known, fallback to a single unnamed column
+  const barbers = barberLegend.length > 0
+    ? barberLegend
+    : [{ id: '_all', name: 'Citas', color: BARBER_COLORS[0] }]
+
+  const barberCount = barbers.length
+
+  // Group appointments by barberId
+  const apptsByBarber = useMemo(() => {
+    const map = {}
+    barbers.forEach(b => { map[b.id] = [] })
+    dayAppts.forEach(apt => {
+      const bid = apt.barber?.id || '_all'
+      if (!map[bid]) map[bid] = []
+      map[bid].push(apt)
+    })
+    return map
+  }, [dayAppts, barbers])
+
+  const ROW_H = 64
+
+  return (
+    <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="min-w-[400px]">
+        {/* ─ Barber column headers ─ */}
+        <div
+          className="grid sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700"
+          style={{ gridTemplateColumns: `60px repeat(${barberCount}, 1fr)` }}
+        >
+          <div className="border-r border-gray-200 dark:border-gray-700" />
+          {barbers.map(b => {
+            const bColor = barberColorMap[b.id] || BARBER_COLORS[0]
+            return (
+              <div key={b.id}
+                className={cn(
+                  'px-3 py-3 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0',
+                  bColor.bg
+                )}>
+                <div className="flex items-center justify-center gap-2">
+                  <span className={cn('w-3 h-3 rounded-full flex-shrink-0', bColor.dot)} />
+                  <span className={cn('text-sm font-semibold', bColor.text)}>{b.name}</span>
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                  {(apptsByBarber[b.id] || []).length} cita{(apptsByBarber[b.id] || []).length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ─ Time grid ─ */}
+        <div className="relative">
+          {HOUR_SLOTS.map(hour => (
+            <div key={hour}
+              className="grid border-b border-gray-100 dark:border-gray-800"
+              style={{ gridTemplateColumns: `60px repeat(${barberCount}, 1fr)` }}
+            >
+              <div className="border-r border-gray-200 dark:border-gray-700 text-right pr-2 py-1">
+                <span className="text-[11px] text-gray-400 dark:text-gray-500 -mt-2 block">
+                  {formatTime12h(`${hour.toString().padStart(2, '0')}:00`)}
+                </span>
+              </div>
+              {barbers.map(b => {
+                const barberAppts = (apptsByBarber[b.id] || []).filter(
+                  apt => Math.floor(timeToDecimal(apt.time)) === hour
+                )
+                return (
+                  <div key={`${b.id}-${hour}`}
+                    className="border-r border-gray-100 dark:border-gray-800 last:border-r-0 relative"
+                    style={{ minHeight: `${ROW_H}px` }}>
+                    {barberAppts.map(apt => {
+                      const stCfg = getStatusConfig(apt.status)
+                      const bColor = barberColorMap[apt.barber?.id] || BARBER_COLORS[0]
+                      const duration = apt.service?.duration || apt.totalDuration || 30
+                      const heightSlots = Math.max(duration / 60, 0.4)
+                      const minuteOffset = timeToDecimal(apt.time) - hour
+
+                      return (
+                        <button key={apt.id}
+                          onClick={() => onSelectAppointment?.(apt)}
+                          title={`${apt.clientName} — ${apt.service?.name || 'Servicio'}`}
+                          className={cn(
+                            'absolute left-1 right-1 rounded-lg text-left transition-all overflow-hidden z-[1]',
+                            'hover:ring-2 hover:ring-primary-400 dark:hover:ring-primary-500 hover:z-10',
+                            bColor.bg, 'border', bColor.border,
+                            (apt.status === 'CANCELADA' || apt.status === 'EXPIRADA') && 'opacity-40',
+                          )}
+                          style={{
+                            top: `${minuteOffset * 100}%`,
+                            minHeight: `${Math.max(heightSlots * ROW_H, 32)}px`,
+                            height: `${heightSlots * ROW_H}px`,
+                          }}>
+                          <div className={cn('absolute left-0 top-0 bottom-0 w-1.5 rounded-l-lg', stCfg.color)} />
+                          <div className="pl-3 pr-2 py-1 flex flex-col justify-start h-full min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
+                              {apt.clientName}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
+                              {formatTime12h(apt.time)} · {apt.service?.name || 'Servicio'}
+                            </p>
+                            {duration >= 45 && (
+                              <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate leading-tight mt-0.5">
+                                {stCfg.label} · {duration} min
                               </p>
                             )}
                           </div>
