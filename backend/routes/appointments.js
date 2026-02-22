@@ -1427,7 +1427,7 @@ router.post('/:id/confirm-payment', async (req, res) => {
         barber: { select: { name: true } },
         user: { select: { 
           salonName: true, username: true, email: true, address: true, phone: true, 
-          depositAmount: true, bookingMode: true, autoConfirmAfterPayment: true 
+          depositAmount: true, bookingMode: true 
         } }
       }
     })
@@ -1466,16 +1466,9 @@ router.post('/:id/confirm-payment', async (req, res) => {
     // ──── Determinar estado post-pago según modo ────
     const owner = appointment.user
     const bookingMode = owner.bookingMode || 'LIBRE'
-    let nextStatus = 'CONFIRMADA'
-    let responseMessage = '¡Pago confirmado! Tu reserva está asegurada.'
-
-    if (bookingMode === 'PREPAGO' && !owner.autoConfirmAfterPayment) {
-      // PREPAGO sin auto-confirm: pago recibido, pero barbero debe aprobar
-      nextStatus = 'PENDIENTE'
-      responseMessage = '¡Pago recibido! Tu reserva está pendiente de confirmación por el salón.'
-    }
-    // PAGO_POST_APROBACION: barbero ya aprobó, pago confirma → CONFIRMADA
-    // PREPAGO + autoConfirm: pago confirma → CONFIRMADA
+    const nextStatus = 'CONFIRMADA'
+    const responseMessage = '¡Pago confirmado! Tu reserva está asegurada.'
+    // Tanto PREPAGO como PAGO_POST_APROBACION: al pagar → CONFIRMADA siempre
 
     const confirmData = {
       status: nextStatus,
@@ -1530,19 +1523,9 @@ router.post('/:id/confirm-payment', async (req, res) => {
       bookingId: appointment.id.toString()
     }
 
-    if (nextStatus === 'CONFIRMADA') {
-      // Enviar email de confirmación
-      emailService.sendBookingConfirmation(bookingData)
-        .catch(e => console.error('Error email confirmación post-pago:', e))
-    } else {
-      // PREPAGO sin auto-confirm: notificar al dueño que hay una cita pagada pendiente
-      emailService.sendOwnerNotification({
-        ...bookingData,
-        ownerEmail: owner.email,
-        clientPhone: appointment.clientPhone,
-        notes: '💳 El cliente ya pagó el depósito. Pendiente de tu confirmación.'
-      }).catch(e => console.error('Error email notificación post-pago:', e))
-    }
+    // Enviar email de confirmación
+    emailService.sendBookingConfirmation(bookingData)
+      .catch(e => console.error('Error email confirmación post-pago:', e))
 
     console.log(`✅ Pago confirmado para cita: ${appointmentId} → ${nextStatus}`)
 

@@ -28,7 +28,6 @@ model User {
 
   // Configuración de modo de reserva
   bookingMode              BookingMode @default(LIBRE)       // Modo global de reservas del salón
-  autoConfirmAfterPayment  Boolean     @default(false)       // Auto-confirmar al recibir pago (PREPAGO)
   cancellationMinutesBefore Int        @default(60)          // Minutos antes de la cita para cancelar sin penalización (informativo)
   noShowWaitMinutes        Int         @default(15)          // Minutos de espera antes de marcar como NO_ASISTIO
 

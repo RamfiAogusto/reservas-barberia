@@ -30,7 +30,6 @@ router.get('/profile', async (req, res) => {
         onboardingCompleted: true,
         holdDurationMinutes: true,
         bookingMode: true,
-        autoConfirmAfterPayment: true,
         cancellationMinutesBefore: true,
         noShowWaitMinutes: true,
         createdAt: true,
@@ -63,7 +62,7 @@ router.get('/profile', async (req, res) => {
 router.put('/profile', async (req, res) => {
   try {
     const { salonName, phone, address, avatar, requiresDeposit, depositAmount,
-            bookingMode, autoConfirmAfterPayment, holdDurationMinutes,
+            bookingMode, holdDurationMinutes,
             cancellationMinutesBefore, noShowWaitMinutes } = req.body
     const updateData = { salonName, phone, address, avatar }
     if (requiresDeposit !== undefined) updateData.requiresDeposit = !!requiresDeposit
@@ -71,7 +70,6 @@ router.put('/profile', async (req, res) => {
     // Campos de modo de reserva
     const validModes = ['LIBRE', 'PREPAGO', 'PAGO_POST_APROBACION']
     if (bookingMode && validModes.includes(bookingMode)) updateData.bookingMode = bookingMode
-    if (autoConfirmAfterPayment !== undefined) updateData.autoConfirmAfterPayment = !!autoConfirmAfterPayment
     if (holdDurationMinutes !== undefined) updateData.holdDurationMinutes = Math.max(5, Math.min(60, parseInt(holdDurationMinutes) || 15))
     if (cancellationMinutesBefore !== undefined) updateData.cancellationMinutesBefore = Math.max(0, parseInt(cancellationMinutesBefore) || 60)
     if (noShowWaitMinutes !== undefined) updateData.noShowWaitMinutes = Math.max(5, Math.min(60, parseInt(noShowWaitMinutes) || 15))
@@ -94,7 +92,6 @@ router.put('/profile', async (req, res) => {
         onboardingCompleted: true,
         holdDurationMinutes: true,
         bookingMode: true,
-        autoConfirmAfterPayment: true,
         cancellationMinutesBefore: true,
         noShowWaitMinutes: true,
         createdAt: true,

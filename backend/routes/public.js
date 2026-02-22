@@ -31,8 +31,7 @@ router.get('/salon/:username', async (req, res) => {
         requiresDeposit: true,
         depositAmount: true,
         bookingMode: true,
-        holdDurationMinutes: true,
-        autoConfirmAfterPayment: true
+        holdDurationMinutes: true
       }
     })
 
@@ -849,7 +848,6 @@ router.post('/salon/:username/book', [
         depositAmount: true,
         bookingMode: true,
         holdDurationMinutes: true,
-        autoConfirmAfterPayment: true
       }
     })
 
