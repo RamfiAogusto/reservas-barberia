@@ -6,7 +6,7 @@ const emailService = require('../services/emailService')
 const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
-const { createAppointmentWithOverlapCheck, createAppointmentWithAutoAssign, getAvailableBarbersForSlot } = require('../utils/availabilityUtils')
+const { createAppointmentWithOverlapCheck, createAppointmentWithAutoAssign, getAvailableBarbersForSlot, createMultiServiceAppointments } = require('../utils/availabilityUtils')
 
 // GET /api/public/salon/:username - Obtener perfil público del salón
 router.get('/salon/:username', async (req, res) => {
@@ -232,6 +232,9 @@ router.get('/salon/:username/availability', async (req, res) => {
       })
     }
 
+    // Soporte multi-servicio: si se pasa totalDuration, usarlo en vez de la duración del servicio
+    const serviceDuration = req.query.totalDuration ? parseInt(req.query.totalDuration) : service.duration
+
     // Convertir fecha usando parsing manual para evitar problemas de zona horaria
     const [year, month, day] = date.split('-').map(Number)
     const requestedDate = new Date(year, month - 1, day)
@@ -364,19 +367,22 @@ router.get('/salon/:username/availability', async (req, res) => {
         endTime: effectiveEndTime,
         breaks,
         existingAppointments: [], // Sin citas — verificaremos por barbero
-        serviceDuration: service.duration,
+        serviceDuration,
         targetDate: requestedDate
       })
 
       // Para cada slot, verificar si AL MENOS un barbero está disponible
       for (const slot of baseSlots) {
         if (!slot.available) continue // Ya bloqueado por horario/descanso/pasado
-        const freeBarberIds = getAvailableBarbersForSlot(barbers, existingAppointments, slot.time, service.duration)
+        const freeBarberIds = getAvailableBarbersForSlot(barbers, existingAppointments, slot.time, serviceDuration)
         if (freeBarberIds.length === 0) {
           slot.available = false
           slot.reason = 'Todos los barberos ocupados'
         } else {
-          slot.availableBarbers = freeBarberIds
+          slot.availableBarbers = freeBarberIds.map(id => {
+            const b = barbers.find(bb => bb.id === id)
+            return { id, name: b?.name || 'Barbero' }
+          })
           slot.totalBarbers = barbers.length
         }
       }
@@ -468,6 +474,9 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
         message: 'Servicio no encontrado'
       })
     }
+
+    // Soporte multi-servicio: si se pasa totalDuration, usarlo en vez de la duración del servicio
+    const serviceDuration = req.query.totalDuration ? parseInt(req.query.totalDuration) : service.duration
 
     // Convertir fecha usando parsing manual para evitar problemas de zona horaria
     const [year, month, day] = date.split('-').map(Number)
@@ -588,18 +597,21 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
         endTime: effectiveEndTime,
         breaks: applicableBreaks,
         existingAppointments: [], // Sin citas — verificaremos por barbero
-        serviceDuration: service.duration,
+        serviceDuration,
         targetDate
       })
 
       for (const slot of baseSlots) {
         if (!slot.available) continue
-        const freeBarberIds = getAvailableBarbersForSlot(barbers, existingAppointments, slot.time, service.duration)
+        const freeBarberIds = getAvailableBarbersForSlot(barbers, existingAppointments, slot.time, serviceDuration)
         if (freeBarberIds.length === 0) {
           slot.available = false
           slot.reason = 'Todos los barberos ocupados'
         } else {
-          slot.availableBarbers = freeBarberIds
+          slot.availableBarbers = freeBarberIds.map(id => {
+            const b = barbers.find(bb => bb.id === id)
+            return { id, name: b?.name || 'Barbero' }
+          })
           slot.totalBarbers = barbers.length
         }
       }
@@ -611,7 +623,7 @@ router.get('/salon/:username/availability/advanced', async (req, res) => {
         endTime: effectiveEndTime,
         breaks: applicableBreaks,
         existingAppointments,
-        serviceDuration: service.duration,
+        serviceDuration,
         targetDate
       })
     }
@@ -774,9 +786,11 @@ router.get('/salon/:username/days-status', async (req, res) => {
   }
 })
 
-// POST /api/public/salon/:username/book - Crear una nueva reserva
+// POST /api/public/salon/:username/book - Crear una nueva reserva (single o multi-servicio)
 router.post('/salon/:username/book', [
-  body('serviceId').notEmpty().withMessage('El servicio es requerido'),
+  // serviceId requerido (para compatibilidad) O serviceIds array
+  body('serviceId').optional().isString(),
+  body('serviceIds').optional().isArray(),
   body('clientName').trim().notEmpty().withMessage('El nombre es requerido'),
   body('clientEmail').isEmail().withMessage('Email inválido'),
   body('clientPhone').trim().notEmpty().withMessage('El teléfono es requerido'),
@@ -797,7 +811,19 @@ router.post('/salon/:username/book', [
     }
 
     const { username } = req.params
-    const { serviceId, clientName, clientEmail, clientPhone, date, time, notes, barberId } = req.body
+    const { serviceId, serviceIds, clientName, clientEmail, clientPhone, date, time, notes, barberId } = req.body
+
+    // Determinar IDs de servicios (compatibilidad con single y multi)
+    const resolvedServiceIds = serviceIds && serviceIds.length > 0
+      ? serviceIds
+      : serviceId ? [serviceId] : []
+
+    if (resolvedServiceIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debes seleccionar al menos un servicio'
+      })
+    }
 
     // Buscar el usuario
     const user = await prisma.user.findFirst({ 
@@ -814,21 +840,24 @@ router.post('/salon/:username/book', [
       })
     }
 
-    // Buscar el servicio
-    const service = await prisma.service.findFirst({
+    // Buscar todos los servicios seleccionados
+    const services = await prisma.service.findMany({
       where: {
-        id: serviceId,
+        id: { in: resolvedServiceIds },
         userId: user.id,
         isActive: true
       }
     })
 
-    if (!service) {
+    if (services.length !== resolvedServiceIds.length) {
       return res.status(404).json({
         success: false,
-        message: 'Servicio no encontrado'
+        message: 'Uno o más servicios no encontrados'
       })
     }
+
+    // Ordenar servicios en el mismo orden que fueron enviados
+    const orderedServices = resolvedServiceIds.map(id => services.find(s => s.id === id))
 
     // Si se especifica barbero (y no es 'any'), verificar que exista
     let resolvedBarberId = null
@@ -847,7 +876,7 @@ router.post('/salon/:username/book', [
       resolvedBarberId = barberId
     }
 
-    // Verificar si el salón tiene barberos (necesario para decidir flujo)
+    // Verificar si el salón tiene barberos
     const salonBarbers = await prisma.barber.findMany({
       where: { userId: user.id, isActive: true }
     })
@@ -870,7 +899,7 @@ router.post('/salon/:username/book', [
       })
     }
 
-    // Verificar que no es un día de excepción (día libre/vacaciones)
+    // Verificar que no es un día de excepción
     const exception = await prisma.scheduleException.findFirst({
       where: {
         userId: user.id,
@@ -886,42 +915,36 @@ router.post('/salon/:username/book', [
       })
     }
 
-    // Crear cita con verificación atómica de solapamiento (previene race conditions)
-    let newAppointment
-    let assignedBarber = null
-    try {
-      const baseAppointmentData = {
-        userId: user.id,
-        serviceId: service.id,
-        clientName,
-        clientEmail,
-        clientPhone,
-        date: appointmentDate,
-        time,
-        notes: notes || '',
-        totalAmount: service.price,
-        status: 'PENDIENTE',
-        paymentStatus: (user.requiresDeposit ?? false) ? 'PENDIENTE' : 'COMPLETO'
-      }
+    // Calcular totales
+    const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0)
+    const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0)
+    const serviceNames = orderedServices.map(s => s.name).join(' + ')
 
-      if (salonHasBarbers && isAutoAssign) {
-        // Auto-asignar el barbero con menos carga (cualquier barbero disponible)
-        const result = await createAppointmentWithAutoAssign({
-          appointmentData: baseAppointmentData,
-          serviceDuration: service.duration,
-          userId: user.id
-        })
-        newAppointment = result.appointment
-        assignedBarber = result.assignedBarber
-      } else {
-        // Barbero específico o salón sin barberos
-        baseAppointmentData.barberId = resolvedBarberId
-        newAppointment = await createAppointmentWithOverlapCheck({
-          appointmentData: baseAppointmentData,
-          serviceDuration: service.duration,
-          barberId: resolvedBarberId
-        })
-      }
+    // Crear citas con verificación atómica de solapamiento
+    let createdAppointments = []
+    let assignedBarber = null
+    let groupId = null
+
+    try {
+      const result = await createMultiServiceAppointments({
+        services: orderedServices.map(s => ({ id: s.id, duration: s.duration, price: s.price, name: s.name })),
+        baseData: {
+          userId: user.id,
+          clientName,
+          clientEmail,
+          clientPhone,
+          date: appointmentDate,
+          time,
+          notes: notes || '',
+          paymentStatus: (user.requiresDeposit ?? false) ? 'PENDIENTE' : 'COMPLETO'
+        },
+        barberId: resolvedBarberId,
+        isAutoAssign: salonHasBarbers && isAutoAssign,
+        userId: user.id
+      })
+      createdAppointments = result.appointments
+      assignedBarber = result.assignedBarber
+      groupId = result.groupId
     } catch (overlapError) {
       if (overlapError.message === 'OVERLAP_CONFLICT') {
         return res.status(409).json({
@@ -938,16 +961,7 @@ router.post('/salon/:username/book', [
       throw overlapError
     }
 
-    // Obtener datos del servicio para la respuesta
-    const serviceData = await prisma.service.findFirst({
-      where: { id: newAppointment.serviceId },
-      select: {
-        name: true,
-        duration: true,
-        price: true,
-        category: true
-      }
-    })
+    const mainAppointment = createdAppointments[0]
 
     // Preparar y enviar email de confirmación
     try {
@@ -955,29 +969,31 @@ router.post('/salon/:username/book', [
         clientName,
         clientEmail,
         salonName: user.salonName || user.username,
-        serviceName: serviceData.name,
+        serviceName: serviceNames,
+        services: orderedServices.map(s => ({ name: s.name, price: s.price, duration: s.duration })),
+        totalDuration,
+        barberName: assignedBarber ? assignedBarber.name : null,
         date: format(appointmentDate, 'PPP', { locale: es }),
         time,
-        price: service.price,
+        price: totalPrice,
         depositAmount: user.depositAmount ?? 0,
         requiresDeposit: user.requiresDeposit ?? false,
         salonAddress: user.address || 'Dirección no especificada',
         salonPhone: user.phone || 'Teléfono no especificado',
-        bookingId: newAppointment.id.toString()
+        bookingId: mainAppointment.id.toString()
       }
 
       console.log('📧 Preparando envío de email de solicitud...')
       console.log('   Cliente:', bookingData.clientName)
       console.log('   Email:', bookingData.clientEmail)
       console.log('   Salón:', bookingData.salonName)
-      console.log('   Servicio:', bookingData.serviceName)
+      console.log('   Servicio(s):', bookingData.serviceName)
 
       // Enviar correo de solicitud enviada al cliente (no bloqueante)
       emailService.sendBookingRequest(bookingData)
         .then(result => {
           if (result.success) {
-            console.log('✅ Email de solicitud enviado exitosamente para reserva:', newAppointment.id)
-            console.log('   Message ID:', result.messageId)
+            console.log('✅ Email de solicitud enviado exitosamente para reserva:', mainAppointment.id)
           } else {
             console.error('❌ Error enviando email de solicitud:', result.error)
           }
@@ -994,15 +1010,10 @@ router.post('/salon/:username/book', [
         notes: notes || ''
       }
 
-      console.log('📧 Preparando notificación al dueño del negocio...')
-      console.log('   Dueño:', user.username)
-      console.log('   Email del dueño:', user.email)
-
       emailService.sendOwnerNotification(ownerNotificationData)
         .then(result => {
           if (result.success) {
-            console.log('✅ Notificación al dueño enviada exitosamente para reserva:', newAppointment.id)
-            console.log('   Message ID:', result.messageId)
+            console.log('✅ Notificación al dueño enviada exitosamente para reserva:', mainAppointment.id)
           } else {
             console.error('❌ Error enviando notificación al dueño:', result.error)
           }
@@ -1013,7 +1024,7 @@ router.post('/salon/:username/book', [
 
       // Programar recordatorio (no bloqueante)
       queueService.scheduleReminder({
-        appointmentId: newAppointment.id.toString(),
+        appointmentId: mainAppointment.id.toString(),
         appointmentDate: date,
         appointmentTime: time,
         clientEmail,
@@ -1030,20 +1041,23 @@ router.post('/salon/:username/book', [
 
     } catch (emailError) {
       console.error('Error preparando email de confirmación:', emailError)
-      // No afecta la respuesta principal
     }
 
     res.status(201).json({
       success: true,
       message: 'Reserva creada exitosamente',
       data: {
-        appointmentId: newAppointment.id,
-        clientName: newAppointment.clientName,
-        service: serviceData.name,
-        date: newAppointment.date.toISOString().split('T')[0],
-        time: newAppointment.time,
-        status: newAppointment.status,
-        totalAmount: newAppointment.totalAmount,
+        appointmentId: mainAppointment.id,
+        groupId,
+        clientName: mainAppointment.clientName,
+        services: orderedServices.map(s => ({ name: s.name, price: s.price, duration: s.duration })),
+        service: serviceNames,
+        date: mainAppointment.date.toISOString().split('T')[0],
+        time: mainAppointment.time,
+        status: mainAppointment.status,
+        totalAmount: totalPrice,
+        totalDuration,
+        appointmentCount: createdAppointments.length,
         requiresDeposit: user.requiresDeposit ?? false,
         depositAmount: user.depositAmount ?? 0,
         barber: assignedBarber ? { id: assignedBarber.id, name: assignedBarber.name } : null

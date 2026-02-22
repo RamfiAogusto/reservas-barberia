@@ -80,6 +80,7 @@ model Appointment {
   reminderSent  Boolean           @default(false)
   cancelledAt   DateTime?
   cancelReason  String?
+  groupId       String?           // Vincula citas de reserva multi-servicio
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 

@@ -31,6 +31,9 @@ class EmailService {
       clientName, 
       salonName, 
       serviceName, 
+      services = [],
+      totalDuration,
+      barberName,
       date, 
       time, 
       price, 
@@ -39,6 +42,7 @@ class EmailService {
       salonPhone, 
       bookingId 
     } = bookingData;
+    const isMultiService = services.length > 1;
     const time12h = formatTime12h(time || '');
 
     return `
@@ -76,7 +80,16 @@ class EmailService {
             
             <div class="highlight">
               <h3>📅 Detalles de tu Cita</h3>
-              <p><strong>Servicio:</strong> ${serviceName}</p>
+              ${isMultiService ? `
+                <p><strong>Servicios:</strong></p>
+                <ul>
+                  ${services.map(s => `<li>${s.name} — $${s.price} (${s.duration} min)</li>`).join('')}
+                </ul>
+                <p><strong>Duración total:</strong> ${totalDuration} minutos</p>
+              ` : `
+                <p><strong>Servicio:</strong> ${serviceName}</p>
+              `}
+              ${barberName ? `<p><strong>Barbero:</strong> ${barberName}</p>` : ''}
               <p><strong>Fecha:</strong> ${date}</p>
               <p><strong>Hora:</strong> ${time12h}</p>
               <p><strong>ID de Reserva:</strong> ${bookingId}</p>
@@ -91,7 +104,15 @@ class EmailService {
 
             <div class="highlight">
               <h3>💰 Información de Pago</h3>
-              <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              ${isMultiService ? `
+                <p><strong>Desglose:</strong></p>
+                <ul>
+                  ${services.map(s => `<li>${s.name}: $${s.price}</li>`).join('')}
+                </ul>
+                <p><strong>Total (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              ` : `
+                <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              `}
               ${depositAmount > 0 ? `
                 <p><strong>Depósito para confirmar reserva:</strong> <span class="price">$${depositAmount}</span></p>
                 <p><em>El depósito asegura tu cita. El precio completo del servicio se paga al recibir el servicio.</em></p>
@@ -258,6 +279,9 @@ class EmailService {
       clientName, 
       salonName, 
       serviceName, 
+      services = [],
+      totalDuration,
+      barberName,
       date, 
       time, 
       price, 
@@ -266,6 +290,7 @@ class EmailService {
       salonPhone, 
       bookingId 
     } = bookingData;
+    const isMultiService = services.length > 1;
     const time12h = formatTime12h(time || '');
 
     return `
@@ -301,7 +326,16 @@ class EmailService {
             
             <div class="highlight">
               <h3>📅 Detalles de tu Solicitud</h3>
-              <p><strong>Servicio:</strong> ${serviceName}</p>
+              ${isMultiService ? `
+                <p><strong>Servicios:</strong></p>
+                <ul>
+                  ${services.map(s => `<li>${s.name} — $${s.price} (${s.duration} min)</li>`).join('')}
+                </ul>
+                <p><strong>Duración total:</strong> ${totalDuration} minutos</p>
+              ` : `
+                <p><strong>Servicio:</strong> ${serviceName}</p>
+              `}
+              ${barberName ? `<p><strong>Barbero:</strong> ${barberName}</p>` : ''}
               <p><strong>Fecha:</strong> ${date}</p>
               <p><strong>Hora:</strong> ${time12h}</p>
               <p><strong>ID de Solicitud:</strong> ${bookingId}</p>
@@ -322,7 +356,15 @@ class EmailService {
 
             <div class="highlight">
               <h3>💰 Información de Pago</h3>
-              <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              ${isMultiService ? `
+                <p><strong>Desglose:</strong></p>
+                <ul>
+                  ${services.map(s => `<li>${s.name}: $${s.price}</li>`).join('')}
+                </ul>
+                <p><strong>Total (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              ` : `
+                <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              `}
               ${depositAmount > 0 ? `
                 <p><strong>Depósito para confirmar reserva:</strong> <span class="price">$${depositAmount}</span></p>
                 <p><em>El depósito asegura tu cita. El precio completo del servicio se paga al recibir el servicio.</em></p>
@@ -388,6 +430,9 @@ class EmailService {
       clientPhone,
       salonName, 
       serviceName, 
+      services = [],
+      totalDuration,
+      barberName,
       date, 
       time, 
       price, 
@@ -395,6 +440,7 @@ class EmailService {
       bookingId,
       notes
     } = bookingData;
+    const isMultiService = services.length > 1;
     const time12h = formatTime12h(time || '');
 
     return `
@@ -432,7 +478,16 @@ class EmailService {
             
             <div class="appointment-details">
               <h3>📅 Detalles de la Cita</h3>
-              <p><strong>Servicio:</strong> ${serviceName}</p>
+              ${isMultiService ? `
+                <p><strong>Servicios (${services.length}):</strong></p>
+                <ul>
+                  ${services.map(s => `<li>${s.name} — $${s.price} (${s.duration} min)</li>`).join('')}
+                </ul>
+                <p><strong>Duración total:</strong> ${totalDuration} minutos</p>
+              ` : `
+                <p><strong>Servicio:</strong> ${serviceName}</p>
+              `}
+              ${barberName ? `<p><strong>Barbero:</strong> ${barberName}</p>` : ''}
               <p><strong>Fecha:</strong> ${date}</p>
               <p><strong>Hora:</strong> ${time12h}</p>
               <p><strong>ID de Reserva:</strong> ${bookingId}</p>
@@ -448,7 +503,15 @@ class EmailService {
 
             <div class="highlight">
               <h3>💰 Información de Pago</h3>
-              <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              ${isMultiService ? `
+                <p><strong>Desglose:</strong></p>
+                <ul>
+                  ${services.map(s => `<li>${s.name}: $${s.price}</li>`).join('')}
+                </ul>
+                <p><strong>Total (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              ` : `
+                <p><strong>Precio del servicio (se paga al llegar):</strong> <span class="price">$${price}</span></p>
+              `}
               ${depositAmount > 0 ? `
                 <p><strong>Depósito para confirmar reserva:</strong> <span class="price">$${depositAmount}</span></p>
                 <p><em>El depósito asegura la cita. El cliente paga el precio completo del servicio al recibirlo.</em></p>

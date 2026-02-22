@@ -9,6 +9,67 @@ const { es } = require('date-fns/locale')
 const { checkTimeOverlap } = require('../utils/availabilityUtils')
 const router = express.Router()
 
+/**
+ * Agrupa citas con el mismo groupId en una sola entrada.
+ * Las citas sin groupId se devuelven individualmente.
+ * La entrada agrupada usa los datos de la primera cita del grupo
+ * y agrega: services[], totalAmount, totalDuration, appointmentCount.
+ */
+function groupAppointmentsByGroupId(appointments) {
+  const groups = new Map()
+  const singles = []
+
+  for (const apt of appointments) {
+    if (apt.groupId) {
+      if (!groups.has(apt.groupId)) {
+        groups.set(apt.groupId, [])
+      }
+      groups.get(apt.groupId).push(apt)
+    } else {
+      // Cita individual: agregar campo services para consistencia
+      singles.push({
+        ...apt,
+        services: apt.service ? [apt.service] : [],
+        totalAmount: apt.totalAmount,
+        totalDuration: apt.service?.duration || 0,
+        appointmentCount: 1
+      })
+    }
+  }
+
+  const grouped = []
+  for (const [groupId, groupApts] of groups) {
+    const main = groupApts[0] // primera cita del grupo (la más temprana)
+    const allServices = groupApts.map(a => a.service).filter(Boolean)
+    const totalAmount = groupApts.reduce((sum, a) => sum + (a.totalAmount || 0), 0)
+    const totalDuration = allServices.reduce((sum, s) => sum + (s.duration || 0), 0)
+
+    grouped.push({
+      ...main,
+      service: { 
+        name: allServices.map(s => s.name).join(' + '), 
+        duration: totalDuration,
+        price: totalAmount,
+        category: main.service?.category 
+      },
+      services: allServices,
+      totalAmount,
+      totalDuration,
+      appointmentCount: groupApts.length,
+      // IDs de todas las citas del grupo (para acciones masivas)
+      groupAppointmentIds: groupApts.map(a => a.id)
+    })
+  }
+
+  // Combinar y ordenar por fecha + hora
+  return [...grouped, ...singles].sort((a, b) => {
+    const dateA = new Date(a.date)
+    const dateB = new Date(b.date)
+    if (dateA.getTime() !== dateB.getTime()) return dateA - dateB
+    return (a.time || '').localeCompare(b.time || '')
+  })
+}
+
 // Middleware de autenticación para todas las rutas
 router.use(authenticateToken)
 
@@ -69,6 +130,12 @@ router.get('/', [
             price: true,
             category: true
           }
+        },
+        barber: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       },
       orderBy: [
@@ -77,10 +144,13 @@ router.get('/', [
       ]
     })
 
+    // Agrupar citas multi-servicio por groupId
+    const grouped = groupAppointmentsByGroupId(appointments)
+
     res.json({
       success: true,
-      count: appointments.length,
-      data: appointments
+      count: grouped.length,
+      data: grouped
     })
   } catch (error) {
     console.error('Error obteniendo citas:', error)
@@ -116,17 +186,26 @@ router.get('/today', async (req, res) => {
             price: true,
             category: true
           }
+        },
+        barber: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       },
       orderBy: {
         time: 'asc'
       }
     })
+
+    // Agrupar citas multi-servicio por groupId
+    const grouped = groupAppointmentsByGroupId(appointments)
     
     res.json({
       success: true,
-      count: appointments.length,
-      data: appointments
+      count: grouped.length,
+      data: grouped
     })
   } catch (error) {
     console.error('Error obteniendo citas de hoy:', error)
@@ -547,6 +626,23 @@ router.put('/:id', [
       }
     })
 
+    // Si cambia de estado y la cita tiene groupId, propagar a todo el grupo
+    if (req.body.status && appointment.groupId) {
+      await prisma.appointment.updateMany({
+        where: { 
+          groupId: appointment.groupId,
+          userId: req.user.id,
+          id: { not: req.params.id } // las demás del grupo
+        },
+        data: { 
+          status: req.body.status,
+          ...(req.body.cancelReason ? { cancelReason: req.body.cancelReason } : {}),
+          ...(req.body.cancelledAt ? { cancelledAt: req.body.cancelledAt } : {})
+        }
+      })
+      console.log(`✅ Grupo ${appointment.groupId} actualizado a ${req.body.status}`)
+    }
+
     // Enviar emails según el tipo de cambio
     try {
       const salonOwner = await prisma.user.findFirst({
@@ -735,9 +831,20 @@ router.delete('/:id', async (req, res) => {
       })
     }
 
-    await prisma.appointment.delete({
-      where: { id: req.params.id }
-    })
+    // Si tiene groupId, eliminar todas las citas del grupo
+    if (appointment.groupId) {
+      await prisma.appointment.deleteMany({
+        where: { 
+          groupId: appointment.groupId,
+          userId: req.user.id
+        }
+      })
+      console.log(`🗑️ Grupo ${appointment.groupId} eliminado completo`)
+    } else {
+      await prisma.appointment.delete({
+        where: { id: req.params.id }
+      })
+    }
 
     res.json({
       success: true,
@@ -890,7 +997,19 @@ router.put('/:id/status', [
       updateData.cancelReason = req.body.cancelReason
     }
 
-    // Actualizar la cita
+    // Si la cita tiene groupId, actualizar todas las citas del grupo
+    if (appointment.groupId) {
+      await prisma.appointment.updateMany({
+        where: { 
+          groupId: appointment.groupId,
+          userId: req.user.id
+        },
+        data: updateData
+      })
+      console.log(`✅ Grupo ${appointment.groupId} actualizado a ${req.body.status}`)
+    }
+
+    // Actualizar la cita principal (o única)
     const updatedAppointment = await prisma.appointment.update({
       where: { id: req.params.id },
       data: updateData,

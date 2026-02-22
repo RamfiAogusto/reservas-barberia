@@ -547,9 +547,26 @@ const AppointmentsPage = () => {
                           <div className="text-sm text-gray-500 dark:text-gray-400">{appointment.clientPhone}</div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-gray-100">{appointment.service?.name || appointment.serviceId?.name}</div>
-                        {appointment.staffMember && (
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                          {appointment.services && appointment.services.length > 1 ? (
+                            <div>
+                              <div className="font-medium">{appointment.services.map(s => s.name).join(' + ')}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {appointment.services.map(s => `${s.name} ($${s.price})`).join(' · ')}
+                              </div>
+                              <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                {appointment.appointmentCount} servicios · {formatDuration(appointment.totalDuration)}
+                              </div>
+                            </div>
+                          ) : (
+                            appointment.service?.name || appointment.serviceId?.name
+                          )}
+                        </div>
+                        {appointment.barber && (
+                          <div className="text-sm text-gray-500 dark:text-gray-400">con {appointment.barber.name}</div>
+                        )}
+                        {!appointment.barber && appointment.staffMember && (
                           <div className="text-sm text-gray-500">con {appointment.staffMember}</div>
                         )}
                       </td>

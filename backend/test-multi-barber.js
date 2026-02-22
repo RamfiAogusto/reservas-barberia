@@ -272,6 +272,14 @@ async function run() {
     // Verificar que 11:00 SÍ está disponible (no hay citas ahí)
     const adv1100 = advAvailSlots.includes('11:00')
     console.log(`   11:00 disponible: ${adv1100 ? '✅ Correcto' : '❌ DEBERÍA ESTAR DISPONIBLE'}`)
+
+    // 15.5 Verificar que availableBarbers tiene objetos con nombre (NO solo IDs)
+    const slot1100 = advAvail.data.allSlots.find(s => s.time === '11:00')
+    const hasNames = slot1100?.availableBarbers?.every(b => typeof b === 'object' && b.name)
+    console.log(`   Barbers como objetos con nombre: ${hasNames ? '✅ Correcto' : '❌ FALLO: todavía son IDs'}`)
+    if (hasNames) {
+      console.log(`   Barberos en 11:00: ${slot1100.availableBarbers.map(b => b.name).join(', ')}`)
+    }
   } else {
     console.error('   ❌ Error:', advAvail.message)
   }
@@ -318,6 +326,9 @@ async function run() {
   let passed = 0
   let failed = 0
   
+  const slot1100Check = advAvail.data?.allSlots?.find(s => s.time === '11:00')
+  const hasBarberNames = slot1100Check?.availableBarbers?.every(b => typeof b === 'object' && b.name)
+
   const tests = [
     { name: '10:00 disponible con any después de reserva Barbero A', result: is1000Available },
     { name: '10:00 NO disponible para Barbero A', result: !is1000AvailA },
@@ -326,6 +337,7 @@ async function run() {
     { name: 'Error cuando todos ocupados', result: !bookFail.success },
     { name: '10:00 no disponible con any (ambos ocupados)', result: !is1000StillAvail },
     { name: 'Advanced endpoint funciona con any', result: advAvail.success },
+    { name: 'availableBarbers tiene objetos con nombre', result: hasBarberNames },
     { name: 'Balanceo de carga (diff ≤ 1)', result: Math.abs(countA - countB) <= 1 },
   ]
 

@@ -18,9 +18,11 @@ const BookingPage = () => {
   const [currentStep, setCurrentStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState(null)
+  const [bookingError, setBookingError] = useState('')
+  const [checkingTime, setCheckingTime] = useState(false)
 
   // Estados del formulario
-  const [selectedService, setSelectedService] = useState(null)
+  const [selectedServices, setSelectedServices] = useState([])
   const [selectedBarber, setSelectedBarber] = useState(null)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
@@ -34,10 +36,17 @@ const BookingPage = () => {
 
   // Hooks optimizados con caché
   const { salon, loading, error } = useSalonDataOptimized(username)
-  const { daysStatus, loading: loadingDays } = useDaysStatus(username, selectedService)
 
-  // Determinar si hay barberos
+  // Derivados multi-servicio
+  const primaryService = selectedServices.length > 0 ? selectedServices[0] : null
+  const totalDuration = useMemo(() => selectedServices.reduce((sum, s) => sum + (s.duration || 0), 0), [selectedServices])
+  const totalPrice = useMemo(() => selectedServices.reduce((sum, s) => sum + (s.price || 0), 0), [selectedServices])
+
+  const { daysStatus, loading: loadingDays } = useDaysStatus(username, primaryService)
+
+  // Determinar si hay barberos y modo de asignación
   const hasBarbers = salon?.barbers && salon.barbers.length > 0
+  const isAnyBarberMode = hasBarbers && selectedBarber?.id === 'any'
 
   // Calcular pasos dinámicos (memoizar para evitar re-renders innecesarios)
   const STEPS = useMemo(() => hasBarbers
@@ -51,21 +60,20 @@ const BookingPage = () => {
     loading: loadingSlots, 
     checkRealTimeAvailability,
     setAvailableSlots,
-    setAllSlots,
-    setError
-  } = useAvailableSlots(username, selectedDate, selectedService, selectedBarber?.id || null)
+    setAllSlots
+  } = useAvailableSlots(username, selectedDate, primaryService, selectedBarber?.id || null, selectedServices.length > 1 ? totalDuration : null)
 
   // Efecto para manejar servicio preseleccionado desde URL
   useEffect(() => {
     const serviceId = searchParams.get('service')
-    if (serviceId && salon?.services && !selectedService) {
+    if (serviceId && salon?.services && selectedServices.length === 0) {
       const service = salon.services.find(s => (s._id || s.id) === serviceId)
       if (service) {
-        setSelectedService(service)
+        setSelectedServices([service])
         setCurrentStep(STEPS.BARBER > 0 ? STEPS.BARBER : STEPS.DATE)
       }
     }
-  }, [salon, searchParams, selectedService, STEPS])
+  }, [salon, searchParams, selectedServices.length, STEPS])
 
   // Función para avanzar al siguiente paso
   const handleNextStep = () => {
@@ -81,14 +89,28 @@ const BookingPage = () => {
     }
   }
 
-  // Función para seleccionar servicio
-  const handleSelectService = (service) => {
-    setSelectedService(service)
-    setSelectedBarber(null)
+  // Función para toggle de servicio (multi-select)
+  const handleToggleService = (service) => {
+    const serviceId = service._id || service.id
+    setSelectedServices(prev => {
+      const exists = prev.find(s => (s._id || s.id) === serviceId)
+      if (exists) {
+        return prev.filter(s => (s._id || s.id) !== serviceId)
+      }
+      return [...prev, service]
+    })
+    // Limpiar pasos siguientes al cambiar servicios
     setSelectedDate('')
     setSelectedTime('')
+    setBookingError('')
     setAvailableSlots([])
     setAllSlots([])
+  }
+
+  // Función para continuar después de seleccionar servicios
+  const handleConfirmServices = () => {
+    if (selectedServices.length === 0) return
+    setSelectedBarber(null)
     setCurrentStep(STEPS.BARBER > 0 ? STEPS.BARBER : STEPS.DATE)
   }
 
@@ -97,6 +119,7 @@ const BookingPage = () => {
     setSelectedBarber(barber)
     setSelectedDate('')
     setSelectedTime('')
+    setBookingError('')
     setAvailableSlots([])
     setAllSlots([])
     setCurrentStep(STEPS.DATE)
@@ -105,31 +128,47 @@ const BookingPage = () => {
   // Función para seleccionar hora
   const handleSelectTime = async (time) => {
     try {
-      // Verificar disponibilidad en tiempo real usando el hook
+      setCheckingTime(true)
+      setBookingError('')
       const isStillAvailable = await checkRealTimeAvailability(time)
-      
+
       if (!isStillAvailable) {
-        setError('Lo sentimos, este horario ya no está disponible. Por favor, selecciona otro horario.')
+        setBookingError('Este horario ya no está disponible. Selecciona otro.')
         return
       }
 
-      // Si el horario sigue disponible, proceder
       setSelectedTime(time)
-      handleNextStep()
+      // En modo "cualquier barbero", mostrar info de barberos antes de avanzar
+      // En modo barbero específico, avanzar directamente a confirmación
+      if (!isAnyBarberMode) {
+        handleNextStep()
+      }
     } catch (error) {
       console.error('Error verificando disponibilidad:', error)
-      setError('Error al verificar disponibilidad')
+      setBookingError('Error al verificar disponibilidad')
+    } finally {
+      setCheckingTime(false)
     }
+  }
+
+  // Obtener barberos disponibles para un horario (modo "cualquier barbero")
+  const getAvailableBarbersForTime = (time) => {
+    if (!isAnyBarberMode || !time || !allSlots.length) return []
+    const slot = allSlots.find(s => s.time === time)
+    return slot?.availableBarbers || []
   }
 
   // Función para confirmar la reserva
   const handleConfirmBooking = async () => {
     try {
       setSubmitting(true)
-      setError('')
+      setBookingError('')
+
+      const serviceIds = selectedServices.map(s => s._id || s.id)
 
       const bookingData = {
-        serviceId: selectedService._id || selectedService.id,
+        serviceIds,
+        serviceId: serviceIds[0], // Compatibilidad con backend
         clientName: clientData.name,
         clientEmail: clientData.email,
         clientPhone: clientData.phone,
@@ -154,11 +193,11 @@ const BookingPage = () => {
           router.push(`/${username}`)
         }, 3000)
       } else {
-        setError(data.message || 'Error al crear la reserva')
+        setBookingError(data.message || 'Error al crear la reserva')
       }
     } catch (error) {
       console.error('Error creando reserva:', error)
-      setError(error.message || 'Error interno del servidor')
+      setBookingError(error.message || 'Error interno del servidor')
     } finally {
       setSubmitting(false)
     }
@@ -363,32 +402,35 @@ const BookingPage = () => {
       </header>
 
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {error && (
+        {(error || bookingError) && (
           <div
             className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3"
             role="alert"
           >
             <span className="text-red-500 text-lg shrink-0">⚠</span>
-            <p className="text-red-800 text-sm">{error}</p>
+            <p className="text-red-800 text-sm">{bookingError || error}</p>
           </div>
         )}
 
         {/* Resumen flotante - siempre visible cuando hay selección */}
-        {(selectedService || selectedDate || selectedTime) && currentStep > 1 && (
+        {(selectedServices.length > 0 || selectedDate || selectedTime) && currentStep > 1 && (
           <div
             className="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm"
             aria-label="Resumen de tu selección"
           >
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Tu selección</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {selectedService && (
+              {selectedServices.length > 0 && (
                 <span className="text-slate-700">
-                  <strong>{selectedService.name}</strong> · {formatPrice(selectedService.price)}
+                  <strong>{selectedServices.map(s => s.name).join(' + ')}</strong> · {formatPrice(totalPrice)}
+                  {selectedServices.length > 1 && (
+                    <span className="text-slate-400 ml-1">({totalDuration} min total)</span>
+                  )}
                 </span>
               )}
               {selectedBarber && (
                 <span className="text-slate-600">
-                  ✂️ {selectedBarber.name}
+                  ✂️ {isAnyBarberMode ? 'Cualquier barbero' : selectedBarber.name}
                 </span>
               )}
               {selectedDate && (
@@ -413,32 +455,33 @@ const BookingPage = () => {
           </div>
         )}
 
-        {/* Paso 1: Seleccionar Servicio */}
+        {/* Paso 1: Seleccionar Servicio(s) */}
         {currentStep === STEPS.SERVICE && (
           <section
             className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
             aria-labelledby="step1-title"
           >
             <h2 id="step1-title" className="text-lg font-semibold text-slate-900 mb-1">
-              ¿Qué servicio deseas?
+              ¿Qué servicio(s) deseas?
             </h2>
-            <p className="text-slate-500 text-sm mb-6">Elige el servicio que mejor se adapte a ti</p>
+            <p className="text-slate-500 text-sm mb-6">Puedes seleccionar uno o varios servicios para la misma cita</p>
             
             <div className="grid gap-3 sm:grid-cols-2">
               {salon?.services?.map((service) => {
-                const isSelected = (selectedService?._id || selectedService?.id) === (service._id || service.id)
+                const sid = service._id || service.id
+                const isSelected = selectedServices.some(s => (s._id || s.id) === sid)
                 return (
                   <button
-                    key={service._id || service.id}
+                    key={sid}
                     type="button"
-                    onClick={() => handleSelectService(service)}
+                    onClick={() => handleToggleService(service)}
                     className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
                       isSelected
                         ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
                         : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
                     }`}
                     aria-pressed={isSelected}
-                    aria-label={`Seleccionar ${service.name}, ${formatPrice(service.price)}`}
+                    aria-label={`${isSelected ? 'Quitar' : 'Agregar'} ${service.name}, ${formatPrice(service.price)}`}
                   >
                     <div className="flex justify-between items-start gap-3">
                       <h3 className="font-semibold text-slate-900">{service.name}</h3>
@@ -471,6 +514,43 @@ const BookingPage = () => {
                 )
               })}
             </div>
+
+            {/* Resumen de selección y botón continuar */}
+            {selectedServices.length > 0 && (
+              <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedServices.map(s => (
+                    <span
+                      key={s._id || s.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-emerald-200 text-sm font-medium text-slate-700 shadow-sm"
+                    >
+                      {s.name}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleToggleService(s) }}
+                        className="text-slate-400 hover:text-red-500 ml-1"
+                        aria-label={`Quitar ${s.name}`}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-sm mb-3">
+                  <span className="text-slate-600">
+                    {selectedServices.length} servicio{selectedServices.length > 1 ? 's' : ''} · {totalDuration} min
+                  </span>
+                  <span className="font-bold text-emerald-700 text-base">{formatPrice(totalPrice)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConfirmServices}
+                  className="w-full sm:w-auto px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                >
+                  Continuar →
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -573,7 +653,10 @@ const BookingPage = () => {
               ¿Cuándo prefieres?
             </h2>
             <p className="text-slate-500 text-sm mb-6">
-              {selectedService?.name} · {formatPrice(selectedService?.price)}
+              {selectedServices.map(s => s.name).join(' + ')} · {formatPrice(totalPrice)}
+              {selectedServices.length > 1 && (
+                <span className="text-slate-400"> · {totalDuration} min total</span>
+              )}
             </p>
 
             {/* Leyenda compacta */}
@@ -611,7 +694,7 @@ const BookingPage = () => {
                         if (isAvailable) {
                           setSelectedDate(dateString)
                           setSelectedTime('')
-                          setError('')
+                          setBookingError('')
                           handleNextStep()
                         }
                       }}
@@ -672,17 +755,27 @@ const BookingPage = () => {
             <h2 id="step3-title" className="text-lg font-semibold text-slate-900 mb-1">
               ¿A qué hora?
             </h2>
-            <p className="text-slate-500 text-sm mb-6">
+            <p className="text-slate-500 text-sm mb-2">
               {formatDate(selectedDate)}
-              {selectedService?.showDuration !== false && selectedService?.duration != null && (
-                <span className="text-slate-400"> · {selectedService.duration} min</span>
+              {selectedBarber && !isAnyBarberMode && (
+                <span className="text-slate-600"> · ✂️ {selectedBarber.name}</span>
+              )}
+              {isAnyBarberMode && (
+                <span className="text-emerald-600 font-medium"> · Cualquier barbero disponible</span>
               )}
             </p>
 
-            {selectedService?.showDuration !== false && selectedService?.duration != null && (
-              <p className="text-xs text-slate-500 mb-4">
-                Cada horario reserva {selectedService?.duration} minutos. El servicio termina {selectedService?.duration} min después de la hora elegida.
+            {primaryService?.showDuration !== false && totalDuration > 0 && (
+              <p className="text-xs text-slate-400 mb-5">
+                Cada bloque reserva {totalDuration} min{selectedServices.length > 1 ? ` (${selectedServices.map(s => s.name).join(' + ')})` : ''}
               </p>
+            )}
+
+            {bookingError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-start gap-2" role="alert">
+                <span className="text-red-500 shrink-0">⚠</span>
+                <p className="text-red-800 text-sm">{bookingError}</p>
+              </div>
             )}
 
             {loadingSlots ? (
@@ -691,48 +784,113 @@ const BookingPage = () => {
                 <p className="mt-3 text-slate-500 text-sm">Buscando horarios disponibles...</p>
               </div>
             ) : allSlots.length > 0 ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                {allSlots.map((slot) => {
-                  const [hour, min] = slot.time.split(':').map(Number)
-                  const startMinutes = hour * 60 + min
-                  const endMinutes = startMinutes + (selectedService?.duration || 30)
-                  const endHour = Math.floor(endMinutes / 60)
-                  const endMin = endMinutes % 60
-                  const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`
-                  const showEndTime = selectedService?.showDuration !== false && selectedService?.duration != null
-                  return (
+              <>
+                {isAnyBarberMode && (
+                  <p className="text-xs text-slate-500 mb-3 flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+                    El número en cada horario indica cuántos barberos están libres
+                  </p>
+                )}
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                  {allSlots.map((slot) => {
+                    const [hour, min] = slot.time.split(':').map(Number)
+                    const startMinutes = hour * 60 + min
+                    const endMinutes = startMinutes + totalDuration
+                    const endHour = Math.floor(endMinutes / 60)
+                    const endMin = endMinutes % 60
+                    const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`
+                    const showEndTime = primaryService?.showDuration !== false && totalDuration > 0
+                    const isSelected = selectedTime === slot.time
+                    const barberCount = slot.availableBarbers?.length || 0
+                    return (
+                      <button
+                        key={slot.time}
+                        type="button"
+                        onClick={() => slot.available && !checkingTime && handleSelectTime(slot.time)}
+                        disabled={!slot.available || checkingTime}
+                        className={`
+                          p-3 sm:p-4 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+                          ${isSelected
+                            ? 'border-2 border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200 shadow-sm'
+                            : slot.available
+                              ? 'bg-white border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 cursor-pointer'
+                              : 'bg-slate-50 border-2 border-slate-100 text-slate-400 cursor-not-allowed'
+                          }
+                        `}
+                        title={slot.available ? `Reservar a las ${formatTime12h(slot.time)}` : slot.reason}
+                        aria-label={slot.available ? `Horario disponible: ${formatTime12h(slot.time)}` : `No disponible: ${slot.reason}`}
+                      >
+                        <span className={`block font-semibold text-base ${isSelected ? 'text-emerald-700' : slot.available ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {formatTime12h(slot.time)}
+                        </span>
+                        {showEndTime && (
+                          <span className="block text-xs text-slate-500 mt-0.5">
+                            hasta {formatTime12h(endTime)}
+                          </span>
+                        )}
+                        {isAnyBarberMode && slot.available && (
+                          <span className={`block text-xs mt-1 font-medium ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            ✂️ {barberCount}/{slot.totalBarbers}
+                          </span>
+                        )}
+                        {!slot.available && (
+                          <span className="block text-xs mt-1 text-slate-400 truncate" title={slot.reason}>
+                            {slot.reason}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Panel informativo: barberos disponibles (solo modo "cualquier barbero") */}
+                {isAnyBarberMode && selectedTime && (
+                  <div className="mt-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold">✓</span>
+                      <div>
+                        <h3 className="font-semibold text-slate-900">
+                          {formatTime12h(selectedTime)}
+                        </h3>
+                        <p className="text-xs text-slate-500">{formatDate(selectedDate)}</p>
+                      </div>
+                    </div>
+
+                    <p className="text-sm font-medium text-slate-700 mb-2">
+                      Barberos disponibles a esta hora:
+                    </p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {getAvailableBarbersForTime(selectedTime).map(barber => (
+                        <span
+                          key={barber.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-emerald-200 text-sm font-medium text-slate-700 shadow-sm"
+                        >
+                          ✂️ {barber.name}
+                        </span>
+                      ))}
+                    </div>
+
+                    <p className="text-xs text-slate-500 mb-4">
+                      Se te asignará automáticamente al barbero con mayor disponibilidad.
+                    </p>
+
                     <button
-                      key={slot.time}
                       type="button"
-                      onClick={() => slot.available && handleSelectTime(slot.time)}
-                      disabled={!slot.available}
-                      className={`
-                        p-3 sm:p-4 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
-                        ${slot.available
-                          ? 'bg-white border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 cursor-pointer'
-                          : 'bg-slate-50 border-2 border-slate-100 text-slate-400 cursor-not-allowed'
-                        }
-                      `}
-                      title={slot.available ? `Reservar a las ${formatTime12h(slot.time)}` : slot.reason}
-                      aria-label={slot.available ? `Horario disponible: ${formatTime12h(slot.time)}` : `No disponible: ${slot.reason}`}
+                      onClick={() => setCurrentStep(STEPS.CONFIRM)}
+                      className="w-full sm:w-auto px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                     >
-                      <span className={`block font-semibold text-base ${slot.available ? 'text-slate-900' : 'text-slate-400'}`}>
-                        {formatTime12h(slot.time)}
-                      </span>
-                      {showEndTime && (
-                        <span className="block text-xs text-slate-500 mt-0.5">
-                          hasta {formatTime12h(endTime)}
-                        </span>
-                      )}
-                      {!slot.available && (
-                        <span className="block text-xs mt-1 text-slate-400 truncate" title={slot.reason}>
-                          {slot.reason}
-                        </span>
-                      )}
+                      Continuar →
                     </button>
-                  )
-                })}
-              </div>
+                  </div>
+                )}
+
+                {checkingTime && (
+                  <div className="mt-4 flex items-center gap-2 text-slate-500 text-sm">
+                    <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                    Verificando disponibilidad...
+                  </div>
+                )}
+              </>
             ) : (
               <div className="py-12 text-center">
                 <p className="text-slate-500">No hay horarios para esta fecha.</p>
@@ -772,11 +930,31 @@ const BookingPage = () => {
             
             {/* Resumen compacto */}
             <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700">
-                <span><strong>{selectedService?.name}</strong> · {formatPrice(selectedService?.price)}</span>
-                {selectedBarber && <span>✂️ {selectedBarber.name}</span>}
-                <span>📅 {formatDate(selectedDate)}</span>
-                <span>🕐 {formatTime12h(selectedTime)}</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                {selectedServices.length > 1 ? (
+                  <>
+                    <p className="font-medium text-slate-900 mb-2">Servicios seleccionados:</p>
+                    {selectedServices.map((s, i) => (
+                      <div key={s._id || s.id} className="flex justify-between">
+                        <span>{s.name}</span>
+                        <span className="text-slate-500">{formatPrice(s.price)} · {s.duration} min</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between pt-2 mt-2 border-t border-slate-200 font-bold">
+                      <span>Total</span>
+                      <span>{formatPrice(totalPrice)} · {totalDuration} min</span>
+                    </div>
+                  </>
+                ) : (
+                  <span><strong>{selectedServices[0]?.name}</strong> · {formatPrice(totalPrice)}</span>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                  {selectedBarber && (
+                    <span>✂️ {isAnyBarberMode ? 'Asignación automática' : selectedBarber.name}</span>
+                  )}
+                  <span>📅 {formatDate(selectedDate)}</span>
+                  <span>🕐 {formatTime12h(selectedTime)}</span>
+                </div>
               </div>
               {salon?.requiresDeposit && salon?.depositAmount > 0 && (
                 <p className="text-amber-600 text-sm mt-2">
@@ -797,7 +975,7 @@ const BookingPage = () => {
                   <ul className="list-disc list-inside space-y-1 text-amber-800">
                     <li>Si no asistes, el depósito no se reembolsa</li>
                     <li>Cancelar o reprogramar: mínimo 24 h antes</li>
-                    <li>El precio completo ({formatPrice(selectedService?.price)}) se paga al llegar</li>
+                    <li>El precio completo ({formatPrice(totalPrice)}) se paga al llegar</li>
                   </ul>
                   <p className="mt-2 font-medium">Al confirmar, aceptas estas condiciones.</p>
                 </div>

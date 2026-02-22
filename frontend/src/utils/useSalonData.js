@@ -123,7 +123,7 @@ export const useDaysStatus = (username, selectedService) => {
 }
 
 // Hook para slots disponibles
-export const useAvailableSlots = (username, selectedDate, selectedService, barberId = null) => {
+export const useAvailableSlots = (username, selectedDate, selectedService, barberId = null, totalDuration = null) => {
   const [availableSlots, setAvailableSlots] = useState([])
   const [allSlots, setAllSlots] = useState([])
   const [loading, setLoading] = useState(false)
@@ -133,6 +133,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
   const debouncedDate = useDebounce(selectedDate, 300) // 300ms de debounce
   const debouncedService = useDebounce(selectedService?._id || selectedService?.id, 300)
   const debouncedBarber = useDebounce(barberId, 300)
+  const debouncedDuration = useDebounce(totalDuration, 300)
 
   const fetchAvailableSlots = useCallback(async () => {
     if (!debouncedDate || !debouncedService || !username) return
@@ -147,6 +148,10 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
       }
       if (debouncedBarber) {
         params.barberId = debouncedBarber
+      }
+      // Si se pasa totalDuration (multi-servicio), enviarlo al endpoint
+      if (debouncedDuration && debouncedDuration > 0) {
+        params.totalDuration = debouncedDuration
       }
 
       const data = await cachedRequest(`/public/salon/${username}/availability/advanced`, params, 1 * 60 * 1000) // 1 minuto de caché para slots
@@ -173,7 +178,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
     } finally {
       setLoading(false)
     }
-  }, [debouncedDate, debouncedService, debouncedBarber, username])
+  }, [debouncedDate, debouncedService, debouncedBarber, debouncedDuration, username])
 
   useEffect(() => {
     fetchAvailableSlots()
@@ -188,6 +193,9 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
       if (barberId) {
         url += `&barberId=${barberId}`
       }
+      if (totalDuration && totalDuration > 0) {
+        url += `&totalDuration=${totalDuration}`
+      }
       const response = await fetch(url)
       const data = await response.json()
 
@@ -199,7 +207,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
       console.error('Error verificando disponibilidad:', error)
       return false
     }
-  }, [selectedDate, selectedService, barberId, username])
+  }, [selectedDate, selectedService, barberId, totalDuration, username])
 
   return {
     availableSlots,

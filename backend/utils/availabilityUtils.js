@@ -220,10 +220,124 @@ function getAvailableBarbersForSlot(barbers, allAppointments, time, serviceDurat
   }).map(b => b.id)
 }
 
+/**
+ * Crea múltiples citas consecutivas para reservas multi-servicio.
+ * Verifica solapamiento del bloque completo y asigna barbero automáticamente si aplica.
+ *
+ * @param {Object} params
+ * @param {Array} params.services - Array de servicios [{id, duration, price, name}]
+ * @param {Object} params.baseData - Datos comunes: userId, clientName, clientEmail, clientPhone, date, time, notes, paymentStatus
+ * @param {string|null} params.barberId - ID del barbero o null para auto-assign
+ * @param {boolean} params.isAutoAssign - true si es modo "cualquier barbero"
+ * @param {string} params.userId - ID del dueño del salón
+ * @returns {Promise<Object>} { appointments: [...], assignedBarber, groupId }
+ */
+async function createMultiServiceAppointments({ services, baseData, barberId, isAutoAssign, userId }) {
+  const { v4: uuidv4 } = (() => {
+    try { return require('uuid') } catch { return { v4: () => require('crypto').randomUUID() } }
+  })()
+
+  const groupId = services.length > 1 ? uuidv4() : null
+  const totalDuration = services.reduce((sum, s) => sum + s.duration, 0)
+
+  return await prisma.$transaction(async (tx) => {
+    // 1. Obtener barberos activos
+    const barbers = await tx.barber.findMany({
+      where: { userId, isActive: true }
+    })
+    const hasBarbers = barbers.length > 0
+
+    // 2. Obtener citas existentes del día
+    const allAppointments = await tx.appointment.findMany({
+      where: {
+        userId,
+        date: baseData.date,
+        status: { not: 'CANCELADA' }
+      },
+      include: { service: { select: { duration: true } } }
+    })
+
+    const blockStart = timeToMinutes(baseData.time)
+    const blockEnd = blockStart + totalDuration
+
+    let resolvedBarberId = barberId
+    let assignedBarber = null
+
+    if (hasBarbers && isAutoAssign) {
+      // Buscar barbero libre para todo el bloque
+      const availableBarbers = barbers.filter(barber => {
+        const barberApts = allAppointments.filter(a => a.barberId === barber.id)
+        return !hasOverlapWithAppointments(barberApts, blockStart, blockEnd)
+      })
+
+      if (availableBarbers.length === 0) {
+        throw new Error('NO_BARBER_AVAILABLE')
+      }
+
+      // Balanceo de carga
+      const barberLoad = availableBarbers.map(b => ({
+        barber: b,
+        count: allAppointments.filter(a => a.barberId === b.id).length
+      }))
+      barberLoad.sort((a, b) => a.count - b.count)
+      const minLoad = barberLoad[0].count
+      const leastBusy = barberLoad.filter(b => b.count === minLoad)
+      const chosen = leastBusy[Math.floor(Math.random() * leastBusy.length)].barber
+
+      resolvedBarberId = chosen.id
+      assignedBarber = chosen
+    } else if (hasBarbers && barberId) {
+      // Verificar que el barbero específico esté libre para todo el bloque
+      const barberApts = allAppointments.filter(a => a.barberId === barberId)
+      if (hasOverlapWithAppointments(barberApts, blockStart, blockEnd)) {
+        throw new Error('OVERLAP_CONFLICT')
+      }
+    } else {
+      // Sin barberos: verificar solapamiento global
+      if (hasOverlapWithAppointments(allAppointments, blockStart, blockEnd)) {
+        throw new Error('OVERLAP_CONFLICT')
+      }
+    }
+
+    // 3. Crear citas consecutivas
+    const appointments = []
+    let currentMinutes = blockStart
+
+    for (const service of services) {
+      const hour = Math.floor(currentMinutes / 60)
+      const min = currentMinutes % 60
+      const timeStr = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
+
+      const apt = await tx.appointment.create({
+        data: {
+          userId: baseData.userId,
+          serviceId: service.id,
+          clientName: baseData.clientName,
+          clientEmail: baseData.clientEmail,
+          clientPhone: baseData.clientPhone,
+          date: baseData.date,
+          time: timeStr,
+          notes: baseData.notes || '',
+          totalAmount: service.price,
+          status: 'PENDIENTE',
+          paymentStatus: baseData.paymentStatus,
+          barberId: resolvedBarberId,
+          groupId
+        }
+      })
+      appointments.push(apt)
+      currentMinutes += service.duration
+    }
+
+    return { appointments, assignedBarber, groupId }
+  })
+}
+
 module.exports = {
   checkTimeOverlap,
   createAppointmentWithOverlapCheck,
   createAppointmentWithAutoAssign,
+  createMultiServiceAppointments,
   getAvailableBarbersForSlot,
   timeToMinutes,
   normalizeDate,
