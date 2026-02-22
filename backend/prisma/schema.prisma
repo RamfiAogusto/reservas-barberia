@@ -25,6 +25,13 @@ model User {
   depositAmount      Float    @default(0)     // Monto del depósito para reservar
   onboardingCompleted Boolean @default(false) // Si el wizard de configuración inicial se completó
   holdDurationMinutes Int     @default(15)    // Minutos que dura la reserva temporal al solicitar pago online
+
+  // Configuración de modo de reserva
+  bookingMode              BookingMode @default(LIBRE)       // Modo global de reservas del salón
+  autoConfirmAfterPayment  Boolean     @default(false)       // Auto-confirmar al recibir pago (PREPAGO)
+  cancellationMinutesBefore Int        @default(60)          // Minutos antes de la cita para cancelar sin penalización (informativo)
+  noShowWaitMinutes        Int         @default(15)          // Minutos de espera antes de marcar como NO_ASISTIO
+
   createdAt          DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -199,6 +206,12 @@ enum UserRole {
   OWNER
   BARBER
   CLIENT
+}
+
+enum BookingMode {
+  LIBRE                  // Sin pago: cliente reserva → barbero aprueba/rechaza
+  PREPAGO                // Cliente paga depósito al reservar
+  PAGO_POST_APROBACION   // Cliente reserva → barbero aprueba → cliente paga → confirmada
 }
 
 enum ServiceCategory {

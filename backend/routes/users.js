@@ -28,6 +28,11 @@ router.get('/profile', async (req, res) => {
         requiresDeposit: true,
         depositAmount: true,
         onboardingCompleted: true,
+        holdDurationMinutes: true,
+        bookingMode: true,
+        autoConfirmAfterPayment: true,
+        cancellationMinutesBefore: true,
+        noShowWaitMinutes: true,
         createdAt: true,
         updatedAt: true
       }
@@ -57,10 +62,19 @@ router.get('/profile', async (req, res) => {
 // PUT /api/users/profile - Actualizar perfil del usuario autenticado
 router.put('/profile', async (req, res) => {
   try {
-    const { salonName, phone, address, avatar, requiresDeposit, depositAmount } = req.body
+    const { salonName, phone, address, avatar, requiresDeposit, depositAmount,
+            bookingMode, autoConfirmAfterPayment, holdDurationMinutes,
+            cancellationMinutesBefore, noShowWaitMinutes } = req.body
     const updateData = { salonName, phone, address, avatar }
     if (requiresDeposit !== undefined) updateData.requiresDeposit = !!requiresDeposit
     if (depositAmount !== undefined) updateData.depositAmount = parseFloat(depositAmount) || 0
+    // Campos de modo de reserva
+    const validModes = ['LIBRE', 'PREPAGO', 'PAGO_POST_APROBACION']
+    if (bookingMode && validModes.includes(bookingMode)) updateData.bookingMode = bookingMode
+    if (autoConfirmAfterPayment !== undefined) updateData.autoConfirmAfterPayment = !!autoConfirmAfterPayment
+    if (holdDurationMinutes !== undefined) updateData.holdDurationMinutes = Math.max(5, Math.min(60, parseInt(holdDurationMinutes) || 15))
+    if (cancellationMinutesBefore !== undefined) updateData.cancellationMinutesBefore = Math.max(0, parseInt(cancellationMinutesBefore) || 60)
+    if (noShowWaitMinutes !== undefined) updateData.noShowWaitMinutes = Math.max(5, Math.min(60, parseInt(noShowWaitMinutes) || 15))
     
     const user = await prisma.user.update({
       where: { id: req.user.id },
@@ -78,6 +92,11 @@ router.put('/profile', async (req, res) => {
         requiresDeposit: true,
         depositAmount: true,
         onboardingCompleted: true,
+        holdDurationMinutes: true,
+        bookingMode: true,
+        autoConfirmAfterPayment: true,
+        cancellationMinutesBefore: true,
+        noShowWaitMinutes: true,
         createdAt: true,
         updatedAt: true
       }

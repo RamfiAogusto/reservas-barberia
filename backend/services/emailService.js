@@ -782,12 +782,16 @@ class EmailService {
       time,
       price,
       holdMinutes,
+      depositAmount,
+      paymentUrl,
+      paymentToken,
       salonAddress,
       salonPhone,
       bookingId
     } = bookingData;
     const isMultiService = services.length > 1;
     const time12h = formatTime12h(time || '');
+    const displayDeposit = depositAmount || price;
 
     return `
       <!DOCTYPE html>
@@ -845,10 +849,16 @@ class EmailService {
             </div>
 
             <div class="highlight" style="text-align: center;">
-              <h3>💰 Total a Pagar</h3>
-              <p class="price">$${price}</p>
+              <h3>💰 Depósito para Confirmar</h3>
+              <p class="price">$${displayDeposit}</p>
+              ${price > displayDeposit ? '<p style="color: #6b7280; font-size: 0.9em;">El resto ($' + (price - displayDeposit).toFixed(2) + ') se paga al llegar al salón</p>' : ''}
               <br>
-              <p><em>El enlace de pago estará disponible próximamente.<br>Por ahora, contacta al salón para coordinar el pago.</em></p>
+              ${paymentUrl 
+                ? '<a href="' + paymentUrl + '" class="btn">Pagar Depósito Ahora</a><br><br><p style="font-size: 0.85em; color: #6b7280;">O copia este enlace: ' + paymentUrl + '</p>'
+                : (paymentToken
+                  ? '<a href="' + (process.env.FRONTEND_URL || 'http://localhost:3000') + '/pay/' + paymentToken + '" class="btn">Pagar Depósito Ahora</a>'
+                  : '<p><em>Contacta al salón para coordinar el pago.</em></p>')
+              }
             </div>
 
             <div class="urgent">
@@ -1012,6 +1022,110 @@ class EmailService {
       return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error enviando email de reserva expirada:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Template: Reserva rechazada por el salón
+  generateBookingRejectionTemplate(bookingData) {
+    const {
+      clientName,
+      salonName,
+      serviceName,
+      date,
+      time,
+      price,
+      salonPhone,
+      salonAddress,
+      bookingId
+    } = bookingData;
+    const time12h = formatTime12h(time || '');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Reserva No Aprobada - ${salonName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: white; padding: 30px; border: 1px solid #ddd; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+          .highlight { background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0; }
+          .rejected { background: #fef2f2; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #dc2626; }
+          .retry { background: #f0fdf4; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #16a34a; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>❌ Reserva No Aprobada</h1>
+            <h2>${salonName}</h2>
+          </div>
+          
+          <div class="content">
+            <p>Hola <strong>${clientName}</strong>,</p>
+            
+            <p>Lamentamos informarte que tu solicitud de reserva no fue aprobada por el salón.</p>
+
+            <div class="rejected">
+              <h3>Detalles de la Reserva</h3>
+              <p><strong>Servicio:</strong> ${serviceName}</p>
+              <p><strong>Fecha:</strong> ${date}</p>
+              <p><strong>Hora:</strong> ${time12h}</p>
+              <p><strong>ID:</strong> ${bookingId}</p>
+            </div>
+
+            <div class="retry">
+              <h3>🔄 ¿Quieres intentar otro horario?</h3>
+              <p>Puedes realizar una nueva reserva visitando la página del salón y seleccionando otro horario disponible.</p>
+            </div>
+
+            <div class="highlight">
+              <h3>📞 ¿Tienes preguntas?</h3>
+              <p><strong>Teléfono:</strong> ${salonPhone}</p>
+              <p><strong>Dirección:</strong> ${salonAddress}</p>
+            </div>
+
+            <p>Disculpa las molestias.</p>
+            <p>Equipo de ${salonName}</p>
+          </div>
+          
+          <div class="footer">
+            <p>ReservaBarber - Sistema de Gestión de Citas</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // Enviar email de rechazo de reserva
+  async sendBookingRejection(bookingData) {
+    try {
+      if (!this.checkConfiguration()) {
+        return {
+          success: true,
+          messageId: 'simulated-email-' + Date.now(),
+          message: 'Email simulado - configuración no disponible'
+        };
+      }
+
+      const emailContent = this.generateBookingRejectionTemplate(bookingData);
+
+      const result = await resend.emails.send({
+        from: this.fromEmail,
+        to: bookingData.clientEmail,
+        subject: `❌ Reserva No Aprobada - ${bookingData.salonName}`,
+        html: emailContent
+      });
+
+      console.log('Email de rechazo enviado:', result);
+      return { success: true, messageId: result.id };
+    } catch (error) {
+      console.error('Error enviando email de rechazo:', error);
       return { success: false, error: error.message };
     }
   }

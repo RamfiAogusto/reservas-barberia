@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button'
 
 import {
   CalendarDays, CalendarCheck2, Clock, DollarSign, TrendingUp,
-  X, Check, Ban, CreditCard, Banknote, UserCircle, Mail, Phone,
+  X, Check, Ban, CreditCard, UserCircle, Mail, Phone,
   Scissors, AlertCircle,
 } from 'lucide-react'
 
@@ -129,12 +129,12 @@ const Dashboard = () => {
       }
     } catch (e) { console.error(e) } finally { setActionLoading(false) }
   }
-  const handleRespondBooking = async (id, mode) => {
+  const handleRespondBooking = async (id, action) => {
     try {
       setActionLoading(true)
-      const res = await api.put(`/appointments/${id}/respond`, { paymentMode: mode })
+      const res = await api.put(`/appointments/${id}/respond`, { action })
       if (res.success) {
-        const ns = mode === 'IN_PERSON' ? 'CONFIRMADA' : 'ESPERANDO_PAGO'
+        const ns = res.data?.status || (action === 'RECHAZAR' ? 'CANCELADA' : 'CONFIRMADA')
         setCalendarAppointments(prev => prev.map(a => a.id === id ? { ...a, status: ns } : a))
         if (selectedAppointment?.id === id) setSelectedAppointment(prev => ({ ...prev, status: ns }))
       }
@@ -351,10 +351,9 @@ function AppointmentDetailCard({ appointment, onClose, onUpdateStatus, onRespond
             <>
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Responder reserva:</p>
               <div className="grid grid-cols-2 gap-2">
-                <Button size="sm" onClick={() => onRespond(appointment.id, 'IN_PERSON')} disabled={actionLoading} className="text-xs"><Banknote className="w-3.5 h-3.5 mr-1" />Pago en persona</Button>
-                <Button size="sm" variant="outline" onClick={() => onRespond(appointment.id, 'ONLINE')} disabled={actionLoading} className="text-xs"><CreditCard className="w-3.5 h-3.5 mr-1" />Pago online</Button>
+                <Button size="sm" onClick={() => onRespond(appointment.id, 'CONFIRMAR')} disabled={actionLoading} className="text-xs"><Check className="w-3.5 h-3.5 mr-1" />Confirmar</Button>
+                <Button size="sm" variant="destructive" onClick={() => onRespond(appointment.id, 'RECHAZAR')} disabled={actionLoading} className="text-xs"><Ban className="w-3.5 h-3.5 mr-1" />Rechazar</Button>
               </div>
-              <Button size="sm" variant="destructive" className="w-full text-xs" onClick={() => onUpdateStatus(appointment.id, 'CANCELADA')} disabled={actionLoading}><Ban className="w-3.5 h-3.5 mr-1" />Cancelar</Button>
             </>
           )}
           {appointment.status === 'CONFIRMADA' && (

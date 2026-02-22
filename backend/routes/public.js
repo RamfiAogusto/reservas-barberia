@@ -8,6 +8,7 @@ const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
 const { createAppointmentWithOverlapCheck, createAppointmentWithAutoAssign, getAvailableBarbersForSlot, createMultiServiceAppointments } = require('../utils/availabilityUtils')
 const { emitToSalon } = require('../services/socketService')
+const paymentGateway = require('../services/paymentGatewayService')
 
 // GET /api/public/salon/:username - Obtener perfil público del salón
 router.get('/salon/:username', async (req, res) => {
@@ -28,7 +29,10 @@ router.get('/salon/:username', async (req, res) => {
         address: true,
         avatar: true,
         requiresDeposit: true,
-        depositAmount: true
+        depositAmount: true,
+        bookingMode: true,
+        holdDurationMinutes: true,
+        autoConfirmAfterPayment: true
       }
     })
 
@@ -84,6 +88,8 @@ router.get('/salon/:username', async (req, res) => {
       avatar: user.avatar,
       requiresDeposit: user.requiresDeposit ?? false,
       depositAmount: user.depositAmount ?? 0,
+      bookingMode: user.bookingMode || 'LIBRE',
+      holdDurationMinutes: user.holdDurationMinutes || 15,
       services: services.map(service => ({
         _id: service.id,
         name: service.name,
@@ -826,11 +832,24 @@ router.post('/salon/:username/book', [
       })
     }
 
-    // Buscar el usuario
+    // Buscar el usuario con configuración de modo de reserva
     const user = await prisma.user.findFirst({ 
       where: { 
         username: username.toLowerCase(),
         isActive: true 
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        salonName: true,
+        phone: true,
+        address: true,
+        requiresDeposit: true,
+        depositAmount: true,
+        bookingMode: true,
+        holdDurationMinutes: true,
+        autoConfirmAfterPayment: true
       }
     })
 
@@ -921,6 +940,21 @@ router.post('/salon/:username/book', [
     const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0)
     const serviceNames = orderedServices.map(s => s.name).join(' + ')
 
+    // ──── Determinar estado según modo de reserva ────
+    const bookingMode = user.bookingMode || 'LIBRE'
+    let initialStatus = 'PENDIENTE'
+    let holdExpiresAt = null
+    let paymentToken = null
+    let paymentUrl = null
+
+    if (bookingMode === 'PREPAGO' && user.requiresDeposit && user.depositAmount > 0) {
+      // PREPAGO: cita queda en ESPERANDO_PAGO hasta que cliente pague
+      initialStatus = 'ESPERANDO_PAGO'
+      holdExpiresAt = new Date(Date.now() + (user.holdDurationMinutes || 15) * 60 * 1000)
+      paymentToken = require('crypto').randomUUID()
+    }
+    // LIBRE y PAGO_POST_APROBACION: citas se crean como PENDIENTE
+
     // Crear citas con verificación atómica de solapamiento
     let createdAppointments = []
     let assignedBarber = null
@@ -937,7 +971,10 @@ router.post('/salon/:username/book', [
           date: appointmentDate,
           time,
           notes: notes || '',
-          paymentStatus: (user.requiresDeposit ?? false) ? 'PENDIENTE' : 'COMPLETO'
+          status: initialStatus,
+          paymentStatus: (bookingMode === 'LIBRE' || !user.requiresDeposit) ? 'COMPLETO' : 'PENDIENTE',
+          holdExpiresAt,
+          paymentToken
         },
         barberId: resolvedBarberId,
         isAutoAssign: salonHasBarbers && isAutoAssign,
@@ -963,6 +1000,33 @@ router.post('/salon/:username/book', [
     }
 
     const mainAppointment = createdAppointments[0]
+
+    // ──── PREPAGO: crear sesión de pago si la pasarela está configurada ────
+    if (bookingMode === 'PREPAGO' && paymentToken) {
+      if (paymentGateway.isConfigured()) {
+        try {
+          const session = await paymentGateway.createPaymentSession({
+            appointmentId: mainAppointment.id,
+            groupId,
+            amount: Math.round(user.depositAmount * 100), // centavos
+            currency: 'usd',
+            customerEmail: clientEmail,
+            customerName: clientName,
+            description: `Depósito de reserva - ${serviceNames} en ${user.salonName}`,
+            successUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/pay/${paymentToken}?status=success`,
+            cancelUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/pay/${paymentToken}?status=cancelled`,
+            metadata: { paymentToken, salonUsername: user.username, appointmentId: mainAppointment.id }
+          })
+          paymentUrl = session.paymentUrl
+        } catch (paymentError) {
+          console.error('❌ Error creando sesión de pago:', paymentError)
+          // No falla la reserva, el cliente puede pagar después por el link
+        }
+      } else {
+        // Pasarela no configurada — generamos URL placeholder
+        paymentUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/pay/${paymentToken}`
+      }
+    }
 
     // Preparar y enviar email de confirmación
     try {
@@ -1064,7 +1128,11 @@ router.post('/salon/:username/book', [
 
     res.status(201).json({
       success: true,
-      message: 'Reserva creada exitosamente',
+      message: bookingMode === 'PREPAGO' 
+        ? 'Reserva creada. Completa el pago para confirmar tu cita.'
+        : bookingMode === 'PAGO_POST_APROBACION'
+          ? 'Solicitud de reserva enviada. Recibirás un enlace de pago cuando sea aprobada.'
+          : 'Reserva creada exitosamente',
       data: {
         appointmentId: mainAppointment.id,
         groupId,
@@ -1079,6 +1147,10 @@ router.post('/salon/:username/book', [
         appointmentCount: createdAppointments.length,
         requiresDeposit: user.requiresDeposit ?? false,
         depositAmount: user.depositAmount ?? 0,
+        bookingMode,
+        paymentUrl: paymentUrl || null,
+        paymentToken: paymentToken || null,
+        holdExpiresAt: holdExpiresAt ? holdExpiresAt.toISOString() : null,
         barber: assignedBarber ? { id: assignedBarber.id, name: assignedBarber.name } : null
       }
     })

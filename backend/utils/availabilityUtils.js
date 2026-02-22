@@ -308,8 +308,7 @@ async function createMultiServiceAppointments({ services, baseData, barberId, is
       const min = currentMinutes % 60
       const timeStr = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
 
-      const apt = await tx.appointment.create({
-        data: {
+      const aptData = {
           userId: baseData.userId,
           serviceId: service.id,
           clientName: baseData.clientName,
@@ -319,12 +318,16 @@ async function createMultiServiceAppointments({ services, baseData, barberId, is
           time: timeStr,
           notes: baseData.notes || '',
           totalAmount: service.price,
-          status: 'PENDIENTE',
+          status: baseData.status || 'PENDIENTE',
           paymentStatus: baseData.paymentStatus,
           barberId: resolvedBarberId,
           groupId
         }
-      })
+      // Campos opcionales para modo con pago
+      if (baseData.holdExpiresAt) aptData.holdExpiresAt = baseData.holdExpiresAt
+      if (baseData.paymentToken) aptData.paymentToken = baseData.paymentToken
+
+      const apt = await tx.appointment.create({ data: aptData })
       appointments.push(apt)
       currentMinutes += service.duration
     }

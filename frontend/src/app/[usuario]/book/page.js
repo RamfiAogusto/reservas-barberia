@@ -187,11 +187,29 @@ const BookingPage = () => {
       })
 
       if (data.success) {
-        const barberInfo = data.barber ? ` Tu barbero asignado: ${data.barber.name}.` : ''
-        setSuccessMessage(`¡Reserva confirmada!${barberInfo} Te hemos enviado un correo con los detalles.`)
+        const barberInfo = data.data?.barber ? ` Tu barbero asignado: ${data.data.barber.name}.` : ''
+        const mode = data.data?.bookingMode || 'LIBRE'
+        
+        if (mode === 'PREPAGO' && data.data?.paymentUrl) {
+          // Redirigir al pago inmediatamente
+          setSuccessMessage('Redirigiendo al pago...')
+          window.location.href = data.data.paymentUrl
+          return
+        } else if (mode === 'PREPAGO' && data.data?.paymentToken) {
+          setSuccessMessage('¡Reserva creada! Completa el pago para asegurar tu cita.')
+          setTimeout(() => {
+            router.push(`/pay/${data.data.paymentToken}`)
+          }, 2000)
+          return
+        } else if (mode === 'PAGO_POST_APROBACION') {
+          setSuccessMessage(`¡Solicitud enviada!${barberInfo} El salón revisará tu reserva y recibirás un enlace de pago por email cuando sea aprobada.`)
+        } else {
+          setSuccessMessage(`¡Reserva enviada!${barberInfo} Te hemos enviado un correo con los detalles. El salón confirmará tu cita.`)
+        }
+        
         setTimeout(() => {
           router.push(`/${username}`)
-        }, 3000)
+        }, 4000)
       } else {
         setBookingError(data.message || 'Error al crear la reserva')
       }
@@ -503,6 +521,8 @@ const BookingPage = () => {
                     {salon?.requiresDeposit && salon?.depositAmount > 0 && (
                       <p className="mt-2 text-xs text-amber-600">
                         Depósito: {formatPrice(salon.depositAmount)}
+                        {salon?.bookingMode === 'PREPAGO' && ' (se cobra al reservar)'}
+                        {salon?.bookingMode === 'PAGO_POST_APROBACION' && ' (se cobra al aprobar)'}
                       </p>
                     )}
                     {isSelected && (
@@ -958,24 +978,39 @@ const BookingPage = () => {
               </div>
               {salon?.requiresDeposit && salon?.depositAmount > 0 && (
                 <p className="text-amber-600 text-sm mt-2">
-                  Depósito: {formatPrice(salon.depositAmount)} (para confirmar)
+                  Depósito: {formatPrice(salon.depositAmount)}
+                  {salon?.bookingMode === 'PREPAGO' && ' — se cobra ahora'}
+                  {salon?.bookingMode === 'PAGO_POST_APROBACION' && ' — se cobra cuando el salón apruebe'}
+                  {(!salon?.bookingMode || salon?.bookingMode === 'LIBRE') && ' — se paga al llegar'}
                 </p>
               )}
             </div>
+
+            {/* Info del modo de reserva */}
+            {salon?.bookingMode && salon.bookingMode !== 'LIBRE' && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
+                {salon.bookingMode === 'PREPAGO' && (
+                  <p>💳 <strong>Prepago requerido.</strong> Al confirmar, serás redirigido a pagar el depósito de {formatPrice(salon.depositAmount)}. Tu horario queda reservado por {salon.holdDurationMinutes || 15} minutos.</p>
+                )}
+                {salon.bookingMode === 'PAGO_POST_APROBACION' && (
+                  <p>✅ <strong>Requiere aprobación.</strong> Tu solicitud será revisada. Si el salón la aprueba, recibirás un enlace de pago por email.</p>
+                )}
+              </div>
+            )}
 
             {/* Política de No-Show - solo si hay depósito */}
             {salon?.requiresDeposit && salon?.depositAmount > 0 && (
               <details className="mb-6 group">
                 <summary className="text-sm text-slate-600 cursor-pointer hover:text-slate-800 flex items-center gap-2 list-none">
                   <span className="group-open:rotate-90 transition-transform">▸</span>
-                  Política de inasistencia (importante)
+                  Política de depósito e inasistencia (importante)
                 </summary>
                 <div className="mt-3 p-4 bg-amber-50 rounded-xl border border-amber-100 text-sm text-amber-900">
-                  <p className="font-medium mb-2">Se requiere depósito de {formatPrice(salon.depositAmount)} para confirmar.</p>
+                  <p className="font-medium mb-2">Depósito de {formatPrice(salon.depositAmount)} para reservar tu horario.</p>
                   <ul className="list-disc list-inside space-y-1 text-amber-800">
-                    <li>Si no asistes, el depósito no se reembolsa</li>
-                    <li>Cancelar o reprogramar: mínimo 24 h antes</li>
-                    <li>El precio completo ({formatPrice(totalPrice)}) se paga al llegar</li>
+                    <li>El depósito <strong>no es reembolsable</strong> bajo ninguna circunstancia</li>
+                    <li>Si no asistes, pierdes el depósito</li>
+                    <li>El precio del servicio ({formatPrice(totalPrice)}) se paga al llegar</li>
                   </ul>
                   <p className="mt-2 font-medium">Al confirmar, aceptas estas condiciones.</p>
                 </div>
@@ -1069,7 +1104,11 @@ const BookingPage = () => {
                   className="w-full sm:w-auto px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                   aria-busy={submitting}
                 >
-                  {submitting ? 'Confirmando...' : 'Confirmar reserva'}
+                  {submitting ? 'Procesando...' : (
+                    salon?.bookingMode === 'PREPAGO' ? 'Reservar y pagar depósito' :
+                    salon?.bookingMode === 'PAGO_POST_APROBACION' ? 'Enviar solicitud' :
+                    'Confirmar reserva'
+                  )}
                 </button>
               </div>
             </form>

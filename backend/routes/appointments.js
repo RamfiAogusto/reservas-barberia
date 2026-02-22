@@ -1174,9 +1174,9 @@ router.put('/:id/status', [
 
 // PUT /api/appointments/:id/respond - Barbero responde a reserva (pago en persona o pago online)
 router.put('/:id/respond', [
-  body('paymentMode')
-    .isIn(['IN_PERSON', 'ONLINE'])
-    .withMessage('Modo de pago inválido. Debe ser IN_PERSON o ONLINE')
+  body('action')
+    .isIn(['CONFIRMAR', 'RECHAZAR', 'IN_PERSON', 'ONLINE'])
+    .withMessage('Acción inválida. Debe ser CONFIRMAR o RECHAZAR')
 ], async (req, res) => {
   try {
     const errors = validationResult(req)
@@ -1184,7 +1184,11 @@ router.put('/:id/respond', [
       return res.status(400).json({ success: false, message: 'Datos inválidos', errors: errors.array() })
     }
 
-    const { paymentMode } = req.body
+    // Compatibilidad: aceptar paymentMode legacy o action nuevo
+    let action = req.body.action
+    if (!action && req.body.paymentMode) {
+      action = req.body.paymentMode === 'IN_PERSON' ? 'CONFIRMAR' : 'CONFIRMAR'
+    }
     const appointmentId = req.params.id
 
     // Buscar la cita
@@ -1208,6 +1212,7 @@ router.put('/:id/respond', [
     }
 
     const salonOwner = await prisma.user.findFirst({ where: { id: req.user.id } })
+    const bookingMode = salonOwner.bookingMode || 'LIBRE'
 
     // Obtener info multi-servicio si aplica
     let allServices = []
@@ -1249,9 +1254,9 @@ router.put('/:id/respond', [
       bookingId: appointment.id.toString()
     }
 
-    if (paymentMode === 'IN_PERSON') {
-      // === PAGO EN PERSONA: confirmar directamente ===
-      const updateData = { status: 'CONFIRMADA', paymentMethod: 'EFECTIVO' }
+    // ══════ RECHAZAR ══════
+    if (action === 'RECHAZAR') {
+      const updateData = { status: 'CANCELADA', cancelledAt: new Date(), cancelReason: 'Rechazada por el salón' }
 
       if (appointment.groupId) {
         await prisma.appointment.updateMany({
@@ -1266,30 +1271,33 @@ router.put('/:id/respond', [
         include: { service: { select: { name: true, duration: true, price: true, category: true } } }
       })
 
-      // Enviar email de confirmación
-      console.log('📧 Pago en persona - Enviando email de confirmación...')
-      emailService.sendBookingConfirmation(bookingData)
+      // Enviar email de rechazo
+      console.log('📧 Enviando email de rechazo...')
+      emailService.sendBookingRejection(bookingData)
         .then(r => r.success
-          ? console.log('✅ Email de confirmación enviado a:', bookingData.clientEmail)
-          : console.error('❌ Error email confirmación:', r.error)
+          ? console.log('✅ Email de rechazo enviado a:', bookingData.clientEmail)
+          : console.error('❌ Error email rechazo:', r.error)
         ).catch(e => console.error('❌ Error email:', e))
 
-      // Emitir evento real-time
+      // Emitir evento
       emitToSalon(req.user.id, 'appointment:responded', {
         appointment: updatedAppointment,
-        paymentMode: 'IN_PERSON',
-        message: `Cita de ${appointment.clientName} confirmada (pago en persona)`
+        action: 'RECHAZAR',
+        message: `Cita de ${appointment.clientName} rechazada`
       })
 
       return res.json({
         success: true,
-        message: 'Cita confirmada. Se pagará en persona.',
+        message: 'Cita rechazada.',
         data: updatedAppointment,
-        paymentMode: 'IN_PERSON'
+        action: 'RECHAZAR'
       })
+    }
 
-    } else {
-      // === PAGO ONLINE: hold temporal ===
+    // ══════ CONFIRMAR ══════
+    // El comportamiento depende del modo de reserva del salón
+    if (bookingMode === 'PAGO_POST_APROBACION' && salonOwner.requiresDeposit && salonOwner.depositAmount > 0) {
+      // === PAGO POST APROBACIÓN: aprobar y enviar link de pago ===
       const holdMinutes = salonOwner.holdDurationMinutes || 15
       const holdExpiresAt = new Date(Date.now() + holdMinutes * 60 * 1000)
       const paymentToken = require('crypto').randomUUID()
@@ -1314,13 +1322,14 @@ router.put('/:id/respond', [
         include: { service: { select: { name: true, duration: true, price: true, category: true } } }
       })
 
-      // Enviar email solicitando pago
-      console.log('📧 Pago online - Enviando email de solicitud de pago...')
+      // Enviar email con link de pago
+      console.log('📧 Pago post-aprobación - Enviando email con link de pago...')
       const paymentEmailData = {
         ...bookingData,
         holdMinutes,
         holdExpiresAt: holdExpiresAt.toISOString(),
-        paymentToken
+        paymentToken,
+        paymentUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/pay/${paymentToken}`
       }
       emailService.sendPaymentRequired(paymentEmailData)
         .then(r => r.success
@@ -1328,22 +1337,70 @@ router.put('/:id/respond', [
           : console.error('❌ Error email pago:', r.error)
         ).catch(e => console.error('❌ Error email:', e))
 
-      // Emitir evento real-time
+      // Emitir evento
       emitToSalon(req.user.id, 'appointment:responded', {
         appointment: updatedAppointment,
-        paymentMode: 'ONLINE',
+        action: 'APROBAR',
+        bookingMode,
         holdMinutes,
         holdExpiresAt: holdExpiresAt.toISOString(),
-        message: `Cita de ${appointment.clientName} en espera de pago (${holdMinutes} min)`
+        message: `Cita de ${appointment.clientName} aprobada - esperando pago (${holdMinutes} min)`
       })
 
       return res.json({
         success: true,
-        message: `Reserva en espera de pago. El cliente tiene ${holdMinutes} minutos para pagar.`,
+        message: `Reserva aprobada. El cliente tiene ${holdMinutes} minutos para pagar el depósito.`,
         data: updatedAppointment,
-        paymentMode: 'ONLINE',
+        action: 'APROBAR',
+        bookingMode,
         holdExpiresAt: holdExpiresAt.toISOString(),
         holdMinutes
+      })
+
+    } else {
+      // === LIBRE / PREPAGO (ya pagado): confirmar directamente ===
+      const updateData = { status: 'CONFIRMADA' }
+
+      // En modo LIBRE, el pago es en persona
+      if (bookingMode === 'LIBRE') {
+        updateData.paymentMethod = 'EFECTIVO'
+      }
+
+      if (appointment.groupId) {
+        await prisma.appointment.updateMany({
+          where: { groupId: appointment.groupId, userId: req.user.id },
+          data: updateData
+        })
+      }
+
+      const updatedAppointment = await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: updateData,
+        include: { service: { select: { name: true, duration: true, price: true, category: true } } }
+      })
+
+      // Enviar email de confirmación
+      console.log('📧 Enviando email de confirmación...')
+      emailService.sendBookingConfirmation(bookingData)
+        .then(r => r.success
+          ? console.log('✅ Email de confirmación enviado a:', bookingData.clientEmail)
+          : console.error('❌ Error email confirmación:', r.error)
+        ).catch(e => console.error('❌ Error email:', e))
+
+      // Emitir evento
+      emitToSalon(req.user.id, 'appointment:responded', {
+        appointment: updatedAppointment,
+        action: 'CONFIRMAR',
+        bookingMode,
+        message: `Cita de ${appointment.clientName} confirmada`
+      })
+
+      return res.json({
+        success: true,
+        message: 'Cita confirmada exitosamente.',
+        data: updatedAppointment,
+        action: 'CONFIRMAR',
+        bookingMode
       })
     }
   } catch (error) {
@@ -1356,7 +1413,7 @@ router.put('/:id/respond', [
   }
 })
 
-// POST /api/appointments/:id/confirm-payment - Confirmar pago (simula pasarela; futuro: webhook real)
+// POST /api/appointments/:id/confirm-payment - Confirmar pago (pasarela; futuro: webhook real)
 router.post('/:id/confirm-payment', async (req, res) => {
   try {
     const { paymentToken } = req.body
@@ -1368,7 +1425,10 @@ router.post('/:id/confirm-payment', async (req, res) => {
       include: {
         service: { select: { name: true, duration: true, price: true } },
         barber: { select: { name: true } },
-        user: { select: { salonName: true, username: true, email: true, address: true, phone: true, depositAmount: true } }
+        user: { select: { 
+          salonName: true, username: true, email: true, address: true, phone: true, 
+          depositAmount: true, bookingMode: true, autoConfirmAfterPayment: true 
+        } }
       }
     })
 
@@ -1391,7 +1451,6 @@ router.post('/:id/confirm-payment', async (req, res) => {
 
     // Verificar que no haya expirado
     if (appointment.holdExpiresAt && new Date() > new Date(appointment.holdExpiresAt)) {
-      // Expirar la cita
       const expireData = { status: 'EXPIRADA', holdExpiresAt: null, paymentToken: null }
       if (appointment.groupId) {
         await prisma.appointment.updateMany({ where: { groupId: appointment.groupId }, data: expireData })
@@ -1404,11 +1463,24 @@ router.post('/:id/confirm-payment', async (req, res) => {
       })
     }
 
-    // ¡Pago exitoso! Confirmar la cita
+    // ──── Determinar estado post-pago según modo ────
+    const owner = appointment.user
+    const bookingMode = owner.bookingMode || 'LIBRE'
+    let nextStatus = 'CONFIRMADA'
+    let responseMessage = '¡Pago confirmado! Tu reserva está asegurada.'
+
+    if (bookingMode === 'PREPAGO' && !owner.autoConfirmAfterPayment) {
+      // PREPAGO sin auto-confirm: pago recibido, pero barbero debe aprobar
+      nextStatus = 'PENDIENTE'
+      responseMessage = '¡Pago recibido! Tu reserva está pendiente de confirmación por el salón.'
+    }
+    // PAGO_POST_APROBACION: barbero ya aprobó, pago confirma → CONFIRMADA
+    // PREPAGO + autoConfirm: pago confirma → CONFIRMADA
+
     const confirmData = {
-      status: 'CONFIRMADA',
+      status: nextStatus,
       paymentStatus: 'COMPLETO',
-      paidAmount: appointment.totalAmount,
+      paidAmount: owner.depositAmount || appointment.totalAmount,
       holdExpiresAt: null,
       paymentToken: null
     }
@@ -1423,8 +1495,7 @@ router.post('/:id/confirm-payment', async (req, res) => {
       include: { service: { select: { name: true, duration: true, price: true, category: true } } }
     })
 
-    // Enviar email de confirmación
-    const owner = appointment.user
+    // Preparar datos de email
     let allServices = [appointment.service]
     let totalDuration = appointment.service?.duration || 0
 
@@ -1442,7 +1513,7 @@ router.post('/:id/confirm-payment', async (req, res) => {
       ? allServices.map(s => s.name).join(' + ')
       : (appointment.service?.name || 'Servicio')
 
-    emailService.sendBookingConfirmation({
+    const bookingData = {
       clientName: appointment.clientName,
       clientEmail: appointment.clientEmail,
       salonName: owner.salonName || owner.username,
@@ -1457,20 +1528,38 @@ router.post('/:id/confirm-payment', async (req, res) => {
       salonAddress: owner.address || 'Dirección no especificada',
       salonPhone: owner.phone || 'Teléfono no especificado',
       bookingId: appointment.id.toString()
-    }).catch(e => console.error('Error email confirmación post-pago:', e))
+    }
 
-    console.log('✅ Pago confirmado para cita:', appointmentId)
+    if (nextStatus === 'CONFIRMADA') {
+      // Enviar email de confirmación
+      emailService.sendBookingConfirmation(bookingData)
+        .catch(e => console.error('Error email confirmación post-pago:', e))
+    } else {
+      // PREPAGO sin auto-confirm: notificar al dueño que hay una cita pagada pendiente
+      emailService.sendOwnerNotification({
+        ...bookingData,
+        ownerEmail: owner.email,
+        clientPhone: appointment.clientPhone,
+        notes: '💳 El cliente ya pagó el depósito. Pendiente de tu confirmación.'
+      }).catch(e => console.error('Error email notificación post-pago:', e))
+    }
+
+    console.log(`✅ Pago confirmado para cita: ${appointmentId} → ${nextStatus}`)
 
     // Emitir evento real-time al salón
     emitToSalon(appointment.userId, 'appointment:paymentConfirmed', {
       appointment: confirmed,
+      bookingMode,
+      nextStatus,
       message: `💳 ${appointment.clientName} completó el pago`
     })
 
     res.json({
       success: true,
-      message: '¡Pago confirmado! Tu reserva está asegurada.',
-      data: confirmed
+      message: responseMessage,
+      data: confirmed,
+      bookingMode,
+      status: nextStatus
     })
   } catch (error) {
     console.error('Error confirmando pago:', error)
