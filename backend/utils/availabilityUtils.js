@@ -1,4 +1,4 @@
-const { prisma } = require('../lib/prisma')
+﻿const { prisma } = require('../lib/prisma')
 
 // ==================== HELPERS ====================
 
@@ -49,14 +49,14 @@ function hasOverlapWithAppointments(existingAppointments, newStartMinutes, newEn
 // ==================== FUNCIONES PRINCIPALES ====================
 
 /**
- * Verifica si una nueva cita tendría solapamiento con citas existentes.
- * Considera la duración completa del servicio, no solo la hora exacta.
+ * Verifica si una nueva cita tendrÃ­a solapamiento con citas existentes.
+ * Considera la duraciÃ³n completa del servicio, no solo la hora exacta.
  * 
  * @param {Object} params
- * @param {string} params.userId - ID del dueño del salón
+ * @param {string} params.userId - ID del dueÃ±o del salÃ³n
  * @param {Date|string} params.date - Fecha de la cita
  * @param {string} params.time - Hora de la cita (HH:MM)
- * @param {number} params.serviceDuration - Duración del servicio en minutos
+ * @param {number} params.serviceDuration - DuraciÃ³n del servicio en minutos
  * @param {string|null} params.barberId - ID del barbero (null = verificar todos)
  * @param {string|null} params.excludeAppointmentId - Excluir esta cita (para updates)
  * @returns {Promise<boolean>} true si hay solapamiento
@@ -69,7 +69,7 @@ async function checkTimeOverlap({ userId, date, time, serviceDuration, barberId 
   const where = {
     userId,
     date: appointmentDate,
-    status: { not: 'CANCELADA' }
+    status: { notIn: ['CANCELADA', 'EXPIRADA'] }
   }
 
   if (barberId) {
@@ -89,8 +89,8 @@ async function checkTimeOverlap({ userId, date, time, serviceDuration, barberId 
 }
 
 /**
- * Verifica solapamiento y crea la cita en una transacción atómica.
- * Si barberId es un ID específico: verifica solo contra ese barbero.
+ * Verifica solapamiento y crea la cita en una transacciÃ³n atÃ³mica.
+ * Si barberId es un ID especÃ­fico: verifica solo contra ese barbero.
  * Si barberId es null: verifica contra TODOS (modo sin barberos / compatibilidad).
  */
 async function createAppointmentWithOverlapCheck({ appointmentData, serviceDuration, barberId = null }) {
@@ -98,7 +98,7 @@ async function createAppointmentWithOverlapCheck({ appointmentData, serviceDurat
     const where = {
       userId: appointmentData.userId,
       date: appointmentData.date,
-      status: { not: 'CANCELADA' }
+      status: { notIn: ['CANCELADA', 'EXPIRADA'] }
     }
 
     if (barberId) {
@@ -126,23 +126,23 @@ async function createAppointmentWithOverlapCheck({ appointmentData, serviceDurat
 }
 
 /**
- * Auto-asigna un barbero disponible y crea la cita atómicamente.
+ * Auto-asigna un barbero disponible y crea la cita atÃ³micamente.
  * Usado cuando el cliente elige "cualquier barbero disponible".
  * 
- * Lógica de asignación: elige el barbero con MENOS citas ese día (balanceo de carga).
+ * LÃ³gica de asignaciÃ³n: elige el barbero con MENOS citas ese dÃ­a (balanceo de carga).
  * Si hay empate, elige al azar entre los empatados.
  * 
  * @param {Object} params
  * @param {Object} params.appointmentData - Datos de la cita (sin barberId)
- * @param {number} params.serviceDuration - Duración del servicio (minutos)
- * @param {string} params.userId - ID del dueño del salón
+ * @param {number} params.serviceDuration - DuraciÃ³n del servicio (minutos)
+ * @param {string} params.userId - ID del dueÃ±o del salÃ³n
  * @returns {Promise<Object>} La cita creada con barbero asignado
- * @throws {Error} 'NO_BARBER_AVAILABLE' si ningún barbero está libre
+ * @throws {Error} 'NO_BARBER_AVAILABLE' si ningÃºn barbero estÃ¡ libre
  * @throws {Error} 'OVERLAP_CONFLICT' si hay conflicto de horario
  */
 async function createAppointmentWithAutoAssign({ appointmentData, serviceDuration, userId }) {
   return await prisma.$transaction(async (tx) => {
-    // 1. Obtener todos los barberos activos del salón
+    // 1. Obtener todos los barberos activos del salÃ³n
     const barbers = await tx.barber.findMany({
       where: { userId, isActive: true }
     })
@@ -151,12 +151,12 @@ async function createAppointmentWithAutoAssign({ appointmentData, serviceDuratio
       throw new Error('NO_BARBER_AVAILABLE')
     }
 
-    // 2. Obtener TODAS las citas del día (de todos los barberos)
+    // 2. Obtener TODAS las citas del dÃ­a (de todos los barberos)
     const allAppointments = await tx.appointment.findMany({
       where: {
         userId,
         date: appointmentData.date,
-        status: { not: 'CANCELADA' }
+        status: { notIn: ['CANCELADA', 'EXPIRADA'] }
       },
       include: { service: { select: { duration: true } } }
     })
@@ -164,7 +164,7 @@ async function createAppointmentWithAutoAssign({ appointmentData, serviceDuratio
     const newStart = timeToMinutes(appointmentData.time)
     const newEnd = newStart + serviceDuration
 
-    // 3. Filtrar barberos que están LIBRES en este horario
+    // 3. Filtrar barberos que estÃ¡n LIBRES en este horario
     const availableBarbers = barbers.filter(barber => {
       const barberAppointments = allAppointments.filter(apt => apt.barberId === barber.id)
       return !hasOverlapWithAppointments(barberAppointments, newStart, newEnd)
@@ -174,7 +174,7 @@ async function createAppointmentWithAutoAssign({ appointmentData, serviceDuratio
       throw new Error('NO_BARBER_AVAILABLE')
     }
 
-    // 4. Balanceo de carga: elegir el barbero con menos citas ese día
+    // 4. Balanceo de carga: elegir el barbero con menos citas ese dÃ­a
     const barberLoad = availableBarbers.map(barber => ({
       barber,
       appointmentCount: allAppointments.filter(apt => apt.barberId === barber.id).length
@@ -201,13 +201,13 @@ async function createAppointmentWithAutoAssign({ appointmentData, serviceDuratio
 
 /**
  * Calcula disponibilidad POR BARBERO para una fecha/hora dados.
- * Retorna cuáles barberos están libres en cada slot generado.
+ * Retorna cuÃ¡les barberos estÃ¡n libres en cada slot generado.
  * 
  * @param {Object} params
  * @param {Array} params.barbers - Lista de barberos activos
- * @param {Array} params.allAppointments - Todas las citas del día (todos los barberos)
+ * @param {Array} params.allAppointments - Todas las citas del dÃ­a (todos los barberos)
  * @param {string} params.time - Hora a verificar (HH:MM)
- * @param {number} params.serviceDuration - Duración del servicio
+ * @param {number} params.serviceDuration - DuraciÃ³n del servicio
  * @returns {Array} IDs de barberos disponibles en ese horario
  */
 function getAvailableBarbersForSlot(barbers, allAppointments, time, serviceDuration) {
@@ -221,15 +221,15 @@ function getAvailableBarbersForSlot(barbers, allAppointments, time, serviceDurat
 }
 
 /**
- * Crea múltiples citas consecutivas para reservas multi-servicio.
- * Verifica solapamiento del bloque completo y asigna barbero automáticamente si aplica.
+ * Crea mÃºltiples citas consecutivas para reservas multi-servicio.
+ * Verifica solapamiento del bloque completo y asigna barbero automÃ¡ticamente si aplica.
  *
  * @param {Object} params
  * @param {Array} params.services - Array de servicios [{id, duration, price, name}]
  * @param {Object} params.baseData - Datos comunes: userId, clientName, clientEmail, clientPhone, date, time, notes, paymentStatus
  * @param {string|null} params.barberId - ID del barbero o null para auto-assign
  * @param {boolean} params.isAutoAssign - true si es modo "cualquier barbero"
- * @param {string} params.userId - ID del dueño del salón
+ * @param {string} params.userId - ID del dueÃ±o del salÃ³n
  * @returns {Promise<Object>} { appointments: [...], assignedBarber, groupId }
  */
 async function createMultiServiceAppointments({ services, baseData, barberId, isAutoAssign, userId }) {
@@ -247,12 +247,12 @@ async function createMultiServiceAppointments({ services, baseData, barberId, is
     })
     const hasBarbers = barbers.length > 0
 
-    // 2. Obtener citas existentes del día
+    // 2. Obtener citas existentes del dÃ­a
     const allAppointments = await tx.appointment.findMany({
       where: {
         userId,
         date: baseData.date,
-        status: { not: 'CANCELADA' }
+        status: { notIn: ['CANCELADA', 'EXPIRADA'] }
       },
       include: { service: { select: { duration: true } } }
     })
@@ -287,7 +287,7 @@ async function createMultiServiceAppointments({ services, baseData, barberId, is
       resolvedBarberId = chosen.id
       assignedBarber = chosen
     } else if (hasBarbers && barberId) {
-      // Verificar que el barbero específico esté libre para todo el bloque
+      // Verificar que el barbero especÃ­fico estÃ© libre para todo el bloque
       const barberApts = allAppointments.filter(a => a.barberId === barberId)
       if (hasOverlapWithAppointments(barberApts, blockStart, blockEnd)) {
         throw new Error('OVERLAP_CONFLICT')
@@ -343,3 +343,4 @@ module.exports = {
   normalizeDate,
   hasOverlapWithAppointments
 }
+

@@ -342,7 +342,7 @@ router.get('/salon/:username/availability', async (req, res) => {
     const appointmentWhere = {
       userId: user.id,
       date: requestedDate,
-      status: { not: 'CANCELADA' }
+      status: { notIn: ['CANCELADA', 'EXPIRADA'] }
     }
     // Solo filtrar por barbero específico si se pasa un ID real (no 'any')
     if (requestedBarberId && requestedBarberId !== 'any' && hasBarbers) {

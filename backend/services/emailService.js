@@ -766,6 +766,255 @@ class EmailService {
       return { success: false, error: error.message };
     }
   }
+
+  // === EMAILS DEL SISTEMA DE PAGO ONLINE ===
+
+  // Template: Se requiere pago para confirmar la reserva
+  generatePaymentRequiredTemplate(bookingData) {
+    const {
+      clientName,
+      salonName,
+      serviceName,
+      services = [],
+      totalDuration,
+      barberName,
+      date,
+      time,
+      price,
+      holdMinutes,
+      salonAddress,
+      salonPhone,
+      bookingId
+    } = bookingData;
+    const isMultiService = services.length > 1;
+    const time12h = formatTime12h(time || '');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Pago Requerido - ${salonName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: white; padding: 30px; border: 1px solid #ddd; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+          .highlight { background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0; }
+          .urgent { background: #fef2f2; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #dc2626; }
+          .timer { background: #fef3c7; padding: 20px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #f59e0b; text-align: center; }
+          .price { color: #059669; font-weight: bold; font-size: 1.3em; }
+          .btn { display: inline-block; background: #059669; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 1.1em; }
+          ul { margin: 10px 0; padding-left: 20px; }
+          li { margin: 5px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💳 Pago Requerido</h1>
+            <h2>${salonName}</h2>
+          </div>
+          
+          <div class="content">
+            <p>Hola <strong>${clientName}</strong>,</p>
+            
+            <p>El salón ha revisado tu solicitud de reserva y requiere que realices el pago para <strong>confirmar tu cita</strong>.</p>
+
+            <div class="timer">
+              <h3>⏰ ¡Tienes ${holdMinutes} minutos para pagar!</h3>
+              <p>Tu horario está reservado temporalmente. Si no completas el pago a tiempo, la reserva será liberada y otra persona podrá tomar ese horario.</p>
+            </div>
+            
+            <div class="highlight">
+              <h3>📅 Detalles de tu Reserva</h3>
+              ${isMultiService ? `
+                <p><strong>Servicios:</strong></p>
+                <ul>
+                  ${services.map(s => '<li>' + s.name + ' — $' + s.price + ' (' + s.duration + ' min)</li>').join('')}
+                </ul>
+                <p><strong>Duración total:</strong> ${totalDuration} minutos</p>
+              ` : `
+                <p><strong>Servicio:</strong> ${serviceName}</p>
+              `}
+              ${barberName ? '<p><strong>Barbero:</strong> ' + barberName + '</p>' : ''}
+              <p><strong>Fecha:</strong> ${date}</p>
+              <p><strong>Hora:</strong> ${time12h}</p>
+              <p><strong>ID de Reserva:</strong> ${bookingId}</p>
+            </div>
+
+            <div class="highlight" style="text-align: center;">
+              <h3>💰 Total a Pagar</h3>
+              <p class="price">$${price}</p>
+              <br>
+              <p><em>El enlace de pago estará disponible próximamente.<br>Por ahora, contacta al salón para coordinar el pago.</em></p>
+            </div>
+
+            <div class="urgent">
+              <h3>⚠️ Importante</h3>
+              <ul>
+                <li>Tu horario está <strong>reservado temporalmente</strong> por ${holdMinutes} minutos</li>
+                <li>Si no realizas el pago a tiempo, <strong>la reserva será cancelada automáticamente</strong></li>
+                <li>El horario quedará disponible para otros clientes</li>
+              </ul>
+            </div>
+
+            <div class="highlight">
+              <h3>📞 ¿Necesitas ayuda?</h3>
+              <p>Contacta directamente al salón:</p>
+              <p><strong>Teléfono:</strong> ${salonPhone}</p>
+              <p><strong>Dirección:</strong> ${salonAddress}</p>
+            </div>
+
+            <p>¡Esperamos tu pago para confirmar tu cita!</p>
+            <p>Equipo de ${salonName}</p>
+          </div>
+          
+          <div class="footer">
+            <p>Este email fue enviado automáticamente. Por favor no respondas a este correo.</p>
+            <p>ReservaBarber - Sistema de Gestión de Citas</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // Enviar email de pago requerido
+  async sendPaymentRequired(bookingData) {
+    try {
+      if (!this.checkConfiguration()) {
+        return {
+          success: true,
+          messageId: 'simulated-email-' + Date.now(),
+          message: 'Email simulado - configuración no disponible'
+        };
+      }
+
+      const emailContent = this.generatePaymentRequiredTemplate(bookingData);
+
+      const result = await resend.emails.send({
+        from: this.fromEmail,
+        to: bookingData.clientEmail,
+        subject: `💳 Pago Requerido - ${bookingData.salonName} | Tienes ${bookingData.holdMinutes} min para confirmar`,
+        html: emailContent
+      });
+
+      console.log('Email de pago requerido enviado:', result);
+      return { success: true, messageId: result.id };
+    } catch (error) {
+      console.error('Error enviando email de pago requerido:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Template: Reserva expirada (no se pagó a tiempo)
+  generateHoldExpiredTemplate(bookingData) {
+    const {
+      clientName,
+      salonName,
+      serviceName,
+      date,
+      time,
+      price,
+      salonPhone,
+      salonAddress,
+      bookingId
+    } = bookingData;
+    const time12h = formatTime12h(time || '');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Reserva Expirada - ${salonName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #6b7280; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: white; padding: 30px; border: 1px solid #ddd; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+          .highlight { background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0; }
+          .expired { background: #fef2f2; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #dc2626; }
+          .retry { background: #f0fdf4; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #16a34a; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>⏰ Reserva Expirada</h1>
+            <h2>${salonName}</h2>
+          </div>
+          
+          <div class="content">
+            <p>Hola <strong>${clientName}</strong>,</p>
+            
+            <p>Lamentamos informarte que tu reserva ha expirado porque no se completó el pago dentro del tiempo establecido.</p>
+
+            <div class="expired">
+              <h3>❌ Reserva No Confirmada</h3>
+              <p><strong>Servicio:</strong> ${serviceName}</p>
+              <p><strong>Fecha:</strong> ${date}</p>
+              <p><strong>Hora:</strong> ${time12h}</p>
+              <p><strong>Monto:</strong> $${price}</p>
+              <p><strong>ID:</strong> ${bookingId}</p>
+              <p><em>El horario ha sido liberado y ya está disponible para otros clientes.</em></p>
+            </div>
+
+            <div class="retry">
+              <h3>🔄 ¿Todavía quieres reservar?</h3>
+              <p>Puedes realizar una nueva reserva visitando la página del salón. Si el horario sigue disponible, podrás reservarlo nuevamente.</p>
+            </div>
+
+            <div class="highlight">
+              <h3>📞 Contacto</h3>
+              <p><strong>Salón:</strong> ${salonName}</p>
+              <p><strong>Teléfono:</strong> ${salonPhone}</p>
+              <p><strong>Dirección:</strong> ${salonAddress}</p>
+            </div>
+
+            <p>Disculpa las molestias.</p>
+            <p>Equipo de ${salonName}</p>
+          </div>
+          
+          <div class="footer">
+            <p>ReservaBarber - Sistema de Gestión de Citas</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // Enviar email de reserva expirada
+  async sendHoldExpired(bookingData) {
+    try {
+      if (!this.checkConfiguration()) {
+        return {
+          success: true,
+          messageId: 'simulated-email-' + Date.now(),
+          message: 'Email simulado - configuración no disponible'
+        };
+      }
+
+      const emailContent = this.generateHoldExpiredTemplate(bookingData);
+
+      const result = await resend.emails.send({
+        from: this.fromEmail,
+        to: bookingData.clientEmail,
+        subject: `⏰ Reserva Expirada - ${bookingData.salonName} | Pago no completado`,
+        html: emailContent
+      });
+
+      console.log('Email de reserva expirada enviado:', result);
+      return { success: true, messageId: result.id };
+    } catch (error) {
+      console.error('Error enviando email de reserva expirada:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 module.exports = new EmailService(); 

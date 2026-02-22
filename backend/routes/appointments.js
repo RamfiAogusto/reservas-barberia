@@ -946,7 +946,7 @@ router.get('/stats/summary', async (req, res) => {
 // PUT /api/appointments/:id/status - Actualizar solo el estado de una cita
 router.put('/:id/status', [
   body('status')
-    .isIn(['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO'])
+    .isIn(['PENDIENTE', 'ESPERANDO_PAGO', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO', 'EXPIRADA'])
     .withMessage('Status inválido'),
   body('cancelReason')
     .optional()
@@ -972,11 +972,21 @@ router.put('/:id/status', [
       })
     }
 
-    // Buscar la cita
+    // Buscar la cita con servicio incluido
     const appointment = await prisma.appointment.findFirst({
       where: {
         id: req.params.id,
         userId: req.user.id
+      },
+      include: {
+        service: {
+          select: {
+            name: true,
+            duration: true,
+            price: true,
+            category: true
+          }
+        }
       }
     })
 
@@ -986,6 +996,8 @@ router.put('/:id/status', [
         message: 'Cita no encontrada'
       })
     }
+
+    const previousStatus = appointment.status
 
     // Preparar datos de actualización
     const updateData = {
@@ -1027,6 +1039,97 @@ router.put('/:id/status', [
 
     console.log('✅ Estado de cita actualizado exitosamente:', updatedAppointment.id)
 
+    // Enviar emails según el cambio de estado
+    try {
+      const salonOwner = await prisma.user.findFirst({
+        where: { id: req.user.id }
+      })
+
+      // Si es multi-servicio (groupId), obtener todos los servicios del grupo
+      let allServices = []
+      let totalAmount = updatedAppointment.totalAmount
+      let totalDuration = updatedAppointment.service?.duration || 0
+      let barberName = null
+
+      if (appointment.groupId) {
+        const groupAppts = await prisma.appointment.findMany({
+          where: { groupId: appointment.groupId, userId: req.user.id },
+          include: { service: { select: { name: true, duration: true, price: true } }, barber: { select: { name: true } } },
+          orderBy: { time: 'asc' }
+        })
+        allServices = groupAppts.map(a => a.service).filter(Boolean)
+        totalAmount = groupAppts.reduce((sum, a) => sum + (a.totalAmount || 0), 0)
+        totalDuration = allServices.reduce((sum, s) => sum + (s.duration || 0), 0)
+        barberName = groupAppts[0]?.barber?.name || null
+      } else {
+        if (updatedAppointment.service) allServices = [updatedAppointment.service]
+        if (appointment.barberId) {
+          const barber = await prisma.barber.findUnique({ where: { id: appointment.barberId }, select: { name: true } })
+          barberName = barber?.name || null
+        }
+      }
+
+      const serviceName = allServices.length > 1
+        ? allServices.map(s => s.name).join(' + ')
+        : (updatedAppointment.service?.name || 'Servicio')
+
+      const bookingData = {
+        clientName: updatedAppointment.clientName,
+        clientEmail: updatedAppointment.clientEmail,
+        salonName: salonOwner.salonName || salonOwner.username,
+        serviceName,
+        services: allServices,
+        totalDuration,
+        barberName,
+        date: format(updatedAppointment.date, 'PPP', { locale: es }),
+        time: updatedAppointment.time,
+        price: totalAmount || updatedAppointment.service?.price || 0,
+        depositAmount: salonOwner.depositAmount ?? 0,
+        salonAddress: salonOwner.address || 'Dirección no especificada',
+        salonPhone: salonOwner.phone || 'Teléfono no especificado',
+        bookingId: updatedAppointment.id.toString()
+      }
+
+      // PENDIENTE → CONFIRMADA: email de confirmación al cliente
+      if (req.body.status === 'CONFIRMADA' && (previousStatus === 'PENDIENTE' || previousStatus === 'ESPERANDO_PAGO')) {
+        console.log('📧 Enviando email de confirmación al cliente...')
+        emailService.sendBookingConfirmation(bookingData)
+          .then(result => {
+            if (result.success) {
+              console.log('✅ Email de confirmación enviado a:', bookingData.clientEmail)
+            } else {
+              console.error('❌ Error enviando email de confirmación:', result.error)
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error en envío de email de confirmación:', error)
+          })
+      }
+
+      // → CANCELADA: email de cancelación al cliente
+      if (req.body.status === 'CANCELADA' && previousStatus !== 'CANCELADA') {
+        console.log('📧 Enviando email de cancelación al cliente...')
+        emailService.sendCancellationEmail(bookingData)
+          .then(result => {
+            if (result.success) {
+              console.log('✅ Email de cancelación enviado a:', bookingData.clientEmail)
+            } else {
+              console.error('❌ Error enviando email de cancelación:', result.error)
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error en envío de email de cancelación:', error)
+          })
+
+        // Cancelar recordatorio programado
+        queueService.cancelReminder(updatedAppointment.id.toString())
+          .catch(error => console.error('Error cancelando recordatorio:', error))
+      }
+
+    } catch (emailError) {
+      console.error('❌ Error preparando emails en /status:', emailError)
+    }
+
     res.json({
       success: true,
       message: 'Estado de cita actualizado exitosamente',
@@ -1034,6 +1137,294 @@ router.put('/:id/status', [
     })
   } catch (error) {
     console.error('Error actualizando estado de cita:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
+    })
+  }
+});
+
+// PUT /api/appointments/:id/respond - Barbero responde a reserva (pago en persona o pago online)
+router.put('/:id/respond', [
+  body('paymentMode')
+    .isIn(['IN_PERSON', 'ONLINE'])
+    .withMessage('Modo de pago inválido. Debe ser IN_PERSON o ONLINE')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Datos inválidos', errors: errors.array() })
+    }
+
+    const { paymentMode } = req.body
+    const appointmentId = req.params.id
+
+    // Buscar la cita
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: appointmentId, userId: req.user.id },
+      include: {
+        service: { select: { name: true, duration: true, price: true } },
+        barber: { select: { id: true, name: true } }
+      }
+    })
+
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Cita no encontrada' })
+    }
+
+    if (appointment.status !== 'PENDIENTE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo se puede responder a citas pendientes. Estado actual: ' + appointment.status
+      })
+    }
+
+    const salonOwner = await prisma.user.findFirst({ where: { id: req.user.id } })
+
+    // Obtener info multi-servicio si aplica
+    let allServices = []
+    let totalAmount = appointment.totalAmount
+    let totalDuration = appointment.service?.duration || 0
+    let barberName = appointment.barber?.name || null
+
+    if (appointment.groupId) {
+      const groupAppts = await prisma.appointment.findMany({
+        where: { groupId: appointment.groupId, userId: req.user.id },
+        include: { service: { select: { name: true, duration: true, price: true } } },
+        orderBy: { time: 'asc' }
+      })
+      allServices = groupAppts.map(a => a.service).filter(Boolean)
+      totalAmount = groupAppts.reduce((sum, a) => sum + (a.totalAmount || 0), 0)
+      totalDuration = allServices.reduce((sum, s) => sum + (s.duration || 0), 0)
+    } else {
+      if (appointment.service) allServices = [appointment.service]
+    }
+
+    const serviceName = allServices.length > 1
+      ? allServices.map(s => s.name).join(' + ')
+      : (appointment.service?.name || 'Servicio')
+
+    const bookingData = {
+      clientName: appointment.clientName,
+      clientEmail: appointment.clientEmail,
+      salonName: salonOwner.salonName || salonOwner.username,
+      serviceName,
+      services: allServices,
+      totalDuration,
+      barberName,
+      date: format(appointment.date, 'PPP', { locale: es }),
+      time: appointment.time,
+      price: totalAmount,
+      depositAmount: salonOwner.depositAmount ?? 0,
+      salonAddress: salonOwner.address || 'Dirección no especificada',
+      salonPhone: salonOwner.phone || 'Teléfono no especificado',
+      bookingId: appointment.id.toString()
+    }
+
+    if (paymentMode === 'IN_PERSON') {
+      // === PAGO EN PERSONA: confirmar directamente ===
+      const updateData = { status: 'CONFIRMADA', paymentMethod: 'EFECTIVO' }
+
+      if (appointment.groupId) {
+        await prisma.appointment.updateMany({
+          where: { groupId: appointment.groupId, userId: req.user.id },
+          data: updateData
+        })
+      }
+
+      const updatedAppointment = await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: updateData,
+        include: { service: { select: { name: true, duration: true, price: true, category: true } } }
+      })
+
+      // Enviar email de confirmación
+      console.log('📧 Pago en persona - Enviando email de confirmación...')
+      emailService.sendBookingConfirmation(bookingData)
+        .then(r => r.success
+          ? console.log('✅ Email de confirmación enviado a:', bookingData.clientEmail)
+          : console.error('❌ Error email confirmación:', r.error)
+        ).catch(e => console.error('❌ Error email:', e))
+
+      return res.json({
+        success: true,
+        message: 'Cita confirmada. Se pagará en persona.',
+        data: updatedAppointment,
+        paymentMode: 'IN_PERSON'
+      })
+
+    } else {
+      // === PAGO ONLINE: hold temporal ===
+      const holdMinutes = salonOwner.holdDurationMinutes || 15
+      const holdExpiresAt = new Date(Date.now() + holdMinutes * 60 * 1000)
+      const paymentToken = require('crypto').randomUUID()
+
+      const updateData = {
+        status: 'ESPERANDO_PAGO',
+        holdExpiresAt,
+        paymentToken,
+        paymentMethod: 'PASARELA'
+      }
+
+      if (appointment.groupId) {
+        await prisma.appointment.updateMany({
+          where: { groupId: appointment.groupId, userId: req.user.id },
+          data: updateData
+        })
+      }
+
+      const updatedAppointment = await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: updateData,
+        include: { service: { select: { name: true, duration: true, price: true, category: true } } }
+      })
+
+      // Enviar email solicitando pago
+      console.log('📧 Pago online - Enviando email de solicitud de pago...')
+      const paymentEmailData = {
+        ...bookingData,
+        holdMinutes,
+        holdExpiresAt: holdExpiresAt.toISOString(),
+        paymentToken
+      }
+      emailService.sendPaymentRequired(paymentEmailData)
+        .then(r => r.success
+          ? console.log('✅ Email de pago requerido enviado a:', bookingData.clientEmail)
+          : console.error('❌ Error email pago:', r.error)
+        ).catch(e => console.error('❌ Error email:', e))
+
+      return res.json({
+        success: true,
+        message: `Reserva en espera de pago. El cliente tiene ${holdMinutes} minutos para pagar.`,
+        data: updatedAppointment,
+        paymentMode: 'ONLINE',
+        holdExpiresAt: holdExpiresAt.toISOString(),
+        holdMinutes
+      })
+    }
+  } catch (error) {
+    console.error('Error respondiendo a reserva:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
+    })
+  }
+})
+
+// POST /api/appointments/:id/confirm-payment - Confirmar pago (simula pasarela; futuro: webhook real)
+router.post('/:id/confirm-payment', async (req, res) => {
+  try {
+    const { paymentToken } = req.body
+    const appointmentId = req.params.id
+
+    // Buscar la cita por ID y token
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: appointmentId },
+      include: {
+        service: { select: { name: true, duration: true, price: true } },
+        barber: { select: { name: true } },
+        user: { select: { salonName: true, username: true, email: true, address: true, phone: true, depositAmount: true } }
+      }
+    })
+
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Reserva no encontrada' })
+    }
+
+    // Verificar token
+    if (appointment.paymentToken !== paymentToken) {
+      return res.status(403).json({ success: false, message: 'Token de pago inválido' })
+    }
+
+    // Verificar que esté en ESPERANDO_PAGO
+    if (appointment.status !== 'ESPERANDO_PAGO') {
+      const msg = appointment.status === 'EXPIRADA'
+        ? 'Esta reserva ha expirado. El tiempo para pagar ha finalizado.'
+        : 'Esta reserva ya no está en espera de pago. Estado: ' + appointment.status
+      return res.status(400).json({ success: false, message: msg })
+    }
+
+    // Verificar que no haya expirado
+    if (appointment.holdExpiresAt && new Date() > new Date(appointment.holdExpiresAt)) {
+      // Expirar la cita
+      const expireData = { status: 'EXPIRADA', holdExpiresAt: null, paymentToken: null }
+      if (appointment.groupId) {
+        await prisma.appointment.updateMany({ where: { groupId: appointment.groupId }, data: expireData })
+      } else {
+        await prisma.appointment.update({ where: { id: appointmentId }, data: expireData })
+      }
+      return res.status(410).json({
+        success: false,
+        message: 'El tiempo para pagar ha expirado. La reserva fue liberada.'
+      })
+    }
+
+    // ¡Pago exitoso! Confirmar la cita
+    const confirmData = {
+      status: 'CONFIRMADA',
+      paymentStatus: 'COMPLETO',
+      paidAmount: appointment.totalAmount,
+      holdExpiresAt: null,
+      paymentToken: null
+    }
+
+    if (appointment.groupId) {
+      await prisma.appointment.updateMany({ where: { groupId: appointment.groupId }, data: confirmData })
+    }
+
+    const confirmed = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: confirmData,
+      include: { service: { select: { name: true, duration: true, price: true, category: true } } }
+    })
+
+    // Enviar email de confirmación
+    const owner = appointment.user
+    let allServices = [appointment.service]
+    let totalDuration = appointment.service?.duration || 0
+
+    if (appointment.groupId) {
+      const groupAppts = await prisma.appointment.findMany({
+        where: { groupId: appointment.groupId },
+        include: { service: { select: { name: true, duration: true, price: true } } },
+        orderBy: { time: 'asc' }
+      })
+      allServices = groupAppts.map(a => a.service).filter(Boolean)
+      totalDuration = allServices.reduce((sum, s) => sum + (s.duration || 0), 0)
+    }
+
+    const serviceName = allServices.length > 1
+      ? allServices.map(s => s.name).join(' + ')
+      : (appointment.service?.name || 'Servicio')
+
+    emailService.sendBookingConfirmation({
+      clientName: appointment.clientName,
+      clientEmail: appointment.clientEmail,
+      salonName: owner.salonName || owner.username,
+      serviceName,
+      services: allServices,
+      totalDuration,
+      barberName: appointment.barber?.name || null,
+      date: format(appointment.date, 'PPP', { locale: es }),
+      time: appointment.time,
+      price: appointment.totalAmount,
+      depositAmount: owner.depositAmount ?? 0,
+      salonAddress: owner.address || 'Dirección no especificada',
+      salonPhone: owner.phone || 'Teléfono no especificado',
+      bookingId: appointment.id.toString()
+    }).catch(e => console.error('Error email confirmación post-pago:', e))
+
+    console.log('✅ Pago confirmado para cita:', appointmentId)
+
+    res.json({
+      success: true,
+      message: '¡Pago confirmado! Tu reserva está asegurada.',
+      data: confirmed
+    })
+  } catch (error) {
+    console.error('Error confirmando pago:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

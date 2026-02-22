@@ -24,6 +24,7 @@ model User {
   requiresDeposit    Boolean  @default(false)  // Depósito para confirmar reserva (aplica a todos los servicios)
   depositAmount      Float    @default(0)     // Monto del depósito para reservar
   onboardingCompleted Boolean @default(false) // Si el wizard de configuración inicial se completó
+  holdDurationMinutes Int     @default(15)    // Minutos que dura la reserva temporal al solicitar pago online
   createdAt          DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -81,6 +82,8 @@ model Appointment {
   cancelledAt   DateTime?
   cancelReason  String?
   groupId       String?           // Vincula citas de reserva multi-servicio
+  holdExpiresAt DateTime?         // Cuándo expira el hold temporal (para pago online)
+  paymentToken  String?           // Token único para link de pago
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -208,10 +211,12 @@ enum ServiceCategory {
 
 enum AppointmentStatus {
   PENDIENTE
+  ESPERANDO_PAGO
   CONFIRMADA
   COMPLETADA
   CANCELADA
   NO_ASISTIO
+  EXPIRADA
 }
 
 enum PaymentStatus {
@@ -227,6 +232,7 @@ enum PaymentMethod {
   TRANSFERENCIA
   STRIPE
   PAYPAL
+  PASARELA
 }
 
 enum ImageCategory {

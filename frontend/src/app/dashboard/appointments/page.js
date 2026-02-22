@@ -368,8 +368,58 @@ const AppointmentsPage = () => {
         return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200'
       case 'NO_ASISTIO':
         return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+      case 'ESPERANDO_PAGO':
+        return 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200'
+      case 'EXPIRADA':
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 line-through'
       default:
         return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+    }
+  }
+
+  const handleGetStatusLabel = (status) => {
+    switch (status) {
+      case 'CONFIRMADA': return 'Confirmada'
+      case 'PENDIENTE': return 'Pendiente'
+      case 'COMPLETADA': return 'Completada'
+      case 'CANCELADA': return 'Cancelada'
+      case 'NO_ASISTIO': return 'No asistió'
+      case 'ESPERANDO_PAGO': return '⏳ Esperando Pago'
+      case 'EXPIRADA': return 'Expirada'
+      default: return status
+    }
+  }
+
+  // Responder a una reserva: pago en persona o pago online
+  const handleRespondToBooking = async (appointmentId, paymentMode) => {
+    try {
+      const response = await api.put(`/appointments/${appointmentId}/respond`, { paymentMode })
+      if (response.success) {
+        const newStatus = paymentMode === 'IN_PERSON' ? 'CONFIRMADA' : 'ESPERANDO_PAGO'
+        setAppointments(prev => prev.map(appointment => {
+          const matchesId = (appointment.id === appointmentId || appointment._id === appointmentId)
+          // También actualizar citas del mismo grupo
+          const matchesGroup = appointment.groupId && response.data?.groupId && appointment.groupId === response.data.groupId
+          if (matchesId || matchesGroup) {
+            return { 
+              ...appointment, 
+              status: newStatus,
+              holdExpiresAt: response.data?.holdExpiresAt || null
+            }
+          }
+          return appointment
+        }))
+        if (paymentMode === 'IN_PERSON') {
+          alert('✅ Cita confirmada. El cliente pagará al llegar.')
+        } else {
+          alert(`⏳ Se ha reservado el horario temporalmente. El cliente tiene ${response.data?.holdMinutes || 15} minutos para pagar.`)
+        }
+      } else {
+        alert('Error al responder a la reserva: ' + (response.error || ''))
+      }
+    } catch (error) {
+      console.error('Error respondiendo a reserva:', error)
+      alert('Error interno del servidor')
     }
   }
 
@@ -432,8 +482,10 @@ const AppointmentsPage = () => {
                 <option value="">Todos los estados</option>
                 <option value="PENDIENTE">Pendiente</option>
                 <option value="CONFIRMADA">Confirmada</option>
+                <option value="ESPERANDO_PAGO">⏳ Esperando Pago</option>
                 <option value="COMPLETADA">Completada</option>
                 <option value="CANCELADA">Cancelada</option>
+                <option value="EXPIRADA">Expirada</option>
                 <option value="NO_ASISTIO">No asistió</option>
               </select>
             </div>
@@ -578,8 +630,13 @@ const AppointmentsPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${handleGetStatusColor(appointment.status)}`}>
-                          {appointment.status}
+                          {handleGetStatusLabel(appointment.status)}
                         </span>
+                        {appointment.status === 'ESPERANDO_PAGO' && appointment.holdExpiresAt && (
+                          <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                            Expira: {new Date(appointment.holdExpiresAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         ${appointment.totalAmount}
@@ -587,16 +644,30 @@ const AppointmentsPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           {appointment.status === 'PENDIENTE' && (
+                            <div className="flex flex-col gap-1">
+                              <button
+                                onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'IN_PERSON')}
+                                className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 text-xs font-medium"
+                                title="Confirmar cita - el cliente paga al llegar"
+                              >
+                                ✅ Pago en persona
+                              </button>
+                              <button
+                                onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'ONLINE')}
+                                className="text-orange-600 dark:text-orange-400 hover:text-orange-900 dark:hover:text-orange-300 text-xs font-medium"
+                                title="Requiere pago online - se reserva temporalmente"
+                              >
+                                💳 Pago online
+                              </button>
+                            </div>
+                          )}
+                          {appointment.status === 'ESPERANDO_PAGO' && (
                             <button
-                              onClick={() => {
-                                console.log('🔘 Botón Confirmar clickeado - appointment:', appointment)
-                                console.log('🔘 appointment.id:', appointment.id)
-                                console.log('🔘 appointment._id:', appointment._id)
-                                handleUpdateStatus(appointment.id || appointment._id, 'CONFIRMADA')
-                              }}
-                              className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 text-xs"
+                              onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'CONFIRMADA')}
+                              className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 text-xs font-medium"
+                              title="Confirmar manualmente sin esperar pago online"
                             >
-                              Confirmar
+                              Confirmar manual
                             </button>
                           )}
                           {appointment.status === 'CONFIRMADA' && (
@@ -812,12 +883,15 @@ const AppointmentsPage = () => {
                       >
                         <option value="PENDIENTE">Pendiente</option>
                         <option value="CONFIRMADA">Confirmada</option>
+                        <option value="ESPERANDO_PAGO">⏳ Esperando Pago</option>
                         <option value="COMPLETADA">Completada</option>
                         <option value="CANCELADA">Cancelada</option>
+                        <option value="EXPIRADA">Expirada</option>
                         <option value="NO_ASISTIO">No asistió</option>
                       </select>
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         {formData.status === 'CANCELADA' && '⚠️ Se enviará email de cancelación al cliente'}
+                        {formData.status === 'ESPERANDO_PAGO' && '⏳ El cliente debe pagar para confirmar'}
                       </p>
                     </div>
                   )}

@@ -21,6 +21,7 @@ const barbersRoutes = require('./routes/barbers')
 
 // Importar servicios
 const queueService = require('./services/queueService')
+const holdCleanupService = require('./services/holdCleanupService')
 
 const app = express()
 
@@ -103,6 +104,7 @@ checkConnection()
 .then((isConnected) => {
   if (isConnected) {
     queueService.initialize()
+    holdCleanupService.start()
   } else {
     console.error('❌ No se pudo conectar a PostgreSQL')
   }
