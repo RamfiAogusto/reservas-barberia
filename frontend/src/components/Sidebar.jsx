@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import {
   LayoutDashboard, Scissors, Calendar, Clock, Image, Users,
-  Settings, ExternalLink, LogOut, Menu, ChevronLeft, Copy,
+  Settings, ExternalLink, LogOut, Menu, ChevronLeft, Copy, BookOpen,
 } from 'lucide-react'
 
 const navigation = [
@@ -21,6 +21,7 @@ const navigation = [
   { name: 'Galería', href: '/dashboard/gallery', icon: Image },
   { name: 'Barberos', href: '/dashboard/barbers', icon: Users },
   { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
+  { name: 'Guía', href: '/dashboard/guide', icon: BookOpen },
 ]
 
 export default function Sidebar({ user, onLogout }) {
