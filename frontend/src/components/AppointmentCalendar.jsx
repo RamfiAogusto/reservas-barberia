@@ -61,19 +61,58 @@ function timeToDecimal(time) {
   return h + (m || 0) / 60
 }
 
-// Compute side-by-side columns for overlapping appointments in a single hour cell
-function computeColumns(appts) {
-  if (appts.length <= 1) return appts.map(a => ({ ...a, _col: 0, _totalCols: 1 }))
-  const sorted = [...appts].sort((a, b) =>
-    (a.time || '').localeCompare(b.time || '') || (a.barber?.id || '').localeCompare(b.barber?.id || '')
+function computeOverlapColumns(appointments) {
+  if (appointments.length === 0) return []
+
+  const sorted = [...appointments].sort((a, b) =>
+    timeToDecimal(a.time) - timeToDecimal(b.time)
   )
-  const barberIds = [...new Set(sorted.map(a => a.barber?.id || 'none'))]
-  const totalCols = barberIds.length
-  return sorted.map(a => ({
-    ...a,
-    _col: barberIds.indexOf(a.barber?.id || 'none'),
-    _totalCols: totalCols,
-  }))
+
+  const withRange = sorted.map(apt => {
+    const start = timeToDecimal(apt.time)
+    const duration = (apt.service?.duration || apt.totalDuration || 30) / 60
+    return { ...apt, _start: start, _end: start + duration, _col: 0, _totalCols: 1 }
+  })
+
+  const groups = []
+  let currentGroup = [withRange[0]]
+  let groupEnd = withRange[0]._end
+
+  for (let i = 1; i < withRange.length; i++) {
+    if (withRange[i]._start < groupEnd) {
+      currentGroup.push(withRange[i])
+      groupEnd = Math.max(groupEnd, withRange[i]._end)
+    } else {
+      groups.push(currentGroup)
+      currentGroup = [withRange[i]]
+      groupEnd = withRange[i]._end
+    }
+  }
+  groups.push(currentGroup)
+
+  groups.forEach(group => {
+    const columns = []
+    group.forEach(apt => {
+      let placed = false
+      for (let col = 0; col < columns.length; col++) {
+        const lastInCol = columns[col][columns[col].length - 1]
+        if (lastInCol._end <= apt._start) {
+          columns[col].push(apt)
+          apt._col = col
+          placed = true
+          break
+        }
+      }
+      if (!placed) {
+        apt._col = columns.length
+        columns.push([apt])
+      }
+    })
+    const totalCols = columns.length
+    group.forEach(apt => { apt._totalCols = totalCols })
+  })
+
+  return withRange
 }
 
 // ────────────────────────────────────────────────
@@ -353,6 +392,19 @@ function MonthView({ days, currentDate, selectedDate, appointmentsByDate, barber
 // ─────────────────────────────────────
 function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDayClick, onSelectAppointment }) {
   const hasMultipleBarbers = Object.keys(barberColorMap).length > 1
+  const ROW_HEIGHT = 52
+  const FIRST_HOUR = HOUR_SLOTS[0]
+  const totalHeight = HOUR_SLOTS.length * ROW_HEIGHT
+
+  const dayPositioned = useMemo(() => {
+    const result = {}
+    days.forEach(day => {
+      const dateStr = format(day, 'yyyy-MM-dd')
+      const dayAppts = appointmentsByDate[dateStr] || []
+      result[dateStr] = computeOverlapColumns(dayAppts)
+    })
+    return result
+  }, [days, appointmentsByDate])
 
   return (
     <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
@@ -383,90 +435,98 @@ function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDa
           })}
         </div>
 
-        {/* Time grid */}
-        <div className="relative">
-          {HOUR_SLOTS.map(hour => (
-            <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-100 dark:border-gray-800">
+        {/* Time grid with appointment overlay */}
+        <div className="relative" style={{ height: totalHeight }}>
+          {/* Hour grid lines (background) */}
+          {HOUR_SLOTS.map((hour, idx) => (
+            <div
+              key={hour}
+              className="absolute w-full grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-100 dark:border-gray-800"
+              style={{ top: idx * ROW_HEIGHT, height: ROW_HEIGHT }}
+            >
               <div className="border-r border-gray-200 dark:border-gray-700 text-right pr-2 py-1">
                 <span className="text-[11px] text-gray-400 dark:text-gray-500 -mt-2 block">
                   {formatTime12h(`${hour.toString().padStart(2, '0')}:00`)}
                 </span>
               </div>
-              {days.map(day => {
-                const dateStr = format(day, 'yyyy-MM-dd')
-                const dayAppts = appointmentsByDate[dateStr] || []
-                const hourAppts = dayAppts.filter(apt => Math.floor(timeToDecimal(apt.time)) === hour)
-                const positioned = computeColumns(hourAppts)
-
-                return (
-                  <div key={`${dateStr}-${hour}`}
-                    className="border-r border-gray-100 dark:border-gray-800 last:border-r-0 min-h-[52px] relative">
-                    {positioned.map(apt => {
-                      const stCfg = getStatusConfig(apt.status)
-                      const bColor = apt.barber?.id ? barberColorMap[apt.barber.id] : null
-                      const duration = apt.service?.duration || apt.totalDuration || 30
-                      const heightSlots = Math.max(duration / 60, 0.4)
-                      const minuteOffset = timeToDecimal(apt.time) - hour
-
-                      // Column positioning for overlapping appointments
-                      const colWidth = 100 / apt._totalCols
-                      const leftPct = apt._col * colWidth
-                      const isOverlap = apt._totalCols > 1
-
-                      return (
-                        <button key={apt.id}
-                          onClick={() => onSelectAppointment?.(apt)}
-                          title={`${apt.clientName} — ${apt.barber?.name || 'Sin barbero'} — ${apt.service?.name || 'Servicio'}`}
-                          className={cn(
-                            'absolute rounded-md text-left transition-all overflow-hidden z-[1]',
-                            'hover:ring-2 hover:ring-primary-400 dark:hover:ring-primary-500 hover:z-10',
-                            bColor
-                              ? cn(bColor.bg, 'border', bColor.border)
-                              : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
-                            (apt.status === 'CANCELADA' || apt.status === 'EXPIRADA') && 'opacity-40',
-                          )}
-                          style={{
-                            top: `${minuteOffset * 100}%`,
-                            left: `${leftPct}%`,
-                            width: `${colWidth}%`,
-                            minHeight: `${Math.max(heightSlots * 52, 28)}px`,
-                            height: `${heightSlots * 52}px`,
-                            padding: isOverlap ? '2px 3px' : '2px 4px',
-                          }}>
-                          {/* Left status stripe */}
-                          <div className={cn('absolute left-0 top-0 bottom-0 w-1 rounded-l-md', stCfg.color)} />
-                          {/* Content */}
-                          <div className="pl-2 flex flex-col justify-start h-full min-w-0">
-                            <div className="flex items-center gap-1 min-w-0">
-                              {hasMultipleBarbers && bColor && (
-                                <span className={cn(
-                                  'flex-shrink-0 w-4 h-4 rounded text-[8px] font-bold text-white flex items-center justify-center leading-none',
-                                  bColor.stripe
-                                )}>
-                                  {getBarberInitials(apt.barber?.name)}
-                                </span>
-                              )}
-                              <p className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
-                                {apt.clientName}
-                              </p>
-                            </div>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate leading-tight">
-                              {formatTime12h(apt.time)}{!isOverlap && ` · ${apt.service?.name || 'Servicio'}`}
-                            </p>
-                            {!isOverlap && hasMultipleBarbers && apt.barber?.name && (
-                              <p className="text-[9px] text-gray-400 dark:text-gray-500 truncate leading-tight">
-                                {apt.barber.name}
-                              </p>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )
-              })}
+              {days.map(day => (
+                <div
+                  key={`${format(day, 'yyyy-MM-dd')}-${hour}`}
+                  className="border-r border-gray-100 dark:border-gray-800 last:border-r-0"
+                />
+              ))}
             </div>
           ))}
+
+          {/* Appointment overlay */}
+          <div className="absolute inset-0 grid grid-cols-[60px_repeat(7,1fr)] pointer-events-none">
+            <div />
+            {days.map(day => {
+              const dateStr = format(day, 'yyyy-MM-dd')
+              const positioned = dayPositioned[dateStr] || []
+
+              return (
+                <div key={dateStr} className="relative pointer-events-auto">
+                  {positioned.map(apt => {
+                    const stCfg = getStatusConfig(apt.status)
+                    const bColor = apt.barber?.id ? barberColorMap[apt.barber.id] : null
+                    const duration = apt.service?.duration || apt.totalDuration || 30
+                    const topPx = (apt._start - FIRST_HOUR) * ROW_HEIGHT
+                    const heightPx = Math.max((duration / 60) * ROW_HEIGHT, 24)
+                    const colWidth = 100 / apt._totalCols
+                    const leftPct = apt._col * colWidth
+                    const isOverlap = apt._totalCols > 1
+
+                    return (
+                      <button key={apt.id}
+                        onClick={() => onSelectAppointment?.(apt)}
+                        title={`${apt.clientName} — ${apt.barber?.name || 'Sin barbero'} — ${apt.service?.name || 'Servicio'}`}
+                        className={cn(
+                          'absolute rounded-md text-left transition-all overflow-hidden z-[1]',
+                          'hover:ring-2 hover:ring-primary-400 dark:hover:ring-primary-500 hover:z-10',
+                          bColor
+                            ? cn(bColor.bg, 'border', bColor.border)
+                            : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
+                          (apt.status === 'CANCELADA' || apt.status === 'EXPIRADA') && 'opacity-40',
+                        )}
+                        style={{
+                          top: `${topPx}px`,
+                          height: `${heightPx}px`,
+                          left: `${leftPct}%`,
+                          width: `${colWidth}%`,
+                          padding: isOverlap ? '2px 3px' : '2px 4px',
+                        }}>
+                        <div className={cn('absolute left-0 top-0 bottom-0 w-1 rounded-l-md', stCfg.color)} />
+                        <div className="pl-2 flex flex-col justify-start h-full min-w-0">
+                          <div className="flex items-center gap-1 min-w-0">
+                            {hasMultipleBarbers && bColor && (
+                              <span className={cn(
+                                'flex-shrink-0 w-4 h-4 rounded text-[8px] font-bold text-white flex items-center justify-center leading-none',
+                                bColor.stripe
+                              )}>
+                                {getBarberInitials(apt.barber?.name)}
+                              </span>
+                            )}
+                            <p className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
+                              {apt.clientName}
+                            </p>
+                          </div>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate leading-tight">
+                            {formatTime12h(apt.time)}{!isOverlap && ` · ${apt.service?.name || 'Servicio'}`}
+                          </p>
+                          {!isOverlap && hasMultipleBarbers && apt.barber?.name && (
+                            <p className="text-[9px] text-gray-400 dark:text-gray-500 truncate leading-tight">
+                              {apt.barber.name}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -481,14 +541,12 @@ function DayView({ date, appointmentsByDate, barberColorMap, barberLegend, onSel
   const dateStr = format(date, 'yyyy-MM-dd')
   const dayAppts = appointmentsByDate[dateStr] || []
 
-  // If no barbers known, fallback to a single unnamed column
   const barbers = barberLegend.length > 0
     ? barberLegend
     : [{ id: '_all', name: 'Citas', color: BARBER_COLORS[0] }]
 
   const barberCount = barbers.length
 
-  // Group appointments by barberId
   const apptsByBarber = useMemo(() => {
     const map = {}
     barbers.forEach(b => { map[b.id] = [] })
@@ -500,12 +558,21 @@ function DayView({ date, appointmentsByDate, barberColorMap, barberLegend, onSel
     return map
   }, [dayAppts, barbers])
 
+  const positionedByBarber = useMemo(() => {
+    const result = {}
+    barbers.forEach(b => {
+      result[b.id] = computeOverlapColumns(apptsByBarber[b.id] || [])
+    })
+    return result
+  }, [apptsByBarber, barbers])
+
   const ROW_H = 64
+  const FIRST_HOUR = HOUR_SLOTS[0]
+  const totalHeight = HOUR_SLOTS.length * ROW_H
 
   return (
     <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
       <div className="min-w-[400px]">
-        {/* ─ Barber column headers ─ */}
         <div
           className="grid sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700"
           style={{ gridTemplateColumns: `60px repeat(${barberCount}, 1fr)` }}
@@ -531,70 +598,82 @@ function DayView({ date, appointmentsByDate, barberColorMap, barberLegend, onSel
           })}
         </div>
 
-        {/* ─ Time grid ─ */}
-        <div className="relative">
-          {HOUR_SLOTS.map(hour => (
-            <div key={hour}
-              className="grid border-b border-gray-100 dark:border-gray-800"
-              style={{ gridTemplateColumns: `60px repeat(${barberCount}, 1fr)` }}
+        <div className="relative" style={{ height: totalHeight }}>
+          {/* Hour grid lines */}
+          {HOUR_SLOTS.map((hour, idx) => (
+            <div
+              key={hour}
+              className="absolute w-full grid border-b border-gray-100 dark:border-gray-800"
+              style={{ top: idx * ROW_H, height: ROW_H, gridTemplateColumns: `60px repeat(${barberCount}, 1fr)` }}
             >
               <div className="border-r border-gray-200 dark:border-gray-700 text-right pr-2 py-1">
                 <span className="text-[11px] text-gray-400 dark:text-gray-500 -mt-2 block">
                   {formatTime12h(`${hour.toString().padStart(2, '0')}:00`)}
                 </span>
               </div>
-              {barbers.map(b => {
-                const barberAppts = (apptsByBarber[b.id] || []).filter(
-                  apt => Math.floor(timeToDecimal(apt.time)) === hour
-                )
-                return (
-                  <div key={`${b.id}-${hour}`}
-                    className="border-r border-gray-100 dark:border-gray-800 last:border-r-0 relative"
-                    style={{ minHeight: `${ROW_H}px` }}>
-                    {barberAppts.map(apt => {
-                      const stCfg = getStatusConfig(apt.status)
-                      const bColor = barberColorMap[apt.barber?.id] || BARBER_COLORS[0]
-                      const duration = apt.service?.duration || apt.totalDuration || 30
-                      const heightSlots = Math.max(duration / 60, 0.4)
-                      const minuteOffset = timeToDecimal(apt.time) - hour
-
-                      return (
-                        <button key={apt.id}
-                          onClick={() => onSelectAppointment?.(apt)}
-                          title={`${apt.clientName} — ${apt.service?.name || 'Servicio'}`}
-                          className={cn(
-                            'absolute left-1 right-1 rounded-lg text-left transition-all overflow-hidden z-[1]',
-                            'hover:ring-2 hover:ring-primary-400 dark:hover:ring-primary-500 hover:z-10',
-                            bColor.bg, 'border', bColor.border,
-                            (apt.status === 'CANCELADA' || apt.status === 'EXPIRADA') && 'opacity-40',
-                          )}
-                          style={{
-                            top: `${minuteOffset * 100}%`,
-                            minHeight: `${Math.max(heightSlots * ROW_H, 32)}px`,
-                            height: `${heightSlots * ROW_H}px`,
-                          }}>
-                          <div className={cn('absolute left-0 top-0 bottom-0 w-1.5 rounded-l-lg', stCfg.color)} />
-                          <div className="pl-3 pr-2 py-1 flex flex-col justify-start h-full min-w-0">
-                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
-                              {apt.clientName}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
-                              {formatTime12h(apt.time)} · {apt.service?.name || 'Servicio'}
-                            </p>
-                            {duration >= 45 && (
-                              <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate leading-tight mt-0.5">
-                                {stCfg.label} · {duration} min
-                              </p>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )
-              })}
+              {barbers.map(b => (
+                <div key={`${b.id}-${hour}`} className="border-r border-gray-100 dark:border-gray-800 last:border-r-0" />
+              ))}
             </div>
           ))}
+
+          {/* Appointment overlay */}
+          <div
+            className="absolute inset-0 grid pointer-events-none"
+            style={{ gridTemplateColumns: `60px repeat(${barberCount}, 1fr)` }}
+          >
+            <div />
+            {barbers.map(b => {
+              const positioned = positionedByBarber[b.id] || []
+              const bColor = barberColorMap[b.id] || BARBER_COLORS[0]
+
+              return (
+                <div key={b.id} className="relative pointer-events-auto">
+                  {positioned.map(apt => {
+                    const stCfg = getStatusConfig(apt.status)
+                    const duration = apt.service?.duration || apt.totalDuration || 30
+                    const topPx = (apt._start - FIRST_HOUR) * ROW_H
+                    const heightPx = Math.max((duration / 60) * ROW_H, 28)
+                    const colWidth = 100 / apt._totalCols
+                    const leftPct = apt._col * colWidth
+
+                    return (
+                      <button key={apt.id}
+                        onClick={() => onSelectAppointment?.(apt)}
+                        title={`${apt.clientName} — ${apt.service?.name || 'Servicio'}`}
+                        className={cn(
+                          'absolute rounded-lg text-left transition-all overflow-hidden z-[1]',
+                          'hover:ring-2 hover:ring-primary-400 dark:hover:ring-primary-500 hover:z-10',
+                          bColor.bg, 'border', bColor.border,
+                          (apt.status === 'CANCELADA' || apt.status === 'EXPIRADA') && 'opacity-40',
+                        )}
+                        style={{
+                          top: `${topPx}px`,
+                          height: `${heightPx}px`,
+                          left: `calc(${leftPct}% + 2px)`,
+                          width: `calc(${colWidth}% - 4px)`,
+                        }}>
+                        <div className={cn('absolute left-0 top-0 bottom-0 w-1.5 rounded-l-lg', stCfg.color)} />
+                        <div className="pl-3 pr-2 py-1 flex flex-col justify-start h-full min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
+                            {apt.clientName}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
+                            {formatTime12h(apt.time)} · {apt.service?.name || 'Servicio'}
+                          </p>
+                          {duration >= 45 && (
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate leading-tight mt-0.5">
+                              {stCfg.label} · {duration} min
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
