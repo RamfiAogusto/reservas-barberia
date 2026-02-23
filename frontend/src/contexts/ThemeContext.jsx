@@ -29,7 +29,7 @@ export const ThemeProvider = ({ children }) => {
     setIsDark(shouldBeDark)
   }, [])
 
-  // Apply dark class on <html> so Tailwind dark: variants work site-wide
+  // Apply dark class on <html> — only while dashboard is mounted
   useEffect(() => {
     if (!mounted) return
     const root = document.documentElement
@@ -39,6 +39,11 @@ export const ThemeProvider = ({ children }) => {
       root.classList.remove('dark')
     }
     localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light')
+
+    // Cleanup: remove dark class when leaving dashboard
+    return () => {
+      root.classList.remove('dark')
+    }
   }, [isDark, mounted])
 
   const toggleTheme = () => setIsDark((prev) => !prev)
