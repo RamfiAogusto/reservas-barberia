@@ -7,7 +7,7 @@ import { formatTime12h } from '@/utils/formatTime'
 import TimeInput12h from '@/components/TimeInput12h'
 import { useSocketEvent } from '@/contexts/SocketContext'
 import { toast } from 'sonner'
-import CalendarView from '@/components/CalendarView'
+import AppointmentCalendar from '@/components/AppointmentCalendar'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -159,9 +159,9 @@ const AppointmentsPage = () => {
 
   const sortedAppointments = useMemo(() => {
     return [...appointments].sort((a, b) => {
-      const dateA = new Date(a.date + 'T' + (a.time || '00:00'))
-      const dateB = new Date(b.date + 'T' + (b.time || '00:00'))
-      return dateB - dateA
+      const createdA = new Date(a.createdAt || a.created_at || 0)
+      const createdB = new Date(b.createdAt || b.created_at || 0)
+      return createdB - createdA
     })
   }, [appointments])
 
@@ -441,12 +441,14 @@ const AppointmentsPage = () => {
 
       {/* Vista de calendario */}
       {viewMode === 'calendar' && (
-        <CalendarView
-          appointments={appointments}
-          onEdit={handleEdit}
-          onUpdateStatus={handleUpdateStatus}
-          onRespondToBooking={handleRespondToBooking}
-        />
+        <Card className="overflow-hidden">
+          <CardContent className="p-4 sm:p-6">
+            <AppointmentCalendar
+              appointments={appointments}
+              onSelectAppointment={handleEdit}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* Vista de lista */}
