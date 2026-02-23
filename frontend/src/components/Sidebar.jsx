@@ -4,20 +4,13 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import {
-  LayoutDashboard,
-  Scissors,
-  Calendar,
-  Clock,
-  Image,
-  Users,
-  Settings,
-  ExternalLink,
-  LogOut,
-  Menu,
-  X,
-  ChevronLeft,
-  Copy,
+  LayoutDashboard, Scissors, Calendar, Clock, Image, Users,
+  Settings, ExternalLink, LogOut, Menu, ChevronLeft, Copy,
 } from 'lucide-react'
 
 const navigation = [
@@ -48,17 +41,49 @@ export default function Sidebar({ user, onLogout }) {
     return pathname.startsWith(href)
   }
 
-  const SidebarContent = () => (
+  const NavItem = ({ item, onClick }) => {
+    const active = isActive(item.href)
+    const linkContent = (
+      <Link
+        href={item.href}
+        onClick={onClick}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+          active
+            ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200",
+          collapsed && "justify-center px-2"
+        )}
+      >
+        <item.icon className={cn("w-5 h-5 flex-shrink-0", active && "text-primary-600 dark:text-primary-400")} />
+        {!collapsed && <span>{item.name}</span>}
+      </Link>
+    )
+
+    if (!collapsed) return linkContent
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {linkContent}
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {item.name}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  const SidebarContent = ({ isMobile = false }) => (
     <div className="flex flex-col h-full">
-      {/* Logo / Salon Name */}
       <div className={cn(
-        "flex items-center gap-3 px-4 py-5 border-b border-gray-200 dark:border-gray-700/50",
-        collapsed && "justify-center px-2"
+        "flex items-center gap-3 px-4 py-5",
+        collapsed && !isMobile && "justify-center px-2"
       )}>
         <div className="w-9 h-9 rounded-lg bg-primary-600 flex items-center justify-center flex-shrink-0">
           <Scissors className="w-5 h-5 text-white" />
         </div>
-        {!collapsed && (
+        {(!collapsed || isMobile) && (
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-bold text-gray-900 dark:text-white truncate">
               {user?.salonName || 'Mi Barbería'}
@@ -70,37 +95,27 @@ export default function Sidebar({ user, onLogout }) {
         )}
       </div>
 
-      {/* Navigation */}
+      <Separator />
+
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navigation.map((item) => {
-          const active = isActive(item.href)
-          return (
-            <Link
+        <TooltipProvider delayDuration={0}>
+          {navigation.map((item) => (
+            <NavItem
               key={item.name}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                active
-                  ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200",
-                collapsed && "justify-center px-2"
-              )}
-              title={collapsed ? item.name : undefined}
-            >
-              <item.icon className={cn("w-5 h-5 flex-shrink-0", active && "text-primary-600 dark:text-primary-400")} />
-              {!collapsed && <span>{item.name}</span>}
-            </Link>
-          )
-        })}
+              item={item}
+              onClick={isMobile ? () => setMobileOpen(false) : undefined}
+            />
+          ))}
+        </TooltipProvider>
       </nav>
 
-      {/* Profile Link + Actions */}
+      <Separator />
+
       <div className={cn(
-        "px-3 py-4 border-t border-gray-200 dark:border-gray-700/50 space-y-2",
-        collapsed && "px-2"
+        "px-3 py-4 space-y-1",
+        collapsed && !isMobile && "px-2"
       )}>
-        {!collapsed && (
+        {(!collapsed || isMobile) && (
           <>
             <Link
               href={`/${user?.username}`}
@@ -113,6 +128,8 @@ export default function Sidebar({ user, onLogout }) {
             <button
               onClick={handleCopyLink}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors w-full text-left"
+              aria-label="Copiar link del perfil"
+              tabIndex={0}
             >
               <Copy className="w-4 h-4" />
               <span>{copied ? '¡Copiado!' : 'Copiar link'}</span>
@@ -123,52 +140,55 @@ export default function Sidebar({ user, onLogout }) {
           onClick={onLogout}
           className={cn(
             "flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors w-full",
-            collapsed && "justify-center px-2"
+            collapsed && !isMobile && "justify-center px-2"
           )}
-          title={collapsed ? "Cerrar sesión" : undefined}
+          title={collapsed && !isMobile ? "Cerrar sesión" : undefined}
+          aria-label="Cerrar sesión"
+          tabIndex={0}
         >
           <LogOut className="w-4 h-4" />
-          {!collapsed && <span>Cerrar sesión</span>}
+          {(!collapsed || isMobile) && <span>Cerrar sesión</span>}
         </button>
       </div>
 
-      {/* Collapse button - desktop only */}
-      <div className="hidden lg:flex px-3 pb-4">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center justify-center w-full py-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        >
-          <ChevronLeft className={cn("w-4 h-4 transition-transform", collapsed && "rotate-180")} />
-        </button>
-      </div>
+      {!isMobile && (
+        <div className="hidden lg:flex px-3 pb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-full"
+            aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          >
+            <ChevronLeft className={cn("w-4 h-4 transition-transform", collapsed && "rotate-180")} />
+          </Button>
+        </div>
+      )}
     </div>
   )
 
   return (
     <>
       {/* Mobile toggle */}
-      <button
+      <Button
+        variant="outline"
+        size="icon"
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700"
+        className="lg:hidden fixed top-4 left-4 z-50"
+        aria-label="Abrir menú"
       >
-        <Menu className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-      </button>
+        <Menu className="w-5 h-5" />
+      </Button>
 
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <div className="fixed inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 shadow-xl z-50">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-            <SidebarContent />
-          </div>
-        </div>
-      )}
+      {/* Mobile Sheet */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="p-0 w-72">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Menú de navegación</SheetTitle>
+          </SheetHeader>
+          <SidebarContent isMobile />
+        </SheetContent>
+      </Sheet>
 
       {/* Desktop sidebar */}
       <aside className={cn(
