@@ -261,7 +261,7 @@ const ServicesPage = () => {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Mis Servicios ({services.length})</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -279,7 +279,7 @@ const ServicesPage = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Visible
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Acciones
                     </th>
                   </tr>
@@ -291,12 +291,12 @@ const ServicesPage = () => {
                         <div>
                           <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{service.name}</div>
                           {service.description && (
-                            <div className="text-sm text-gray-500 max-w-xs truncate">{service.description}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">{service.description}</div>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 capitalize">
                           {service.category}
                         </span>
                       </td>
@@ -308,11 +308,11 @@ const ServicesPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {service.showDuration ? (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200">
                             Sí
                           </span>
                         ) : (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200">
                             No
                           </span>
                         )}

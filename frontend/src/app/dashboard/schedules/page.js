@@ -441,7 +441,7 @@ const SchedulesPage = () => {
             {/* Lista de descansos */}
             <div className="space-y-4 mb-6">
               {breaks.map((breakItem, index) => (
-                <div key={breakItem.id || breakItem._id || `break-${index}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div key={breakItem.id || breakItem._id || `break-${index}`} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100">{breakItem.name}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -529,7 +529,7 @@ const SchedulesPage = () => {
 
                   {breakForm.recurrenceType === 'specific_days' && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Selecciona los días
                       </label>
                       <div className="grid grid-cols-4 gap-2">
@@ -553,7 +553,7 @@ const SchedulesPage = () => {
                               }}
                               className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
                             />
-                            <span className="text-sm">{day}</span>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{day}</span>
                           </label>
                         ))}
                       </div>
@@ -585,7 +585,7 @@ const SchedulesPage = () => {
         {activeTab === 'exceptions' && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">Excepciones y Días Libres</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Excepciones y Días Libres</h2>
               <button
                 onClick={() => setShowExceptionForm(true)}
                       className="bg-blue-600 dark:bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"

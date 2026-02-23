@@ -23,7 +23,7 @@ export function Toaster({ ...props }) {
           title: 'text-sm font-semibold',
           description: 'text-sm opacity-90',
           actionButton: 'bg-blue-600 text-white',
-          cancelButton: 'bg-gray-100 text-gray-800',
+          cancelButton: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
           closeButton: 'left-auto right-2',
         },
       }}

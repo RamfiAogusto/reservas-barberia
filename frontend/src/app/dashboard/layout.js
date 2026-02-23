@@ -3,16 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import ThemeToggle from '@/components/ThemeToggle'
 import Sidebar from '@/components/Sidebar'
 import { useSocket } from '@/contexts/SocketContext'
 import { useRealtimeNotifications } from '@/utils/useRealtimeNotifications'
 import { getUserData, clearAuthData } from '@/utils/api'
-import { cn } from '@/lib/utils'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 
 const DashboardShell = ({ children }) => {
-  const { isDark } = useTheme()
   const router = useRouter()
   const [user, setUser] = useState(null)
 
@@ -27,7 +25,7 @@ const DashboardShell = ({ children }) => {
   }, [router])
 
   return (
-    <div className={cn("min-h-screen bg-gray-50 dark:bg-gray-950", isDark && 'dark')}>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar user={user} onLogout={handleLogout} />
       {/* Main area – offset by sidebar width on desktop */}
       <div className="lg:pl-64 min-h-screen">
@@ -74,12 +72,12 @@ const DashboardRealtime = ({ children }) => {
 
 export default function DashboardLayout({ children }) {
   return (
-    <ProtectedRoute>
-      <ThemeProvider>
+    <ThemeProvider>
+      <ProtectedRoute>
         <DashboardRealtime>
           <DashboardShell>{children}</DashboardShell>
         </DashboardRealtime>
-      </ThemeProvider>
-    </ProtectedRoute>
+      </ProtectedRoute>
+    </ThemeProvider>
   )
 }

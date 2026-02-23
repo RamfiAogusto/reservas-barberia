@@ -82,10 +82,10 @@ const PerfilPublico = () => {
 
   if (isInitialOrLoading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center" role="status" aria-live="polite">
+      <div className="min-h-screen bg-stone-50 dark:bg-gray-950 flex items-center justify-center" role="status" aria-live="polite">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-2 border-amber-600 border-t-transparent mx-auto" aria-hidden="true" />
-          <p className="mt-4 text-stone-600">Cargando perfil del salón...</p>
+          <p className="mt-4 text-stone-600 dark:text-gray-400">Cargando perfil del salón...</p>
         </div>
       </div>
     )
@@ -93,15 +93,15 @@ const PerfilPublico = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-stone-50 dark:bg-gray-950 flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-stone-200 flex items-center justify-center">
-            <svg className="w-8 h-8 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-stone-200 dark:bg-gray-700 flex items-center justify-center">
+            <svg className="w-8 h-8 text-stone-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-semibold text-stone-900 mb-2">Salón no encontrado</h1>
-          <p className="text-stone-600 mb-8">{error}</p>
+          <h1 className="text-2xl font-semibold text-stone-900 dark:text-white mb-2">Salón no encontrado</h1>
+          <p className="text-stone-600 dark:text-gray-400 mb-8">{error}</p>
           <Link
             href="/"
             className="inline-flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
@@ -114,20 +114,20 @@ const PerfilPublico = () => {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-stone-50 dark:bg-gray-950">
       {/* Barra superior minimalista */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-b border-stone-200/80">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-stone-200/80 dark:border-gray-700/80">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link
             href="/"
-            className="text-sm text-stone-500 hover:text-stone-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
+            className="text-sm text-stone-500 dark:text-gray-400 hover:text-stone-700 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded"
             aria-label="Ir al inicio"
           >
             ReservaBarber
           </Link>
           <button
             onClick={handleReservar}
-            className="bg-amber-600 text-white px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+            className="bg-amber-600 text-white px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
           >
             Reservar cita
           </button>
@@ -173,7 +173,7 @@ const PerfilPublico = () => {
             </div>
             <button
               onClick={handleReservar}
-              className="self-start md:self-end w-full md:w-auto bg-amber-500 hover:bg-amber-400 text-stone-900 font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-transparent shadow-lg"
+              className="self-start md:self-end w-full md:w-auto bg-amber-500 hover:bg-amber-400 text-stone-900 dark:text-gray-950 font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-transparent shadow-lg"
             >
               Reservar cita
             </button>
@@ -185,10 +185,10 @@ const PerfilPublico = () => {
       <main className="max-w-6xl mx-auto px-4 py-16 md:py-24">
         {/* Servicios */}
         <section className="mb-24" id="servicios" aria-labelledby="servicios-titulo">
-          <h2 id="servicios-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
+          <h2 id="servicios-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 dark:text-white mb-2">
             Servicios
           </h2>
-          <p className="text-stone-600 mb-12">
+          <p className="text-stone-600 dark:text-gray-400 mb-12">
             Reserva en línea en pocos pasos
           </p>
 
@@ -196,8 +196,8 @@ const PerfilPublico = () => {
             <div className="space-y-14">
               {Object.entries(servicesByCategory).map(([category, services]) => (
                 <div key={category}>
-                  <h3 className="flex items-center gap-3 text-lg font-semibold text-stone-800 mb-6">
-                    <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 text-amber-700">
+                  <h3 className="flex items-center gap-3 text-lg font-semibold text-stone-800 dark:text-gray-100 mb-6">
+                    <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                       {getCategoryIcon(category)}
                     </span>
                     {getCategoryName(category)}
@@ -208,24 +208,24 @@ const PerfilPublico = () => {
                         key={service._id || service.id}
                         type="button"
                         onClick={() => router.push(`/${usuario}/book?service=${service._id || service.id}`)}
-                        className="group text-left w-full bg-white rounded-2xl p-6 border border-stone-200 hover:border-amber-300 hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                        className="group text-left w-full bg-white dark:bg-gray-800 rounded-2xl p-6 border border-stone-200 dark:border-gray-700 hover:border-amber-300 dark:hover:border-amber-600 hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
                       >
                         <div className="flex justify-between items-start gap-4 mb-3">
-                          <h4 className="font-semibold text-stone-900 group-hover:text-amber-700 transition-colors">
+                          <h4 className="font-semibold text-stone-900 dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
                             {service.name}
                           </h4>
-                          <span className="flex-shrink-0 font-bold text-amber-600">
+                          <span className="flex-shrink-0 font-bold text-amber-600 dark:text-amber-400">
                             {formatPrice(service.price)}
                           </span>
                         </div>
                         {service.description && (
-                          <p className="text-stone-600 text-sm mb-4 line-clamp-2">
+                          <p className="text-stone-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
                             {service.description}
                           </p>
                         )}
                         <div className="flex flex-wrap items-center gap-3 text-sm">
                           {service.showDuration !== false && (
-                            <span className="inline-flex items-center gap-1.5 text-stone-500">
+                            <span className="inline-flex items-center gap-1.5 text-stone-500 dark:text-gray-400">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
@@ -233,12 +233,12 @@ const PerfilPublico = () => {
                             </span>
                           )}
                           {salon?.requiresDeposit && salon?.depositAmount > 0 && (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
                               Depósito: {formatPrice(salon.depositAmount)}
                             </span>
                           )}
                         </div>
-                        <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-amber-600 group-hover:gap-3 transition-all">
+                        <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400 group-hover:gap-3 transition-all">
                           Reservar
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -251,14 +251,14 @@ const PerfilPublico = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 bg-white rounded-2xl border border-stone-200">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-stone-100 flex items-center justify-center">
-                <svg className="w-8 h-8 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-stone-200 dark:border-gray-700">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-stone-100 dark:bg-gray-700 flex items-center justify-center">
+                <svg className="w-8 h-8 text-stone-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-stone-900 mb-2">Sin servicios publicados</h3>
-              <p className="text-stone-600">El salón aún no ha agregado sus servicios.</p>
+              <h3 className="text-lg font-semibold text-stone-900 dark:text-white mb-2">Sin servicios publicados</h3>
+              <p className="text-stone-600 dark:text-gray-400">El salón aún no ha agregado sus servicios.</p>
             </div>
           )}
         </section>
@@ -266,19 +266,19 @@ const PerfilPublico = () => {
         {/* Barberos */}
         {salon?.barbers && salon.barbers.length > 0 && (
           <section className="mb-24" id="barberos" aria-labelledby="barberos-titulo">
-            <h2 id="barberos-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
+            <h2 id="barberos-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 dark:text-white mb-2">
               Nuestro equipo
             </h2>
-            <p className="text-stone-600 mb-12">
+            <p className="text-stone-600 dark:text-gray-400 mb-12">
               Conoce a nuestros barberos
             </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {salon.barbers.map((barber) => (
                 <div
                   key={barber.id}
-                  className="bg-white rounded-2xl border border-stone-200 p-6 flex items-center gap-4"
+                  className="bg-white dark:bg-gray-800 rounded-2xl border border-stone-200 dark:border-gray-700 p-6 flex items-center gap-4"
                 >
-                  <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
+                  <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
                     {barber.avatar ? (
                       <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
                     ) : (
@@ -286,9 +286,9 @@ const PerfilPublico = () => {
                     )}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-stone-900">{barber.name}</h3>
+                    <h3 className="font-semibold text-stone-900 dark:text-white">{barber.name}</h3>
                     {barber.specialty && (
-                      <p className="text-sm text-amber-600">{barber.specialty}</p>
+                      <p className="text-sm text-amber-600 dark:text-amber-400">{barber.specialty}</p>
                     )}
                   </div>
                 </div>
@@ -300,10 +300,10 @@ const PerfilPublico = () => {
         {/* Galería destacada */}
         {salon?.gallery && salon.gallery.length > 0 && (
           <section className="mb-24" id="galeria" aria-labelledby="galeria-titulo">
-            <h2 id="galeria-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
+            <h2 id="galeria-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 dark:text-white mb-2">
               Galería
             </h2>
-            <p className="text-stone-600 mb-12">
+            <p className="text-stone-600 dark:text-gray-400 mb-12">
               Conoce nuestras instalaciones
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -330,9 +330,9 @@ const PerfilPublico = () => {
 
         {/* Info y contacto */}
         <section className="mb-24 grid md:grid-cols-2 gap-8">
-          <div className="bg-white rounded-2xl border border-stone-200 p-8">
-            <h2 className="text-xl font-bold text-stone-900 mb-6 flex items-center gap-3">
-              <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-stone-100 text-stone-600">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-stone-200 dark:border-gray-700 p-8">
+            <h2 className="text-xl font-bold text-stone-900 dark:text-white mb-6 flex items-center gap-3">
+              <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-stone-100 dark:bg-gray-700 text-stone-600 dark:text-gray-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -343,17 +343,17 @@ const PerfilPublico = () => {
             <dl className="space-y-4">
               {salon?.address && (
                 <div>
-                  <dt className="text-sm font-medium text-stone-500">Dirección</dt>
-                  <dd className="text-stone-900 mt-0.5">{salon.address}</dd>
+                  <dt className="text-sm font-medium text-stone-500 dark:text-gray-400">Dirección</dt>
+                  <dd className="text-stone-900 dark:text-white mt-0.5">{salon.address}</dd>
                 </div>
               )}
               {salon?.phone && (
                 <div>
-                  <dt className="text-sm font-medium text-stone-500">Teléfono</dt>
+                  <dt className="text-sm font-medium text-stone-500 dark:text-gray-400">Teléfono</dt>
                   <dd>
                     <a
                       href={`tel:${salon.phone}`}
-                      className="text-amber-600 hover:text-amber-700 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
+                      className="text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded"
                     >
                       {salon.phone}
                     </a>
@@ -361,15 +361,15 @@ const PerfilPublico = () => {
                 </div>
               )}
               {(!salon?.address && !salon?.phone) && (
-                <p className="text-stone-500">Información de contacto no disponible</p>
+                <p className="text-stone-500 dark:text-gray-400">Información de contacto no disponible</p>
               )}
             </dl>
           </div>
 
           {salon?.requiresDeposit && salon?.depositAmount > 0 && (
-            <div className="bg-amber-50 rounded-2xl border border-amber-200/60 p-8">
-              <h2 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-3">
-                <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 text-amber-700">
+            <div className="bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-200/60 dark:border-amber-800/60 p-8">
+              <h2 className="text-xl font-bold text-amber-900 dark:text-amber-300 mb-4 flex items-center gap-3">
+                <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -377,18 +377,18 @@ const PerfilPublico = () => {
                 Política de reserva
               </h2>
               <details className="group">
-                <summary className="cursor-pointer list-none flex items-center justify-between text-amber-900 font-medium">
+                <summary className="cursor-pointer list-none flex items-center justify-between text-amber-900 dark:text-amber-300 font-medium">
                   Ver condiciones
                   <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </summary>
-                <div className="mt-4 space-y-3 text-sm text-amber-800">
+                <div className="mt-4 space-y-3 text-sm text-amber-800 dark:text-amber-300">
                   <p>
                     Se requiere depósito de {formatPrice(salon.depositAmount)} para confirmar la reserva. 
                     El importe total del servicio se paga al llegar.
                   </p>
-                  <ul className="list-disc list-inside space-y-1 text-amber-700">
+                  <ul className="list-disc list-inside space-y-1 text-amber-700 dark:text-amber-400">
                     <li>No se reembolsa el depósito si no asistes</li>
                     <li>Cancelar o reprogramar con al menos 24 h de anticipación</li>
                     <li>Recibirás un correo de confirmación</li>
@@ -401,7 +401,7 @@ const PerfilPublico = () => {
 
         {/* Galería completa */}
         <section className="mb-24" id="galeria-completa" aria-labelledby="galeria-completa-titulo">
-          <h2 id="galeria-completa-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
+          <h2 id="galeria-completa-titulo" className="text-2xl md:text-3xl font-bold text-stone-900 dark:text-white mb-2">
             Todas las fotos
           </h2>
           <PublicGallery username={usuario} />
@@ -419,15 +419,15 @@ const PerfilPublico = () => {
       </div>
 
       {/* Footer minimalista */}
-      <footer className="border-t border-stone-200 bg-white py-12 mt-12">
+      <footer className="border-t border-stone-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-12 mt-12">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <p className="text-stone-500 text-sm">
+            <p className="text-stone-500 dark:text-gray-400 text-sm">
               © {new Date().getFullYear()} {salon?.salonName} · ReservaBarber
             </p>
             <Link
               href="/register"
-              className="text-sm text-stone-500 hover:text-amber-600 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
+              className="text-sm text-stone-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded"
             >
               ¿Tienes barbería? Crea tu perfil gratis
             </Link>

@@ -319,10 +319,10 @@ const BookingPage = () => {
 
   if (isInitialOrLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-600 border-t-transparent mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando...</p>
         </div>
       </div>
     )
@@ -330,11 +330,11 @@ const BookingPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center max-w-md px-4">
           <div className="text-6xl mb-4">🚫</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Salón no encontrado</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Salón no encontrado</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <Link
             href="/"
             className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -362,7 +362,7 @@ const BookingPage = () => {
       ]
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-950">
       {/* Toast de éxito */}
       {successMessage && (
         <div
@@ -376,16 +376,16 @@ const BookingPage = () => {
       )}
 
       {/* Header limpio */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+      <header className="bg-white dark:bg-gray-900 border-b border-slate-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <Link
             href={`/${username}`}
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 text-sm mb-4 transition-colors"
+            className="inline-flex items-center gap-2 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white text-sm mb-4 transition-colors"
             aria-label="Volver al perfil del salón"
           >
             <span aria-hidden>←</span> {salon?.salonName}
           </Link>
-          <h1 className="text-xl font-semibold text-slate-900">Reservar cita</h1>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Reservar cita</h1>
 
           {/* Stepper con etiquetas */}
           <nav aria-label="Progreso de la reserva" className="mt-4">
@@ -399,16 +399,16 @@ const BookingPage = () => {
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 transition-colors ${
                       step.num === currentStep
-                        ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
+                        ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 dark:ring-emerald-900'
                         : step.num < currentStep
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-slate-200 text-slate-500'
+                          : 'bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-400'
                     }`}
                   >
                     {step.num < currentStep ? '✓' : step.num}
                   </div>
                   <span className={`mt-1.5 text-xs font-medium truncate w-full text-center hidden sm:block ${
-                    step.num === currentStep ? 'text-emerald-600' : step.num < currentStep ? 'text-slate-600' : 'text-slate-400'
+                    step.num === currentStep ? 'text-emerald-600 dark:text-emerald-400' : step.num < currentStep ? 'text-slate-600 dark:text-gray-400' : 'text-slate-400 dark:text-gray-500'
                   }`}>
                     {step.label}
                   </span>
@@ -422,42 +422,42 @@ const BookingPage = () => {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {(error || bookingError) && (
           <div
-            className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3"
+            className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6 flex items-start gap-3"
             role="alert"
           >
             <span className="text-red-500 text-lg shrink-0">⚠</span>
-            <p className="text-red-800 text-sm">{bookingError || error}</p>
+            <p className="text-red-800 dark:text-red-400 text-sm">{bookingError || error}</p>
           </div>
         )}
 
         {/* Resumen flotante - siempre visible cuando hay selección */}
         {(selectedServices.length > 0 || selectedDate || selectedTime) && currentStep > 1 && (
           <div
-            className="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm"
+            className="bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 p-4 mb-6 shadow-sm"
             aria-label="Resumen de tu selección"
           >
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Tu selección</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide mb-2">Tu selección</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
               {selectedServices.length > 0 && (
-                <span className="text-slate-700">
+                <span className="text-slate-700 dark:text-gray-300">
                   <strong>{selectedServices.map(s => s.name).join(' + ')}</strong> · {formatPrice(totalPrice)}
                   {selectedServices.length > 1 && (
-                    <span className="text-slate-400 ml-1">({totalDuration} min total)</span>
+                    <span className="text-slate-400 dark:text-gray-500 ml-1">({totalDuration} min total)</span>
                   )}
                 </span>
               )}
               {selectedBarber && (
-                <span className="text-slate-600">
+                <span className="text-slate-600 dark:text-gray-400">
                   ✂️ {isAnyBarberMode ? 'Cualquier barbero' : selectedBarber.name}
                 </span>
               )}
               {selectedDate && (
-                <span className="text-slate-600">
+                <span className="text-slate-600 dark:text-gray-400">
                   📅 {formatDate(selectedDate)}
                 </span>
               )}
               {selectedTime && (
-                <span className="text-slate-600">
+                <span className="text-slate-600 dark:text-gray-400">
                   🕐 {formatTime12h(selectedTime)}
                 </span>
               )}
@@ -465,7 +465,7 @@ const BookingPage = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
-              className="mt-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+              className="mt-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 text-sm font-medium"
               aria-label="Modificar selección"
             >
               Cambiar reserva
@@ -476,13 +476,13 @@ const BookingPage = () => {
         {/* Paso 1: Seleccionar Servicio(s) */}
         {currentStep === STEPS.SERVICE && (
           <section
-            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-200 dark:border-gray-700 p-6 sm:p-8"
             aria-labelledby="step1-title"
           >
-            <h2 id="step1-title" className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 id="step1-title" className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
               ¿Qué servicio(s) deseas?
             </h2>
-            <p className="text-slate-500 text-sm mb-6">Puedes seleccionar uno o varios servicios para la misma cita</p>
+            <p className="text-slate-500 dark:text-gray-400 text-sm mb-6">Puedes seleccionar uno o varios servicios para la misma cita</p>
             
             <div className="grid gap-3 sm:grid-cols-2">
               {salon?.services?.map((service) => {
@@ -493,28 +493,28 @@ const BookingPage = () => {
                     key={sid}
                     type="button"
                     onClick={() => handleToggleService(service)}
-                    className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                    className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:ring-offset-gray-800 ${
                       isSelected
-                        ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 shadow-sm'
+                        : 'border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800 hover:bg-slate-50 dark:hover:bg-gray-700/50'
                     }`}
                     aria-pressed={isSelected}
                     aria-label={`${isSelected ? 'Quitar' : 'Agregar'} ${service.name}, ${formatPrice(service.price)}`}
                   >
                     <div className="flex justify-between items-start gap-3">
-                      <h3 className="font-semibold text-slate-900">{service.name}</h3>
-                      <span className={`font-bold shrink-0 ${isSelected ? 'text-emerald-600' : 'text-slate-700'}`}>
+                      <h3 className="font-semibold text-slate-900 dark:text-white">{service.name}</h3>
+                      <span className={`font-bold shrink-0 ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-gray-300'}`}>
                         {formatPrice(service.price)}
                       </span>
                     </div>
                     {service.description && (
-                      <p className="text-slate-500 text-sm mt-1 line-clamp-2">{service.description}</p>
+                      <p className="text-slate-500 dark:text-gray-400 text-sm mt-1 line-clamp-2">{service.description}</p>
                     )}
-                    <div className="flex items-center justify-between mt-3 text-xs text-slate-400">
+                    <div className="flex items-center justify-between mt-3 text-xs text-slate-400 dark:text-gray-500">
                       {service.showDuration !== false && (
                         <span>⏱ {service.duration} min</span>
                       )}
-                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full capitalize">
+                      <span className="bg-slate-100 dark:bg-gray-800 dark:bg-gray-700 text-slate-600 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">
                         {service.category}
                       </span>
                     </div>
@@ -526,7 +526,7 @@ const BookingPage = () => {
                       </p>
                     )}
                     {isSelected && (
-                      <div className="mt-3 flex items-center gap-1.5 text-emerald-600 text-sm font-medium">
+                      <div className="mt-3 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
                         <span>✓</span> Seleccionado
                       </div>
                     )}
@@ -537,18 +537,18 @@ const BookingPage = () => {
 
             {/* Resumen de selección y botón continuar */}
             {selectedServices.length > 0 && (
-              <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
                 <div className="flex flex-wrap gap-2 mb-3">
                   {selectedServices.map(s => (
                     <span
                       key={s._id || s.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-emerald-200 text-sm font-medium text-slate-700 shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800 text-sm font-medium text-slate-700 dark:text-gray-300 shadow-sm"
                     >
                       {s.name}
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleToggleService(s) }}
-                        className="text-slate-400 hover:text-red-500 ml-1"
+                        className="text-slate-400 dark:text-gray-500 hover:text-red-500 ml-1"
                         aria-label={`Quitar ${s.name}`}
                       >
                         ✕
@@ -557,10 +557,10 @@ const BookingPage = () => {
                   ))}
                 </div>
                 <div className="flex items-center justify-between text-sm mb-3">
-                  <span className="text-slate-600">
+                  <span className="text-slate-600 dark:text-gray-400">
                     {selectedServices.length} servicio{selectedServices.length > 1 ? 's' : ''} · {totalDuration} min
                   </span>
-                  <span className="font-bold text-emerald-700 text-base">{formatPrice(totalPrice)}</span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400 text-base">{formatPrice(totalPrice)}</span>
                 </div>
                 <button
                   type="button"
@@ -577,37 +577,37 @@ const BookingPage = () => {
         {/* Paso Barbero: Seleccionar Barbero (solo si hay barberos) */}
         {currentStep === STEPS.BARBER && hasBarbers && (
           <section
-            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-200 dark:border-gray-700 p-6 sm:p-8"
             aria-labelledby="step-barber-title"
           >
-            <h2 id="step-barber-title" className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 id="step-barber-title" className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
               ¿Con quién prefieres?
             </h2>
-            <p className="text-slate-500 text-sm mb-6">Elige tu barbero preferido o déjanos asignarte al primero disponible</p>
+            <p className="text-slate-500 dark:text-gray-400 text-sm mb-6">Elige tu barbero preferido o déjanos asignarte al primero disponible</p>
 
             <div className="grid gap-3 sm:grid-cols-2">
               {/* Opción: Cualquier barbero disponible */}
               <button
                 type="button"
                 onClick={() => handleSelectBarber({ id: 'any', _id: 'any', name: 'Cualquier barbero disponible' })}
-                className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:col-span-2 ${
+                className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:ring-offset-gray-800 sm:col-span-2 ${
                   selectedBarber?.id === 'any'
-                    ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
-                    : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
+                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 shadow-sm'
+                    : 'border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800 hover:bg-slate-50 dark:hover:bg-gray-700/50'
                 }`}
                 aria-pressed={selectedBarber?.id === 'any'}
                 aria-label="Cualquier barbero disponible"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-xl shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-xl shrink-0">
                     🎲
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-900">Cualquier barbero disponible</h3>
-                    <p className="text-slate-500 text-sm">Te asignamos al barbero con más disponibilidad</p>
+                    <h3 className="font-semibold text-slate-900 dark:text-white">Cualquier barbero disponible</h3>
+                    <p className="text-slate-500 dark:text-gray-400 text-sm">Te asignamos al barbero con más disponibilidad</p>
                   </div>
                   {selectedBarber?.id === 'any' && (
-                    <span className="text-emerald-600 text-sm font-medium shrink-0">✓</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 text-sm font-medium shrink-0">✓</span>
                   )}
                 </div>
               </button>
@@ -619,16 +619,16 @@ const BookingPage = () => {
                     key={barber.id}
                     type="button"
                     onClick={() => handleSelectBarber(barber)}
-                    className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                    className={`text-left rounded-xl p-4 sm:p-5 border-2 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:ring-offset-gray-800 ${
                       isSelected
-                        ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 shadow-sm'
+                        : 'border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800 hover:bg-slate-50 dark:hover:bg-gray-700/50'
                     }`}
                     aria-pressed={isSelected}
                     aria-label={`Seleccionar barbero ${barber.name}`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-xl shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xl shrink-0">
                         {barber.avatar ? (
                           <img src={barber.avatar} alt={barber.name} className="w-full h-full rounded-full object-cover" />
                         ) : (
@@ -636,13 +636,13 @@ const BookingPage = () => {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-slate-900">{barber.name}</h3>
+                        <h3 className="font-semibold text-slate-900 dark:text-white">{barber.name}</h3>
                         {barber.specialty && (
-                          <p className="text-slate-500 text-sm truncate">{barber.specialty}</p>
+                          <p className="text-slate-500 dark:text-gray-400 text-sm truncate">{barber.specialty}</p>
                         )}
                       </div>
                       {isSelected && (
-                        <span className="text-emerald-600 text-sm font-medium shrink-0">✓</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 text-sm font-medium shrink-0">✓</span>
                       )}
                     </div>
                   </button>
@@ -650,11 +650,11 @@ const BookingPage = () => {
               })}
             </div>
 
-            <div className="mt-8 pt-6 border-t border-slate-100">
+            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-gray-700">
               <button
                 type="button"
                 onClick={handlePreviousStep}
-                className="text-slate-600 hover:text-slate-900 text-sm font-medium flex items-center gap-2"
+                className="text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium flex items-center gap-2"
                 aria-label="Volver a seleccionar servicio"
               >
                 ← Cambiar servicio
@@ -666,25 +666,25 @@ const BookingPage = () => {
         {/* Paso Fecha: Seleccionar Fecha */}
         {currentStep === STEPS.DATE && (
           <section
-            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-200 dark:border-gray-700 p-6 sm:p-8"
             aria-labelledby="step2-title"
           >
-            <h2 id="step2-title" className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 id="step2-title" className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
               ¿Cuándo prefieres?
             </h2>
-            <p className="text-slate-500 text-sm mb-6">
+            <p className="text-slate-500 dark:text-gray-400 text-sm mb-6">
               {selectedServices.map(s => s.name).join(' + ')} · {formatPrice(totalPrice)}
               {selectedServices.length > 1 && (
-                <span className="text-slate-400"> · {totalDuration} min total</span>
+                <span className="text-slate-400 dark:text-gray-500"> · {totalDuration} min total</span>
               )}
             </p>
 
             {/* Leyenda compacta */}
             <details className="mb-6 group">
-              <summary className="text-sm text-slate-500 cursor-pointer hover:text-slate-700 list-none flex items-center gap-1">
+              <summary className="text-sm text-slate-500 dark:text-gray-400 cursor-pointer hover:text-slate-700 dark:hover:text-gray-300 list-none flex items-center gap-1">
                 <span className="group-open:rotate-90 transition-transform">▸</span> Ver significado de los iconos
               </summary>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-gray-400">
                 <span>✅ Disponible</span>
                 <span>⏰ Horario especial</span>
                 <span>🚫 Cerrado</span>
@@ -697,7 +697,7 @@ const BookingPage = () => {
             {loadingDays ? (
               <div className="py-12 flex flex-col items-center justify-center">
                 <div className="w-10 h-10 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                <p className="mt-3 text-slate-500 text-sm">Buscando días disponibles...</p>
+                <p className="mt-3 text-slate-500 dark:text-gray-400 text-sm">Buscando días disponibles...</p>
               </div>
             ) : daysStatus.length > 0 ? (
               <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
@@ -720,19 +720,19 @@ const BookingPage = () => {
                       }}
                       disabled={!isAvailable}
                       className={`
-                        relative p-3 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+                        relative p-3 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:ring-offset-gray-800
                         ${isAvailable
-                          ? 'bg-white border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 cursor-pointer'
-                          : 'bg-slate-50 border-2 border-slate-100 text-slate-400 cursor-not-allowed'
+                          ? 'bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer'
+                          : 'bg-slate-50 dark:bg-gray-900/50 border-2 border-slate-100 dark:border-gray-700 text-slate-400 dark:text-gray-500 cursor-not-allowed'
                         }
-                        ${isToday && isAvailable ? 'ring-2 ring-emerald-200' : ''}
+                        ${isToday && isAvailable ? 'ring-2 ring-emerald-200 dark:ring-emerald-800' : ''}
                       `}
                       title={isAvailable ? 'Seleccionar este día' : dayInfo.reason}
                       aria-label={isAvailable ? `${date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} - Disponible` : dayInfo.reason}
                     >
-                      <span className="text-xs text-slate-400 block">{date.toLocaleDateString('es-ES', { weekday: 'short' })}</span>
-                      <span className="text-lg font-semibold text-slate-900 block">{date.getDate()}</span>
-                      <span className="text-xs text-slate-500 block">{date.toLocaleDateString('es-ES', { month: 'short' })}</span>
+                      <span className="text-xs text-slate-400 dark:text-gray-500 block">{date.toLocaleDateString('es-ES', { weekday: 'short' })}</span>
+                      <span className="text-lg font-semibold text-slate-900 dark:text-white block">{date.getDate()}</span>
+                      <span className="text-xs text-slate-500 dark:text-gray-400 block">{date.toLocaleDateString('es-ES', { month: 'short' })}</span>
                       {!isAvailable && (
                         <span className="absolute top-1 right-1 text-xs" aria-hidden>{getDayIcon(dayInfo)}</span>
                       )}
@@ -742,22 +742,22 @@ const BookingPage = () => {
               </div>
             ) : (
               <div className="py-12 text-center">
-                <p className="text-slate-500">No se pudieron cargar los días.</p>
+                <p className="text-slate-500 dark:text-gray-400">No se pudieron cargar los días.</p>
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
-                  className="mt-3 text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+                  className="mt-3 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 text-sm font-medium"
                 >
                   Recargar
                 </button>
               </div>
             )}
 
-            <div className="mt-8 pt-6 border-t border-slate-100">
+            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-gray-700">
               <button
                 type="button"
                 onClick={handlePreviousStep}
-                className="text-slate-600 hover:text-slate-900 text-sm font-medium flex items-center gap-2"
+                className="text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium flex items-center gap-2"
                 aria-label="Volver a seleccionar servicio"
               >
                 ← Cambiar servicio
@@ -769,44 +769,44 @@ const BookingPage = () => {
         {/* Paso Hora: Seleccionar Hora */}
         {currentStep === STEPS.TIME && (
           <section
-            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-200 dark:border-gray-700 p-6 sm:p-8"
             aria-labelledby="step3-title"
           >
-            <h2 id="step3-title" className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 id="step3-title" className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
               ¿A qué hora?
             </h2>
-            <p className="text-slate-500 text-sm mb-2">
+            <p className="text-slate-500 dark:text-gray-400 text-sm mb-2">
               {formatDate(selectedDate)}
               {selectedBarber && !isAnyBarberMode && (
-                <span className="text-slate-600"> · ✂️ {selectedBarber.name}</span>
+                <span className="text-slate-600 dark:text-gray-400"> · ✂️ {selectedBarber.name}</span>
               )}
               {isAnyBarberMode && (
-                <span className="text-emerald-600 font-medium"> · Cualquier barbero disponible</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium"> · Cualquier barbero disponible</span>
               )}
             </p>
 
             {primaryService?.showDuration !== false && totalDuration > 0 && (
-              <p className="text-xs text-slate-400 mb-5">
+              <p className="text-xs text-slate-400 dark:text-gray-500 mb-5">
                 Cada bloque reserva {totalDuration} min{selectedServices.length > 1 ? ` (${selectedServices.map(s => s.name).join(' + ')})` : ''}
               </p>
             )}
 
             {bookingError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-start gap-2" role="alert">
+              <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4 flex items-start gap-2" role="alert">
                 <span className="text-red-500 shrink-0">⚠</span>
-                <p className="text-red-800 text-sm">{bookingError}</p>
+                <p className="text-red-800 dark:text-red-400 text-sm">{bookingError}</p>
               </div>
             )}
 
             {loadingSlots ? (
               <div className="py-12 flex flex-col items-center justify-center">
                 <div className="w-10 h-10 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                <p className="mt-3 text-slate-500 text-sm">Buscando horarios disponibles...</p>
+                <p className="mt-3 text-slate-500 dark:text-gray-400 text-sm">Buscando horarios disponibles...</p>
               </div>
             ) : allSlots.length > 0 ? (
               <>
                 {isAnyBarberMode && (
-                  <p className="text-xs text-slate-500 mb-3 flex items-center gap-1.5">
+                  <p className="text-xs text-slate-500 dark:text-gray-400 mb-3 flex items-center gap-1.5">
                     <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
                     El número en cada horario indica cuántos barberos están libres
                   </p>
@@ -829,32 +829,32 @@ const BookingPage = () => {
                         onClick={() => slot.available && !checkingTime && handleSelectTime(slot.time)}
                         disabled={!slot.available || checkingTime}
                         className={`
-                          p-3 sm:p-4 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+                          p-3 sm:p-4 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:ring-offset-gray-800
                           ${isSelected
-                            ? 'border-2 border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200 shadow-sm'
+                            ? 'border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 ring-2 ring-emerald-200 dark:ring-emerald-800 shadow-sm'
                             : slot.available
-                              ? 'bg-white border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 cursor-pointer'
-                              : 'bg-slate-50 border-2 border-slate-100 text-slate-400 cursor-not-allowed'
+                              ? 'bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer'
+                              : 'bg-slate-50 dark:bg-gray-900/50 border-2 border-slate-100 dark:border-gray-700 text-slate-400 dark:text-gray-500 cursor-not-allowed'
                           }
                         `}
                         title={slot.available ? `Reservar a las ${formatTime12h(slot.time)}` : slot.reason}
                         aria-label={slot.available ? `Horario disponible: ${formatTime12h(slot.time)}` : `No disponible: ${slot.reason}`}
                       >
-                        <span className={`block font-semibold text-base ${isSelected ? 'text-emerald-700' : slot.available ? 'text-slate-900' : 'text-slate-400'}`}>
+                        <span className={`block font-semibold text-base ${isSelected ? 'text-emerald-700 dark:text-emerald-400' : slot.available ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-gray-500'}`}>
                           {formatTime12h(slot.time)}
                         </span>
                         {showEndTime && (
-                          <span className="block text-xs text-slate-500 mt-0.5">
+                          <span className="block text-xs text-slate-500 dark:text-gray-400 mt-0.5">
                             hasta {formatTime12h(endTime)}
                           </span>
                         )}
                         {isAnyBarberMode && slot.available && (
-                          <span className={`block text-xs mt-1 font-medium ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          <span className={`block text-xs mt-1 font-medium ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-gray-500'}`}>
                             ✂️ {barberCount}/{slot.totalBarbers}
                           </span>
                         )}
                         {!slot.available && (
-                          <span className="block text-xs mt-1 text-slate-400 truncate" title={slot.reason}>
+                          <span className="block text-xs mt-1 text-slate-400 dark:text-gray-500 truncate" title={slot.reason}>
                             {slot.reason}
                           </span>
                         )}
@@ -865,32 +865,32 @@ const BookingPage = () => {
 
                 {/* Panel informativo: barberos disponibles (solo modo "cualquier barbero") */}
                 {isAnyBarberMode && selectedTime && (
-                  <div className="mt-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <div className="mt-6 p-5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
                     <div className="flex items-center gap-3 mb-3">
-                      <span className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold">✓</span>
+                      <span className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold">✓</span>
                       <div>
-                        <h3 className="font-semibold text-slate-900">
+                        <h3 className="font-semibold text-slate-900 dark:text-white">
                           {formatTime12h(selectedTime)}
                         </h3>
-                        <p className="text-xs text-slate-500">{formatDate(selectedDate)}</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">{formatDate(selectedDate)}</p>
                       </div>
                     </div>
 
-                    <p className="text-sm font-medium text-slate-700 mb-2">
+                    <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-2">
                       Barberos disponibles a esta hora:
                     </p>
                     <div className="flex flex-wrap gap-2 mb-4">
                       {getAvailableBarbersForTime(selectedTime).map(barber => (
                         <span
                           key={barber.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-emerald-200 text-sm font-medium text-slate-700 shadow-sm"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800 text-sm font-medium text-slate-700 dark:text-gray-300 shadow-sm"
                         >
                           ✂️ {barber.name}
                         </span>
                       ))}
                     </div>
 
-                    <p className="text-xs text-slate-500 mb-4">
+                    <p className="text-xs text-slate-500 dark:text-gray-400 mb-4">
                       Se te asignará automáticamente al barbero con mayor disponibilidad.
                     </p>
 
@@ -905,7 +905,7 @@ const BookingPage = () => {
                 )}
 
                 {checkingTime && (
-                  <div className="mt-4 flex items-center gap-2 text-slate-500 text-sm">
+                  <div className="mt-4 flex items-center gap-2 text-slate-500 dark:text-gray-400 text-sm">
                     <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                     Verificando disponibilidad...
                   </div>
@@ -913,22 +913,22 @@ const BookingPage = () => {
               </>
             ) : (
               <div className="py-12 text-center">
-                <p className="text-slate-500">No hay horarios para esta fecha.</p>
+                <p className="text-slate-500 dark:text-gray-400">No hay horarios para esta fecha.</p>
                 <button
                   type="button"
                   onClick={handlePreviousStep}
-                  className="mt-3 text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+                  className="mt-3 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 text-sm font-medium"
                 >
                   Elegir otra fecha
                 </button>
               </div>
             )}
 
-            <div className="mt-8 pt-6 border-t border-slate-100">
+            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-gray-700">
               <button
                 type="button"
                 onClick={handlePreviousStep}
-                className="text-slate-600 hover:text-slate-900 text-sm font-medium flex items-center gap-2"
+                className="text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium flex items-center gap-2"
                 aria-label="Volver a seleccionar fecha"
               >
                 ← Cambiar fecha
@@ -940,27 +940,27 @@ const BookingPage = () => {
         {/* Paso Confirmar: Datos del Cliente */}
         {currentStep === STEPS.CONFIRM && (
           <section
-            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 sm:p-8"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-200 dark:border-gray-700 p-6 sm:p-8"
             aria-labelledby="step4-title"
           >
-            <h2 id="step4-title" className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 id="step4-title" className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
               Tus datos para confirmar
             </h2>
-            <p className="text-slate-500 text-sm mb-6">Te enviaremos un correo con los detalles de la reserva</p>
+            <p className="text-slate-500 dark:text-gray-400 text-sm mb-6">Te enviaremos un correo con los detalles de la reserva</p>
             
             {/* Resumen compacto */}
-            <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
-              <div className="space-y-1 text-sm text-slate-700">
+            <div className="bg-slate-50 dark:bg-gray-900 rounded-xl p-4 mb-6 border border-slate-100 dark:border-gray-700">
+              <div className="space-y-1 text-sm text-slate-700 dark:text-gray-300">
                 {selectedServices.length > 1 ? (
                   <>
-                    <p className="font-medium text-slate-900 mb-2">Servicios seleccionados:</p>
+                    <p className="font-medium text-slate-900 dark:text-white mb-2">Servicios seleccionados:</p>
                     {selectedServices.map((s, i) => (
                       <div key={s._id || s.id} className="flex justify-between">
                         <span>{s.name}</span>
-                        <span className="text-slate-500">{formatPrice(s.price)} · {s.duration} min</span>
+                        <span className="text-slate-500 dark:text-gray-400">{formatPrice(s.price)} · {s.duration} min</span>
                       </div>
                     ))}
-                    <div className="flex justify-between pt-2 mt-2 border-t border-slate-200 font-bold">
+                    <div className="flex justify-between pt-2 mt-2 border-t border-slate-200 dark:border-gray-700 font-bold">
                       <span>Total</span>
                       <span>{formatPrice(totalPrice)} · {totalDuration} min</span>
                     </div>
@@ -988,7 +988,7 @@ const BookingPage = () => {
 
             {/* Info del modo de reserva */}
             {salon?.bookingMode && salon.bookingMode !== 'LIBRE' && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-800 dark:text-blue-400">
                 {salon.bookingMode === 'PREPAGO' && (
                   <p>💳 <strong>Prepago requerido.</strong> Al confirmar, serás redirigido a pagar el depósito de {formatPrice(salon.depositAmount)}. Tu horario queda reservado por {salon.holdDurationMinutes || 15} minutos.</p>
                 )}
@@ -1001,13 +1001,13 @@ const BookingPage = () => {
             {/* Política de No-Show - solo si hay depósito */}
             {salon?.requiresDeposit && salon?.depositAmount > 0 && (
               <details className="mb-6 group">
-                <summary className="text-sm text-slate-600 cursor-pointer hover:text-slate-800 flex items-center gap-2 list-none">
+                <summary className="text-sm text-slate-600 dark:text-gray-400 cursor-pointer hover:text-slate-800 dark:hover:text-gray-200 flex items-center gap-2 list-none">
                   <span className="group-open:rotate-90 transition-transform">▸</span>
                   Política de depósito e inasistencia (importante)
                 </summary>
-                <div className="mt-3 p-4 bg-amber-50 rounded-xl border border-amber-100 text-sm text-amber-900">
+                <div className="mt-3 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-100 dark:border-amber-800 text-sm text-amber-900 dark:text-amber-400">
                   <p className="font-medium mb-2">Depósito de {formatPrice(salon.depositAmount)} para reservar tu horario.</p>
-                  <ul className="list-disc list-inside space-y-1 text-amber-800">
+                  <ul className="list-disc list-inside space-y-1 text-amber-800 dark:text-amber-300 dark:text-amber-400">
                     <li>El depósito <strong>no es reembolsable</strong> bajo ninguna circunstancia</li>
                     <li>Si no asistes, pierdes el depósito</li>
                     <li>El precio del servicio ({formatPrice(totalPrice)}) se paga al llegar</li>
@@ -1025,7 +1025,7 @@ const BookingPage = () => {
               className="space-y-4"
             >
               <div>
-                <label htmlFor="client-name" className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label htmlFor="client-name" className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1.5">
                   Nombre completo
                 </label>
                 <input
@@ -1034,7 +1034,7 @@ const BookingPage = () => {
                   required
                   value={clientData.name}
                   onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                  className="w-full px-4 py-3 border border-slate-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow dark:placeholder-gray-500"
                   placeholder="Tu nombre"
                   autoComplete="name"
                   aria-required="true"
@@ -1042,7 +1042,7 @@ const BookingPage = () => {
               </div>
 
               <div>
-                <label htmlFor="client-email" className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label htmlFor="client-email" className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1.5">
                   Correo electrónico
                 </label>
                 <input
@@ -1051,7 +1051,7 @@ const BookingPage = () => {
                   required
                   value={clientData.email}
                   onChange={(e) => setClientData({ ...clientData, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                  className="w-full px-4 py-3 border border-slate-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow dark:placeholder-gray-500"
                   placeholder="tu@correo.com"
                   autoComplete="email"
                   aria-required="true"
@@ -1059,7 +1059,7 @@ const BookingPage = () => {
               </div>
 
               <div>
-                <label htmlFor="client-phone" className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label htmlFor="client-phone" className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1.5">
                   Teléfono
                 </label>
                 <input
@@ -1068,7 +1068,7 @@ const BookingPage = () => {
                   required
                   value={clientData.phone}
                   onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                  className="w-full px-4 py-3 border border-slate-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow dark:placeholder-gray-500"
                   placeholder="55 1234 5678"
                   autoComplete="tel"
                   aria-required="true"
@@ -1076,7 +1076,7 @@ const BookingPage = () => {
               </div>
 
               <div>
-                <label htmlFor="client-notes" className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label htmlFor="client-notes" className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1.5">
                   Notas (opcional)
                 </label>
                 <textarea
@@ -1084,16 +1084,16 @@ const BookingPage = () => {
                   value={clientData.notes}
                   onChange={(e) => setClientData({ ...clientData, notes: e.target.value })}
                   rows={2}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow resize-none"
+                  className="w-full px-4 py-3 border border-slate-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow resize-none dark:placeholder-gray-500"
                   placeholder="Alguna preferencia o comentario..."
                 />
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-between sm:items-center pt-6 border-t border-slate-100">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-between sm:items-center pt-6 border-t border-slate-100 dark:border-gray-700">
                 <button
                   type="button"
                   onClick={handlePreviousStep}
-                  className="text-slate-600 hover:text-slate-900 text-sm font-medium"
+                  className="text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium"
                   aria-label="Volver a seleccionar hora"
                 >
                   ← Cambiar hora

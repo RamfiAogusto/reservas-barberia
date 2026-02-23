@@ -104,14 +104,14 @@ export default function PublicGallery({ username }) {
   if (error) {
     return (
       <div className="py-12 text-center">
-        <p className="text-red-600">{error}</p>
+        <p className="text-red-600 dark:text-red-400">{error}</p>
       </div>
     )
   }
 
   if (images.length === 0) {
     return (
-      <div className="py-12 text-center text-stone-500 rounded-2xl border border-stone-200 bg-white">
+      <div className="py-12 text-center text-stone-500 dark:text-stone-400 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-gray-800">
         Aún no hay imágenes para mostrar
       </div>
     )
@@ -127,7 +127,7 @@ export default function PublicGallery({ username }) {
             className={`px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
               selectedCategory === 'all'
                 ? 'bg-amber-600 text-white'
-                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
             }`}
           >
             Todas
@@ -139,7 +139,7 @@ export default function PublicGallery({ username }) {
               className={`px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
                 selectedCategory === category
                   ? 'bg-amber-600 text-white'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                  : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
               }`}
             >
               {category.charAt(0).toUpperCase() + category.slice(1)}

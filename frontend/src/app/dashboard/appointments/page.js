@@ -622,7 +622,7 @@ const AppointmentsPage = () => {
         {/* Main Content */}
         {!appointments || appointments.length === 0 ? (
           <div className="text-center py-12">
-            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay citas</h3>
@@ -647,7 +647,7 @@ const AppointmentsPage = () => {
               </h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -700,7 +700,7 @@ const AppointmentsPage = () => {
                           <div className="text-sm text-gray-500 dark:text-gray-400">con {appointment.barber.name}</div>
                         )}
                         {!appointment.barber && appointment.staffMember && (
-                          <div className="text-sm text-gray-500">con {appointment.staffMember}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">con {appointment.staffMember}</div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -991,7 +991,7 @@ const AppointmentsPage = () => {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Ej: Cliente canceló, Emergencia, etc."
                     />
-                    <p className="mt-1 text-xs text-yellow-600">
+                    <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
                       💡 Esta razón será guardada para referencia interna
                     </p>
                   </div>

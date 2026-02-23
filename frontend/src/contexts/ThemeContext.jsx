@@ -29,8 +29,15 @@ export const ThemeProvider = ({ children }) => {
     setIsDark(shouldBeDark)
   }, [])
 
+  // Apply dark class on <html> so Tailwind dark: variants work site-wide
   useEffect(() => {
     if (!mounted) return
+    const root = document.documentElement
+    if (isDark) {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
     localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light')
   }, [isDark, mounted])
 
@@ -41,4 +48,9 @@ export const ThemeProvider = ({ children }) => {
       {children}
     </ThemeContext.Provider>
   )
+}
+
+// Client wrapper for use in server-component layout.js
+export const ThemeClientWrapper = ({ children }) => {
+  return <ThemeProvider>{children}</ThemeProvider>
 }
