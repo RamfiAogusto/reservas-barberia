@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import ThemeToggle from '@/components/ThemeToggle'
 import Sidebar from '@/components/Sidebar'
+import NotificationBell from '@/components/NotificationBell'
+import PersistentBanners from '@/components/PersistentBanners'
 import { useSocket } from '@/contexts/SocketContext'
 import { useRealtimeNotifications } from '@/utils/useRealtimeNotifications'
 import { getUserData, clearAuthData } from '@/utils/api'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 
 const DashboardShell = ({ children }) => {
   const router = useRouter()
@@ -27,28 +30,26 @@ const DashboardShell = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar user={user} onLogout={handleLogout} />
-      {/* Main area – offset by sidebar width on desktop */}
       <div className="lg:pl-64 min-h-screen">
+        {/* Top bar con campana de notificaciones */}
+        <div className="sticky top-0 z-30 bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-800/50">
+          <div className="flex items-center justify-end gap-2 px-4 sm:px-6 lg:px-8 py-2 max-w-[1400px] mx-auto">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
+        </div>
         <main className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+          <PersistentBanners />
           {children}
         </main>
-      </div>
-      <div className="fixed bottom-6 right-6 z-50">
-        <ThemeToggle />
       </div>
     </div>
   )
 }
 
-/**
- * Componente interno que se ejecuta dentro de ProtectedRoute
- * (cuando ya hay usuario autenticado).
- * Se une a la sala WebSocket del salón y activa notificaciones globales.
- */
 const DashboardRealtime = ({ children }) => {
   const { joinSalon, isConnected } = useSocket()
 
-  // Unirse a la sala del salón
   useEffect(() => {
     if (!isConnected) return
     const storedUser = localStorage.getItem('user')
@@ -64,7 +65,6 @@ const DashboardRealtime = ({ children }) => {
     }
   }, [isConnected, joinSalon])
 
-  // Activar notificaciones toast globales
   useRealtimeNotifications()
 
   return children
@@ -74,9 +74,11 @@ export default function DashboardLayout({ children }) {
   return (
     <ThemeProvider>
       <ProtectedRoute>
-        <DashboardRealtime>
-          <DashboardShell>{children}</DashboardShell>
-        </DashboardRealtime>
+        <NotificationProvider>
+          <DashboardRealtime>
+            <DashboardShell>{children}</DashboardShell>
+          </DashboardRealtime>
+        </NotificationProvider>
       </ProtectedRoute>
     </ThemeProvider>
   )

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import api from '@/utils/api'
 import { formatTime12h } from '@/utils/formatTime'
 import TimeInput12h from '@/components/TimeInput12h'
 import { useSocketEvent } from '@/contexts/SocketContext'
 import { toast } from 'sonner'
+import CalendarView from '@/components/CalendarView'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,8 +31,9 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   Loader2, Plus, Pencil, Trash2, Calendar, Check, CreditCard,
-  UserCheck, X as XIcon, Filter, RotateCcw,
+  UserCheck, X as XIcon, Filter, RotateCcw, List, CalendarDays,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const STATUS_MAP = {
   PENDIENTE:       { label: 'Pendiente',       variant: 'warning' },
@@ -55,6 +57,7 @@ const AppointmentsPage = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState(null)
+  const [viewMode, setViewMode] = useState('list')
   const [filters, setFilters] = useState({ status: '', date: '', startDate: '', endDate: '' })
   const [formData, setFormData] = useState({
     serviceId: '', clientName: '', clientEmail: '', clientPhone: '',
@@ -153,6 +156,14 @@ const AppointmentsPage = () => {
       ))
     }
   }, []))
+
+  const sortedAppointments = useMemo(() => {
+    return [...appointments].sort((a, b) => {
+      const dateA = new Date(a.date + 'T' + (a.time || '00:00'))
+      const dateB = new Date(b.date + 'T' + (b.time || '00:00'))
+      return dateB - dateA
+    })
+  }, [appointments])
 
   const handleFilterChange = (name, value) => {
     setFilters(prev => ({ ...prev, [name]: value }))
@@ -354,182 +365,223 @@ const AppointmentsPage = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Gestión de Citas</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Administra todas tus citas y reservas</p>
         </div>
-        <Button onClick={() => { setEditingAppointment(null); setFormData({ serviceId: '', clientName: '', clientEmail: '', clientPhone: '', date: '', time: '', notes: '', staffMember: '', status: 'pendiente', cancelReason: '' }); setErrors({}); setShowModal(true) }}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Cita
-        </Button>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-2">
-              <Label>Estado</Label>
-              <Select value={filters.status} onValueChange={(val) => handleFilterChange('status', val)}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                  <SelectItem value="CONFIRMADA">Confirmada</SelectItem>
-                  <SelectItem value="ESPERANDO_PAGO">Esperando Pago</SelectItem>
-                  <SelectItem value="COMPLETADA">Completada</SelectItem>
-                  <SelectItem value="CANCELADA">Cancelada</SelectItem>
-                  <SelectItem value="EXPIRADA">Expirada</SelectItem>
-                  <SelectItem value="NO_ASISTIO">No asistió</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Fecha específica</Label>
-              <Input type="date" name="date" value={filters.date} onChange={(e) => handleFilterChange('date', e.target.value)} className="w-[180px]" />
-            </div>
-            <div className="space-y-2">
-              <Label>Desde</Label>
-              <Input type="date" name="startDate" value={filters.startDate} onChange={(e) => handleFilterChange('startDate', e.target.value)} className="w-[180px]" />
-            </div>
-            <div className="space-y-2">
-              <Label>Hasta</Label>
-              <Input type="date" name="endDate" value={filters.endDate} onChange={(e) => handleFilterChange('endDate', e.target.value)} className="w-[180px]" />
-            </div>
-            <Button variant="outline" onClick={handleClearFilters}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Limpiar
+        <div className="flex items-center gap-2">
+          <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className={cn("gap-1.5", viewMode !== 'list' && "text-gray-600 dark:text-gray-400")}
+              aria-label="Vista de lista"
+            >
+              <List className="w-4 h-4" />
+              <span className="hidden sm:inline">Lista</span>
+            </Button>
+            <Button
+              variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('calendar')}
+              className={cn("gap-1.5", viewMode !== 'calendar' && "text-gray-600 dark:text-gray-400")}
+              aria-label="Vista de calendario"
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Calendario</span>
             </Button>
           </div>
-        </CardContent>
-      </Card>
+          <Button onClick={() => { setEditingAppointment(null); setFormData({ serviceId: '', clientName: '', clientEmail: '', clientPhone: '', date: '', time: '', notes: '', staffMember: '', status: 'pendiente', cancelReason: '' }); setErrors({}); setShowModal(true) }}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nueva Cita
+          </Button>
+        </div>
+      </div>
 
-      {!appointments || appointments.length === 0 ? (
+      {/* Filtros - solo en vista de lista */}
+      {viewMode === 'list' && (
         <Card>
-          <CardContent className="py-16 text-center">
-            <Calendar className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay citas</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">
-              {Object.values(filters).some(f => f) ? 'No se encontraron citas con los filtros aplicados' : 'Comienza programando tu primera cita'}
-            </p>
-            <Button onClick={() => { setEditingAppointment(null); setErrors({}); setShowModal(true) }}>
-              <Plus className="w-4 h-4 mr-2" />
-              Programar primera cita
-            </Button>
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <Select value={filters.status} onValueChange={(val) => handleFilterChange('status', val)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Todos los estados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                    <SelectItem value="CONFIRMADA">Confirmada</SelectItem>
+                    <SelectItem value="ESPERANDO_PAGO">Esperando Pago</SelectItem>
+                    <SelectItem value="COMPLETADA">Completada</SelectItem>
+                    <SelectItem value="CANCELADA">Cancelada</SelectItem>
+                    <SelectItem value="EXPIRADA">Expirada</SelectItem>
+                    <SelectItem value="NO_ASISTIO">No asistió</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Fecha específica</Label>
+                <Input type="date" name="date" value={filters.date} onChange={(e) => handleFilterChange('date', e.target.value)} className="w-[180px]" />
+              </div>
+              <div className="space-y-2">
+                <Label>Desde</Label>
+                <Input type="date" name="startDate" value={filters.startDate} onChange={(e) => handleFilterChange('startDate', e.target.value)} className="w-[180px]" />
+              </div>
+              <div className="space-y-2">
+                <Label>Hasta</Label>
+                <Input type="date" name="endDate" value={filters.endDate} onChange={(e) => handleFilterChange('endDate', e.target.value)} className="w-[180px]" />
+              </div>
+              <Button variant="outline" onClick={handleClearFilters}>
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Limpiar
+              </Button>
+            </div>
           </CardContent>
         </Card>
-      ) : (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Citas programadas ({appointments.length})</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Servicio</TableHead>
-                  <TableHead>Fecha y Hora</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {appointments.map((appointment) => {
-                  const st = getStatus(appointment.status)
-                  return (
-                    <TableRow key={appointment.id || appointment._id}>
-                      <TableCell>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">{appointment.clientName}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{appointment.clientEmail}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{appointment.clientPhone}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-gray-900 dark:text-gray-100">
-                          {appointment.services && appointment.services.length > 1 ? (
-                            <div>
-                              <div className="font-medium">{appointment.services.map(s => s.name).join(' + ')}</div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                {appointment.services.map(s => `${s.name} ($${s.price})`).join(' · ')}
-                              </div>
-                              <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
-                                {appointment.appointmentCount} servicios · {formatDuration(appointment.totalDuration)}
-                              </div>
-                            </div>
-                          ) : (
-                            appointment.service?.name || appointment.serviceId?.name
-                          )}
-                        </div>
-                        {appointment.barber && <div className="text-sm text-gray-500 dark:text-gray-400">con {appointment.barber.name}</div>}
-                        {!appointment.barber && appointment.staffMember && <div className="text-sm text-gray-500 dark:text-gray-400">con {appointment.staffMember}</div>}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-gray-900 dark:text-gray-100">{new Date(appointment.date).toLocaleDateString('es-ES')}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{formatTime12h(appointment.time)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={st.variant}>{st.label}</Badge>
-                        {appointment.status === 'ESPERANDO_PAGO' && appointment.holdExpiresAt && (
-                          <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                            Expira: {new Date(appointment.holdExpiresAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium text-gray-900 dark:text-gray-100">${appointment.totalAmount}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          {appointment.status === 'PENDIENTE' && (
-                            <>
-                              <Button variant="ghost" size="sm" className="text-xs text-green-600 hover:text-green-700 dark:text-green-400" onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'IN_PERSON')} title="Pago en persona">
-                                <UserCheck className="w-3.5 h-3.5 mr-1" />En persona
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-xs text-orange-600 hover:text-orange-700 dark:text-orange-400" onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'ONLINE')} title="Pago online">
-                                <CreditCard className="w-3.5 h-3.5 mr-1" />Online
-                              </Button>
-                            </>
-                          )}
-                          {appointment.status === 'ESPERANDO_PAGO' && (
-                            <Button variant="ghost" size="sm" className="text-xs text-green-600 dark:text-green-400" onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'CONFIRMADA')}>
-                              <Check className="w-3.5 h-3.5 mr-1" />Confirmar
-                            </Button>
-                          )}
-                          {appointment.status === 'CONFIRMADA' && (
-                            <Button variant="ghost" size="sm" className="text-xs text-blue-600 dark:text-blue-400" onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'COMPLETADA')}>
-                              <Check className="w-3.5 h-3.5 mr-1" />Completar
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(appointment)} aria-label="Editar cita">
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700 dark:text-red-400" aria-label="Eliminar cita">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar cita?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará la cita de {appointment.clientName}.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(appointment.id || appointment._id)} className="bg-red-600 hover:bg-red-700 text-white">
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
+      )}
+
+      {/* Vista de calendario */}
+      {viewMode === 'calendar' && (
+        <CalendarView
+          appointments={appointments}
+          onEdit={handleEdit}
+          onUpdateStatus={handleUpdateStatus}
+          onRespondToBooking={handleRespondToBooking}
+        />
+      )}
+
+      {/* Vista de lista */}
+      {viewMode === 'list' && (
+        <>
+          {!appointments || appointments.length === 0 ? (
+            <Card>
+              <CardContent className="py-16 text-center">
+                <Calendar className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay citas</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">
+                  {Object.values(filters).some(f => f) ? 'No se encontraron citas con los filtros aplicados' : 'Comienza programando tu primera cita'}
+                </p>
+                <Button onClick={() => { setEditingAppointment(null); setErrors({}); setShowModal(true) }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Programar primera cita
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Citas programadas ({sortedAppointments.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Servicio</TableHead>
+                      <TableHead>Fecha y Hora</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Monto</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedAppointments.map((appointment) => {
+                      const st = getStatus(appointment.status)
+                      return (
+                        <TableRow key={appointment.id || appointment._id}>
+                          <TableCell>
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{appointment.clientName}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{appointment.clientEmail}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{appointment.clientPhone}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-gray-900 dark:text-gray-100">
+                              {appointment.services && appointment.services.length > 1 ? (
+                                <div>
+                                  <div className="font-medium">{appointment.services.map(s => s.name).join(' + ')}</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    {appointment.services.map(s => `${s.name} ($${s.price})`).join(' · ')}
+                                  </div>
+                                  <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                    {appointment.appointmentCount} servicios · {formatDuration(appointment.totalDuration)}
+                                  </div>
+                                </div>
+                              ) : (
+                                appointment.service?.name || appointment.serviceId?.name
+                              )}
+                            </div>
+                            {appointment.barber && <div className="text-sm text-gray-500 dark:text-gray-400">con {appointment.barber.name}</div>}
+                            {!appointment.barber && appointment.staffMember && <div className="text-sm text-gray-500 dark:text-gray-400">con {appointment.staffMember}</div>}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-gray-900 dark:text-gray-100">{new Date(appointment.date).toLocaleDateString('es-ES')}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{formatTime12h(appointment.time)}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={st.variant}>{st.label}</Badge>
+                            {appointment.status === 'ESPERANDO_PAGO' && appointment.holdExpiresAt && (
+                              <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                                Expira: {new Date(appointment.holdExpiresAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-gray-100">${appointment.totalAmount}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              {appointment.status === 'PENDIENTE' && (
+                                <>
+                                  <Button variant="ghost" size="sm" className="text-xs text-green-600 hover:text-green-700 dark:text-green-400" onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'IN_PERSON')} title="Pago en persona">
+                                    <UserCheck className="w-3.5 h-3.5 mr-1" />En persona
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-xs text-orange-600 hover:text-orange-700 dark:text-orange-400" onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'ONLINE')} title="Pago online">
+                                    <CreditCard className="w-3.5 h-3.5 mr-1" />Online
+                                  </Button>
+                                </>
+                              )}
+                              {appointment.status === 'ESPERANDO_PAGO' && (
+                                <Button variant="ghost" size="sm" className="text-xs text-green-600 dark:text-green-400" onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'CONFIRMADA')}>
+                                  <Check className="w-3.5 h-3.5 mr-1" />Confirmar
+                                </Button>
+                              )}
+                              {appointment.status === 'CONFIRMADA' && (
+                                <Button variant="ghost" size="sm" className="text-xs text-blue-600 dark:text-blue-400" onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'COMPLETADA')}>
+                                  <Check className="w-3.5 h-3.5 mr-1" />Completar
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(appointment)} aria-label="Editar cita">
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700 dark:text-red-400" aria-label="Eliminar cita">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar cita?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción no se puede deshacer. Se eliminará la cita de {appointment.clientName}.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDelete(appointment.id || appointment._id)} className="bg-red-600 hover:bg-red-700 text-white">
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Modal de crear/editar cita */}
