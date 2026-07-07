@@ -37,7 +37,7 @@ JWT_SECRET=tu_jwt_secret_super_seguro
 FRONTEND_URL=https://tu-frontend.vercel.app
 
 # Emails
-RESEND_API_KEY=re_BM7CX92n_FfzX6zbHosaL35uNFSsPhSZm
+RESEND_API_KEY=re_XXXXXXXXXXXXXXXXXXXX
 FROM_EMAIL=onboarding@resend.dev
 
 # Cloudinary (opcional)
@@ -103,7 +103,7 @@ NODE_ENV=production
 PORT=5000
 JWT_SECRET=tu_jwt_secret_super_seguro
 FRONTEND_URL=https://tu-frontend.vercel.app
-RESEND_API_KEY=re_BM7CX92n_FfzX6zbHosaL35uNFSsPhSZm
+RESEND_API_KEY=re_XXXXXXXXXXXXXXXXXXXX
 FROM_EMAIL=onboarding@resend.dev
 ```
 

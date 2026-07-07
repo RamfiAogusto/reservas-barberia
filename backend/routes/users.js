@@ -1,7 +1,7 @@
 const express = require('express')
 const { body, validationResult } = require('express-validator')
 const { authenticateToken } = require('../middleware/auth')
-const { upload, handleUploadErrors } = require('../middleware/uploadMiddleware')
+const { upload, handleUploadErrors, validateFileSignature } = require('../middleware/uploadMiddleware')
 const cloudinaryService = require('../services/cloudinaryService')
 const { prisma } = require('../lib/prisma')
 const router = express.Router()
@@ -122,7 +122,7 @@ router.put('/profile', async (req, res) => {
 })
 
 // POST /api/users/profile/avatar - Subir avatar
-router.post('/profile/avatar', upload.single('avatar'), handleUploadErrors, async (req, res) => {
+router.post('/profile/avatar', upload.single('avatar'), handleUploadErrors, validateFileSignature, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({

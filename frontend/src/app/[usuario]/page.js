@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import PublicGallery from '@/components/PublicGallery'
 import { useSalonDataOptimized } from '@/utils/SalonContext'
+import { Scissors, Store } from 'lucide-react'
 
 const PerfilPublico = () => {
   const { usuario } = useParams()
@@ -104,7 +105,7 @@ const PerfilPublico = () => {
           <p className="text-stone-600 dark:text-gray-400 mb-8">{error}</p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+            className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition-[background-color,transform] duration-150 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             Volver al inicio
           </Link>
@@ -120,14 +121,14 @@ const PerfilPublico = () => {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link
             href="/"
-            className="text-sm text-stone-500 dark:text-gray-400 hover:text-stone-700 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded"
+            className="text-sm text-stone-500 dark:text-gray-400 hover:text-stone-700 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded"
             aria-label="Ir al inicio"
           >
             ReservaBarber
           </Link>
           <button
             onClick={handleReservar}
-            className="bg-amber-600 text-white px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+            className="bg-primary-600 text-white px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-primary-700 transition-[background-color,transform] duration-150 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:focus:ring-offset-gray-900"
           >
             Reservar cita
           </button>
@@ -161,7 +162,9 @@ const PerfilPublico = () => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl">💈</div>
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Store className="w-10 h-10 text-white/80" aria-hidden="true" />
+                  </div>
                 )}
               </div>
               <div>
@@ -173,7 +176,7 @@ const PerfilPublico = () => {
             </div>
             <button
               onClick={handleReservar}
-              className="self-start md:self-end w-full md:w-auto bg-amber-500 hover:bg-amber-400 text-stone-900 dark:text-gray-950 font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-transparent shadow-lg"
+              className="self-start md:self-end w-full md:w-auto bg-primary-500 hover:bg-primary-400 text-stone-900 dark:text-gray-950 font-semibold px-8 py-4 rounded-xl text-lg transition-[background-color,transform] duration-150 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-transparent shadow-lg"
             >
               Reservar cita
             </button>
@@ -208,13 +211,13 @@ const PerfilPublico = () => {
                         key={service._id || service.id}
                         type="button"
                         onClick={() => router.push(`/${usuario}/book?service=${service._id || service.id}`)}
-                        className="group text-left w-full bg-white dark:bg-gray-800 rounded-2xl p-6 border border-stone-200 dark:border-gray-700 hover:border-amber-300 dark:hover:border-amber-600 hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
+                        className="group text-left w-full bg-white dark:bg-gray-800 rounded-2xl p-6 border border-stone-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-lg hover:shadow-primary-500/5 transition-[border-color,box-shadow] duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:focus:ring-offset-gray-950"
                       >
                         <div className="flex justify-between items-start gap-4 mb-3">
-                          <h4 className="font-semibold text-stone-900 dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                          <h4 className="font-semibold text-stone-900 dark:text-white group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
                             {service.name}
                           </h4>
-                          <span className="flex-shrink-0 font-bold text-amber-600 dark:text-amber-400">
+                          <span className="flex-shrink-0 font-bold text-primary-700 dark:text-primary-400">
                             {formatPrice(service.price)}
                           </span>
                         </div>
@@ -233,14 +236,14 @@ const PerfilPublico = () => {
                             </span>
                           )}
                           {salon?.requiresDeposit && salon?.depositAmount > 0 && (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium">
                               Depósito: {formatPrice(salon.depositAmount)}
                             </span>
                           )}
                         </div>
-                        <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400 group-hover:gap-3 transition-all">
+                        <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary-700 dark:text-primary-400">
                           Reservar
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <svg className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </span>
@@ -282,13 +285,13 @@ const PerfilPublico = () => {
                     {barber.avatar ? (
                       <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
                     ) : (
-                      '✂️'
+                      <Scissors className="w-6 h-6 text-primary-700 dark:text-primary-400" aria-hidden="true" />
                     )}
                   </div>
                   <div>
                     <h3 className="font-semibold text-stone-900 dark:text-white">{barber.name}</h3>
                     {barber.specialty && (
-                      <p className="text-sm text-amber-600 dark:text-amber-400">{barber.specialty}</p>
+                      <p className="text-sm text-primary-700 dark:text-primary-400">{barber.specialty}</p>
                     )}
                   </div>
                 </div>
@@ -353,7 +356,7 @@ const PerfilPublico = () => {
                   <dd>
                     <a
                       href={`tel:${salon.phone}`}
-                      className="text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded"
+                      className="text-primary-700 dark:text-primary-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded"
                     >
                       {salon.phone}
                     </a>
@@ -412,14 +415,15 @@ const PerfilPublico = () => {
       <div className="fixed bottom-6 left-4 right-4 z-30 md:hidden">
         <button
           onClick={handleReservar}
-          className="w-full bg-amber-600 text-white py-4 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+          className="w-full bg-primary-600 text-white py-4 rounded-xl font-semibold shadow-lg hover:bg-primary-700 transition-[background-color,transform] duration-150 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           Reservar cita
         </button>
       </div>
 
       {/* Footer minimalista */}
-      <footer className="border-t border-stone-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-12 mt-12">
+      {/* pb extra en móvil: el CTA flotante no debe tapar el footer */}
+      <footer className="border-t border-stone-200 dark:border-gray-700 bg-white dark:bg-gray-900 pt-12 pb-28 md:pb-12 mt-12">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <p className="text-stone-500 dark:text-gray-400 text-sm">
@@ -427,7 +431,7 @@ const PerfilPublico = () => {
             </p>
             <Link
               href="/register"
-              className="text-sm text-stone-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded"
+              className="text-sm text-stone-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded"
             >
               ¿Tienes barbería? Crea tu perfil gratis
             </Link>

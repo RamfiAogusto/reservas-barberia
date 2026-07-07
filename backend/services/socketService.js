@@ -6,7 +6,7 @@
  * - appointment:updated     → cita actualizada (datos completos)
  * - appointment:statusChanged → cambio de estado (id, newStatus, oldStatus)
  * - appointment:deleted     → cita eliminada
- * - appointment:responded   → barbero respondió (IN_PERSON/ONLINE)
+ * - appointment:responded   → barbero respondió (action: CONFIRMAR/RECHAZAR/APROBAR)
  * - appointment:paymentConfirmed → pago confirmado
  * - appointment:holdExpired → reserva expirada por no pagar
  * - service:updated         → servicio creado/actualizado/eliminado
@@ -15,11 +15,13 @@
  * - barber:updated          → barbero creado/actualizado/eliminado
  */
 
+const jwt = require('jsonwebtoken')
+
 let io = null
 
 const initializeSocket = (server, corsOptions) => {
   const { Server } = require('socket.io')
-  
+
   io = new Server(server, {
     cors: {
       origin: corsOptions.origin,
@@ -33,31 +35,39 @@ const initializeSocket = (server, corsOptions) => {
     pingTimeout: 20000,
   })
 
+  // Middleware de autenticación: exige un JWT válido en el handshake.
+  // La sala se deriva EXCLUSIVAMENTE del token verificado, nunca de un
+  // valor enviado por el cliente (evita que un tercero espíe otro salón).
+  io.use((socket, next) => {
+    try {
+      const token = socket.handshake.auth && socket.handshake.auth.token
+      if (!token) {
+        return next(new Error('unauthorized'))
+      }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      if (!decoded || !decoded.userId) {
+        return next(new Error('unauthorized'))
+      }
+      socket.userId = decoded.userId
+      next()
+    } catch (error) {
+      next(new Error('unauthorized'))
+    }
+  })
+
   io.on('connection', (socket) => {
-    console.log(`🔌 Cliente conectado: ${socket.id}`)
+    console.log(`🔌 Cliente conectado: ${socket.id} (user:${socket.userId})`)
 
-    // El cliente se une a la sala de su salón (por ownerId)
-    socket.on('join:salon', (ownerId) => {
-      if (ownerId) {
-        socket.join(`salon:${ownerId}`)
-        console.log(`🏠 Socket ${socket.id} se unió a salon:${ownerId}`)
-      }
-    })
-
-    // El cliente se une a su sala personal (para notificaciones de pago, etc.)
-    socket.on('join:user', (userId) => {
-      if (userId) {
-        socket.join(`user:${userId}`)
-        console.log(`👤 Socket ${socket.id} se unió a user:${userId}`)
-      }
-    })
+    // Unión automática a las salas propias, derivadas del token verificado.
+    socket.join(`salon:${socket.userId}`)
+    socket.join(`user:${socket.userId}`)
 
     socket.on('disconnect', (reason) => {
       console.log(`🔌 Cliente desconectado: ${socket.id} (${reason})`)
     })
   })
 
-  console.log('🔌 Socket.IO inicializado')
+  console.log('🔌 Socket.IO inicializado (autenticado)')
   return io
 }
 

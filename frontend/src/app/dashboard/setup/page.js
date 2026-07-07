@@ -14,16 +14,16 @@ import {
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
-import { Loader2, AlertCircle, Trash2, Plus } from 'lucide-react'
+import { Loader2, AlertCircle, Trash2, Plus, Store, User, Users, Building2 } from 'lucide-react'
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
 const SERVICE_CATEGORIES = [
-  { value: 'CORTE', label: '✂️ Corte' },
-  { value: 'BARBA', label: '🧔 Barba' },
-  { value: 'COMBO', label: '💈 Combo' },
-  { value: 'TRATAMIENTO', label: '🧴 Tratamiento' },
-  { value: 'OTRO', label: '📋 Otro' }
+  { value: 'CORTE', label: 'Corte' },
+  { value: 'BARBA', label: 'Barba' },
+  { value: 'COMBO', label: 'Combo' },
+  { value: 'TRATAMIENTO', label: 'Tratamiento' },
+  { value: 'OTRO', label: 'Otro' }
 ]
 
 const DEFAULT_HOURS = Array.from({ length: 7 }, (_, i) => ({
@@ -151,8 +151,9 @@ export default function SetupPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            💈 Configura tu barbería
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-3">
+            <Store className="w-8 h-8 text-primary-600 dark:text-primary-400" aria-hidden="true" />
+            Configura tu barbería
           </h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
             {user?.salonName ? `¡Bienvenido a ${user.salonName}!` : '¡Bienvenido!'} Vamos a configurar tu espacio en pocos pasos.
@@ -165,7 +166,7 @@ export default function SetupPage() {
             <span>{progress}%</span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-            <div className="bg-primary-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+            <div className="bg-primary-600 h-2.5 rounded-full transition-[width] duration-500 ease-out" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
@@ -184,15 +185,17 @@ export default function SetupPage() {
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">¿Cómo funciona tu barbería?</h2>
                 <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">Esto nos ayuda a configurar correctamente tu sistema de reservas.</p>
 
-                <div className="space-y-4">
+                <div className="space-y-4" role="group" aria-label="Modo de operación">
                   {[
-                    { value: 'solo', emoji: '🧑‍🦱', title: 'Soy el único barbero', desc: 'Solo yo atiendo a los clientes. No tengo empleados.' },
-                    { value: 'owner_and_barbers', emoji: '👥', title: 'Yo y otros barberos', desc: 'Yo también corto pelo, pero tengo barberos adicionales que trabajan conmigo.' },
-                    { value: 'only_barbers', emoji: '🏢', title: 'Solo administro', desc: 'Yo no corto pelo. Solo gestiono la barbería y mis barberos atienden.' },
+                    { value: 'solo', Icon: User, title: 'Soy el único barbero', desc: 'Solo yo atiendo a los clientes. No tengo empleados.' },
+                    { value: 'owner_and_barbers', Icon: Users, title: 'Yo y otros barberos', desc: 'Yo también corto pelo, pero tengo barberos adicionales que trabajan conmigo.' },
+                    { value: 'only_barbers', Icon: Building2, title: 'Solo administro', desc: 'Yo no corto pelo. Solo gestiono la barbería y mis barberos atienden.' },
                   ].map(opt => (
-                    <button key={opt.value} onClick={() => setSalonMode(opt.value)} className={`w-full p-5 rounded-xl border-2 text-left transition-all ${salonMode === opt.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-200 dark:ring-primary-800' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`} role="radio" aria-checked={salonMode === opt.value} tabIndex={0}>
+                    <button key={opt.value} type="button" onClick={() => setSalonMode(opt.value)} className={`w-full p-5 rounded-xl border-2 text-left transition-[border-color,background-color,box-shadow] duration-150 ${salonMode === opt.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-200 dark:ring-primary-800' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`} aria-pressed={salonMode === opt.value}>
                       <div className="flex items-start gap-4">
-                        <span className="text-3xl">{opt.emoji}</span>
+                        <span className="w-11 h-11 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 shrink-0">
+                          <opt.Icon className="w-6 h-6" aria-hidden="true" />
+                        </span>
                         <div>
                           <p className="font-semibold text-gray-900 dark:text-white">{opt.title}</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{opt.desc}</p>
@@ -346,7 +349,7 @@ export default function SetupPage() {
               ) : (
                 <Button onClick={handleSubmit} disabled={!canProceed() || isSubmitting}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isSubmitting ? 'Guardando...' : '🚀 Completar configuración'}
+                  {isSubmitting ? 'Guardando...' : 'Completar configuración'}
                 </Button>
               )}
             </div>

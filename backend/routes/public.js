@@ -1,5 +1,6 @@
 const express = require('express')
 const router = express.Router()
+const rateLimit = require('express-rate-limit')
 const { prisma } = require('../lib/prisma')
 const { body, validationResult } = require('express-validator')
 const emailService = require('../services/emailService')
@@ -9,6 +10,7 @@ const { es } = require('date-fns/locale')
 const { createAppointmentWithOverlapCheck, createAppointmentWithAutoAssign, getAvailableBarbersForSlot, createMultiServiceAppointments } = require('../utils/availabilityUtils')
 const { emitToSalon } = require('../services/socketService')
 const paymentGateway = require('../services/paymentGatewayService')
+const sendAndLog = require('../utils/sendAndLog')
 
 // GET /api/public/salon/:username - Obtener perfil público del salón
 router.get('/salon/:username', async (req, res) => {
@@ -792,8 +794,22 @@ router.get('/salon/:username/days-status', async (req, res) => {
   }
 })
 
+// Límite específico para creación de reservas: evita saturar el calendario
+// de un salón con reservas automatizadas, sin afectar las consultas GET
+// (perfil, servicios, disponibilidad) que comparten este router.
+const bookingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 15, // 15 reservas por IP cada 15 minutos
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Demasiadas reservas desde esta IP. Intenta nuevamente en unos minutos.'
+  }
+})
+
 // POST /api/public/salon/:username/book - Crear una nueva reserva (single o multi-servicio)
-router.post('/salon/:username/book', [
+router.post('/salon/:username/book', bookingLimiter, [
   // serviceId requerido (para compatibilidad) O serviceIds array
   body('serviceId').optional().isString(),
   body('serviceIds').optional().isArray(),
@@ -1053,17 +1069,7 @@ router.post('/salon/:username/book', [
       console.log('   Servicio(s):', bookingData.serviceName)
 
       // Enviar correo de solicitud enviada al cliente (no bloqueante)
-      emailService.sendBookingRequest(bookingData)
-        .then(result => {
-          if (result.success) {
-            console.log('✅ Email de solicitud enviado exitosamente para reserva:', mainAppointment.id)
-          } else {
-            console.error('❌ Error enviando email de solicitud:', result.error)
-          }
-        })
-        .catch(error => {
-          console.error('❌ Error en envío de email de solicitud:', error)
-        })
+      sendAndLog(emailService.sendBookingRequest(bookingData), `Email de solicitud (reserva ${mainAppointment.id})`)
 
       // Enviar notificación al dueño del negocio (no bloqueante)
       const ownerNotificationData = {
@@ -1073,34 +1079,19 @@ router.post('/salon/:username/book', [
         notes: notes || ''
       }
 
-      emailService.sendOwnerNotification(ownerNotificationData)
-        .then(result => {
-          if (result.success) {
-            console.log('✅ Notificación al dueño enviada exitosamente para reserva:', mainAppointment.id)
-          } else {
-            console.error('❌ Error enviando notificación al dueño:', result.error)
-          }
-        })
-        .catch(error => {
-          console.error('❌ Error en envío de notificación al dueño:', error)
-        })
+      sendAndLog(emailService.sendOwnerNotification(ownerNotificationData), `Notificación al dueño (reserva ${mainAppointment.id})`)
 
       // Programar recordatorio (no bloqueante)
-      queueService.scheduleReminder({
-        appointmentId: mainAppointment.id.toString(),
-        appointmentDate: date,
-        appointmentTime: time,
-        clientEmail,
-        clientName
-      }).then(result => {
-        if (result.success) {
-          console.log(`📅 Recordatorio programado para: ${clientName} - ${result.reminderTime}`)
-        } else {
-          console.log(`⚠️ No se pudo programar recordatorio: ${result.message}`)
-        }
-      }).catch(error => {
-        console.error('Error programando recordatorio:', error)
-      })
+      sendAndLog(
+        queueService.scheduleReminder({
+          appointmentId: mainAppointment.id.toString(),
+          appointmentDate: date,
+          appointmentTime: time,
+          clientEmail,
+          clientName
+        }),
+        `Recordatorio programado (reserva ${mainAppointment.id})`
+      )
 
     } catch (emailError) {
       console.error('Error preparando email de confirmación:', emailError)

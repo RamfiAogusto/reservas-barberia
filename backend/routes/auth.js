@@ -1,9 +1,23 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
+const rateLimit = require('express-rate-limit')
 const { body, validationResult } = require('express-validator')
 const { prisma } = require('../lib/prisma')
 const bcrypt = require('bcryptjs')
 const router = express.Router()
+
+// Límite de intentos de login por IP: mitiga fuerza bruta sobre credenciales.
+// Mensaje genérico para no revelar si el límite es por IP o por cuenta.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 8, // 8 intentos por IP cada 15 minutos
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Demasiados intentos. Intenta nuevamente en unos minutos.'
+  }
+})
 
 // Función para generar JWT token
 const generateToken = (userId) => {
@@ -21,8 +35,8 @@ router.post('/register', [
     .normalizeEmail()
     .withMessage('Por favor ingresa un email válido'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('La contraseña debe tener al menos 6 caracteres'),
+    .isLength({ min: 8 })
+    .withMessage('La contraseña debe tener al menos 8 caracteres'),
   body('confirmPassword')
     .custom((value, { req }) => {
       if (value !== req.body.password) {
@@ -66,11 +80,11 @@ router.post('/register', [
     })
 
     if (existingUser) {
+      // Mensaje genérico: no distinguir entre email y username duplicados
+      // para no permitir enumeración de cuentas existentes.
       return res.status(400).json({
         success: false,
-        message: existingUser.email === email 
-          ? 'Este email ya está registrado' 
-          : 'Este nombre de usuario ya está en uso'
+        message: 'El email o usuario ya está en uso'
       })
     }
 
@@ -124,7 +138,7 @@ router.post('/register', [
 })
 
 // POST /api/auth/login
-router.post('/login', [
+router.post('/login', loginLimiter, [
   body('email')
     .isEmail()
     .normalizeEmail()

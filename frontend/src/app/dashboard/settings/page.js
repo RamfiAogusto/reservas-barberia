@@ -19,6 +19,7 @@ import {
   Loader2, Save, Upload, AlertCircle, CheckCircle2,
   Store, CalendarCheck, ShieldCheck, BookOpen,
   ArrowRight, Clock, Ban, DollarSign, UserCheck, CreditCard,
+  Calendar, Inbox, Banknote, Eye, Mail,
 } from 'lucide-react'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
@@ -33,10 +34,10 @@ const MODES = [
     color: 'emerald',
     ideal: 'Ideal si prefieres confirmar manualmente y no necesitas cobrar por adelantado.',
     steps: [
-      { icon: '📅', text: 'El cliente elige servicio, fecha y hora' },
-      { icon: '📩', text: 'Recibes la solicitud en tu dashboard' },
-      { icon: '✅', text: 'Tú confirmas o rechazas la cita' },
-      { icon: '💰', text: 'El cliente paga al llegar al salón' },
+      { icon: Calendar, text: 'El cliente elige servicio, fecha y hora' },
+      { icon: Inbox, text: 'Recibes la solicitud en tu dashboard' },
+      { icon: CheckCircle2, text: 'Tú confirmas o rechazas la cita' },
+      { icon: Banknote, text: 'El cliente paga al llegar al salón' },
     ],
   },
   {
@@ -48,10 +49,10 @@ const MODES = [
     color: 'blue',
     ideal: 'Ideal para reducir no-shows. El depósito asegura que el cliente asista.',
     steps: [
-      { icon: '📅', text: 'El cliente elige servicio, fecha y hora' },
-      { icon: '💳', text: 'Paga el depósito online inmediatamente' },
-      { icon: '✅', text: 'La cita se confirma automáticamente' },
-      { icon: '💰', text: 'El cliente paga el resto al llegar' },
+      { icon: Calendar, text: 'El cliente elige servicio, fecha y hora' },
+      { icon: CreditCard, text: 'Paga el depósito online inmediatamente' },
+      { icon: CheckCircle2, text: 'La cita se confirma automáticamente' },
+      { icon: Banknote, text: 'El cliente paga el resto al llegar' },
     ],
   },
   {
@@ -63,11 +64,11 @@ const MODES = [
     color: 'violet',
     ideal: 'Ideal si quieres revisar cada solicitud antes de comprometerte y asegurar el pago.',
     steps: [
-      { icon: '📅', text: 'El cliente solicita una cita' },
-      { icon: '👀', text: 'Tú revisas y apruebas (o rechazas)' },
-      { icon: '📧', text: 'El cliente recibe un link para pagar' },
-      { icon: '💳', text: 'Paga el depósito dentro del tiempo límite' },
-      { icon: '✅', text: 'La cita queda confirmada' },
+      { icon: Calendar, text: 'El cliente solicita una cita' },
+      { icon: Eye, text: 'Tú revisas y apruebas (o rechazas)' },
+      { icon: Mail, text: 'El cliente recibe un link para pagar' },
+      { icon: CreditCard, text: 'Paga el depósito dentro del tiempo límite' },
+      { icon: CheckCircle2, text: 'La cita queda confirmada' },
     ],
   },
 ]
@@ -239,53 +240,62 @@ const SettingsPage = () => {
 
         {/* ═══════════ TAB 1: PERFIL DEL NEGOCIO ═══════════ */}
         <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Perfil del negocio</CardTitle>
-              <CardDescription>Esta información es visible para tus clientes en tu página pública de reservas</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-5 pb-6 border-b border-gray-100 dark:border-gray-800">
-                <div className="relative">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-600">
-                    {formData.avatar
-                      ? <img src={formData.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                      : <span className="text-3xl">💈</span>}
-                  </div>
-                  {uploadingAvatar && (
-                    <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center">
-                      <Loader2 className="h-5 w-5 animate-spin text-white" />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Perfil del negocio</CardTitle>
+                <CardDescription>Esta información es visible para tus clientes en tu página pública de reservas</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center gap-5 pb-6 border-b border-gray-100 dark:border-gray-800">
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-600">
+                      {formData.avatar
+                        ? <img src={formData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                        : <Store className="w-8 h-8 text-gray-400 dark:text-gray-500" aria-hidden="true" />}
                     </div>
-                  )}
+                    {uploadingAvatar && (
+                      <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploadingAvatar ? 'Subiendo...' : 'Cambiar avatar'}
+                    </Button>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">JPG, PNG o WebP. Max 5MB.</p>
+                  </div>
                 </div>
-                <div>
-                  <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" />
-                  <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    {uploadingAvatar ? 'Subiendo...' : 'Cambiar avatar'}
-                  </Button>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">JPG, PNG o WebP. Max 5MB.</p>
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="set-salonName">Nombre del salón <span className="text-red-400">*</span></Label>
-                  <Input id="set-salonName" value={formData.salonName} onChange={(e) => setFormData(prev => ({ ...prev, salonName: e.target.value }))} placeholder="Mi Barbería" required />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="set-phone">Teléfono <span className="text-red-400">*</span></Label>
-                    <Input id="set-phone" type="tel" value={formData.phone} onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))} placeholder="809-555-1234" required />
+                    <Label htmlFor="set-salonName">Nombre del salón <span className="text-red-400">*</span></Label>
+                    <Input id="set-salonName" value={formData.salonName} onChange={(e) => setFormData(prev => ({ ...prev, salonName: e.target.value }))} placeholder="Mi Barbería" required />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="set-address">Dirección <span className="text-red-400">*</span></Label>
-                    <Input id="set-address" value={formData.address} onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))} placeholder="Calle Principal #123" required />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="set-phone">Teléfono <span className="text-red-400">*</span></Label>
+                      <Input id="set-phone" type="tel" value={formData.phone} onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))} placeholder="809-555-1234" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="set-address">Dirección <span className="text-red-400">*</span></Label>
+                      <Input id="set-address" value={formData.address} onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))} placeholder="Calle Principal #123" required />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={saving} size="lg">
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {saving ? 'Guardando...' : 'Guardar negocio'}
+              </Button>
+            </div>
+          </form>
         </TabsContent>
 
         {/* ═══════════ TAB 2: MODO DE RESERVAS + DEPÓSITO ═══════════ */}
@@ -301,7 +311,7 @@ const SettingsPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="space-y-3" role="radiogroup" aria-label="Modo de reservas">
+                <div className="space-y-3" role="group" aria-label="Modo de reservas">
                   {MODES.map((mode) => {
                     const isSelected = formData.bookingMode === mode.id
                     const colorMap = {
@@ -312,8 +322,8 @@ const SettingsPage = () => {
                     const c = colorMap[mode.color]
                     return (
                       <button key={mode.id} type="button" onClick={() => handleModeChange(mode.id)}
-                        className={`w-full text-left p-5 rounded-xl border-2 transition-all ${isSelected ? `${c.border} ${c.bg} shadow-sm` : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
-                        role="radio" aria-checked={isSelected} tabIndex={0}
+                        className={`w-full text-left p-5 rounded-xl border-2 transition-[border-color,background-color,box-shadow] duration-150 ${isSelected ? `${c.border} ${c.bg} shadow-sm` : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                        aria-pressed={isSelected}
                       >
                         <div className="flex items-start gap-4">
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isSelected ? c.badge : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
@@ -350,8 +360,8 @@ const SettingsPage = () => {
                   <div className="space-y-2.5">
                     {selectedMode.steps.map((step, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center flex-shrink-0 text-sm">
-                          {step.icon}
+                        <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-gray-300">
+                          <step.icon className="w-4 h-4" aria-hidden="true" />
                         </div>
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <span className="text-xs font-bold text-gray-400 dark:text-gray-500 w-4">{i + 1}.</span>
@@ -409,8 +419,9 @@ const SettingsPage = () => {
                   <div className="p-4 bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl">
                     <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Vista previa del cliente</p>
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
-                      <p className="text-gray-700 dark:text-gray-300">
-                        💰 Depósito de reserva: <strong>${formData.depositAmount || '—'}</strong>
+                      <p className="text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                        <Banknote className="w-4 h-4 text-primary-700 dark:text-primary-400" aria-hidden="true" />
+                        Depósito de reserva: <strong>${formData.depositAmount || '—'}</strong>
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {formData.bookingMode === 'PREPAGO'

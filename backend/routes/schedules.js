@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator')
 const { authenticateToken } = require('../middleware/auth')
 const { prisma } = require('../lib/prisma')
 const { emitToSalon } = require('../services/socketService')
+const { RECURRENCE_TYPES, EXCEPTION_TYPES } = require('../utils/constants')
 
 // Aplicar middleware de autenticación a todas las rutas
 router.use(authenticateToken)
@@ -174,7 +175,9 @@ router.post('/recurring-breaks', [
   body('name').trim().notEmpty().withMessage('El nombre es requerido'),
   body('startTime').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora de inicio inválida'),
   body('endTime').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora de fin inválida'),
-  body('recurrenceType').isIn(['daily', 'weekly', 'specific_days']).withMessage('Tipo de recurrencia inválido'),
+  body('recurrenceType')
+    .custom(value => RECURRENCE_TYPES.includes(String(value).toUpperCase()))
+    .withMessage('Tipo de recurrencia inválido'),
   body('specificDays').optional().isArray().withMessage('Días específicos debe ser un array')
 ], async (req, res) => {
   try {
@@ -222,7 +225,10 @@ router.put('/recurring-breaks/:id', [
   body('name').optional().trim().notEmpty().withMessage('El nombre no puede estar vacío'),
   body('startTime').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora de inicio inválida'),
   body('endTime').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora de fin inválida'),
-  body('recurrenceType').optional().isIn(['daily', 'weekly', 'specific_days']).withMessage('Tipo de recurrencia inválido'),
+  body('recurrenceType')
+    .optional()
+    .custom(value => RECURRENCE_TYPES.includes(String(value).toUpperCase()))
+    .withMessage('Tipo de recurrencia inválido'),
   body('specificDays').optional().isArray().withMessage('Días específicos debe ser un array')
 ], async (req, res) => {
   try {
@@ -253,7 +259,12 @@ router.put('/recurring-breaks/:id', [
     const updateData = {}
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
-        updateData[key] = req.body[key]
+        // Normalizar a mayúsculas para que coincida con el enum de Prisma
+        if (key === 'recurrenceType') {
+          updateData[key] = String(req.body[key]).toUpperCase()
+        } else {
+          updateData[key] = req.body[key]
+        }
       }
     })
 
@@ -265,7 +276,7 @@ router.put('/recurring-breaks/:id', [
     res.json({
       success: true,
       message: 'Descanso actualizado exitosamente',
-      data: breakRecord
+      data: updatedBreak
     })
 
     emitToSalon(req.user.id, 'schedule:updated', { action: 'break-updated' })
@@ -365,7 +376,9 @@ router.get('/exceptions', async (req, res) => {
 // POST /api/schedules/exceptions - Crear excepción
 router.post('/exceptions', [
   body('name').trim().notEmpty().withMessage('El nombre es requerido'),
-  body('exceptionType').isIn(['day_off', 'special_hours', 'vacation', 'holiday']).withMessage('Tipo de excepción inválido'),
+  body('exceptionType')
+    .custom(value => EXCEPTION_TYPES.includes(String(value).toUpperCase()))
+    .withMessage('Tipo de excepción inválido'),
   body('startDate').isISO8601().withMessage('Fecha de inicio inválida'),
   body('endDate').isISO8601().withMessage('Fecha de fin inválida'),
   body('specialStartTime').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora especial de inicio inválida'),
@@ -428,7 +441,10 @@ router.post('/exceptions', [
 // PUT /api/schedules/exceptions/:id - Actualizar excepción
 router.put('/exceptions/:id', [
   body('name').optional().trim().notEmpty().withMessage('El nombre no puede estar vacío'),
-  body('exceptionType').optional().isIn(['day_off', 'special_hours', 'vacation', 'holiday']).withMessage('Tipo de excepción inválido'),
+  body('exceptionType')
+    .optional()
+    .custom(value => EXCEPTION_TYPES.includes(String(value).toUpperCase()))
+    .withMessage('Tipo de excepción inválido'),
   body('startDate').optional().isISO8601().withMessage('Fecha de inicio inválida'),
   body('endDate').optional().isISO8601().withMessage('Fecha de fin inválida'),
   body('specialStartTime').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora especial de inicio inválida'),
@@ -466,6 +482,9 @@ router.put('/exceptions/:id', [
       if (req.body[key] !== undefined) {
         if (key === 'startDate' || key === 'endDate') {
           updateData[key] = new Date(req.body[key])
+        } else if (key === 'exceptionType') {
+          // Normalizar a mayúsculas para que coincida con el enum de Prisma
+          updateData[key] = String(req.body[key]).toUpperCase()
         } else {
           updateData[key] = req.body[key]
         }
@@ -480,7 +499,7 @@ router.put('/exceptions/:id', [
     res.json({
       success: true,
       message: 'Excepción actualizada exitosamente',
-      data: exception
+      data: updatedException
     })
 
     emitToSalon(req.user.id, 'schedule:updated', { action: 'exception-updated' })

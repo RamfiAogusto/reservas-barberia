@@ -7,6 +7,7 @@
  */
 const { prisma } = require('../lib/prisma')
 const emailService = require('./emailService')
+const { emitToSalon } = require('./socketService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
 

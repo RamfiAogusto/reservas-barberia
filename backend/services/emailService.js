@@ -152,14 +152,18 @@ class EmailService {
 
   // Template para recordatorio de cita
   generateReminderTemplate(bookingData) {
-    const { 
-      clientName, 
-      salonName, 
-      serviceName, 
-      date, 
-      time, 
+    const {
+      clientName,
+      salonName,
+      serviceName,
+      date,
+      time,
       salonAddress,
-      salonPhone 
+      salonPhone,
+      // Texto que describe cuándo es la cita respecto al momento del recordatorio
+      // (ej. "en 2 horas", "hoy", "mañana"). El recordatorio real se envía 2h antes
+      // de la cita (ver queueService.js), no necesariamente "mañana".
+      timeframeLabel = 'pronto'
     } = bookingData;
     const time12h = formatTime12h(time || '');
 
@@ -188,7 +192,7 @@ class EmailService {
           <div class="content">
             <p>Hola <strong>${clientName}</strong>,</p>
             
-            <p>Te recordamos que tienes una cita programada para mañana:</p>
+            <p>Te recordamos que tienes una cita programada ${timeframeLabel}:</p>
             
             <div class="highlight">
               <h3>📅 Detalles de tu Cita</h3>
@@ -257,11 +261,12 @@ class EmailService {
       }
 
       const emailContent = this.generateReminderTemplate(bookingData);
-      
+      const timeframeLabel = bookingData.timeframeLabel || 'pronto';
+
       const result = await resend.emails.send({
         from: this.fromEmail,
         to: bookingData.clientEmail,
-        subject: `⏰ Recordatorio: Tu cita mañana en ${bookingData.salonName}`,
+        subject: `⏰ Recordatorio: Tu cita ${timeframeLabel} en ${bookingData.salonName}`,
         html: emailContent
       });
 

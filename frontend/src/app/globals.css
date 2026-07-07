@@ -3,10 +3,36 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* ── Tokens de marca: ámbar (escala 50–950, canales RGB) ──
+       Consumidos por tailwind.config.js como rgb(var(--token) / <alpha>) */
+    --primary-50: 255 251 235;   /* #fffbeb */
+    --primary-100: 254 243 199;  /* #fef3c7 */
+    --primary-200: 253 230 138;  /* #fde68a */
+    --primary-300: 252 211 77;   /* #fcd34d */
+    --primary-400: 251 191 36;   /* #fbbf24 */
+    --primary-500: 245 158 11;   /* #f59e0b */
+    --primary-600: 217 119 6;    /* #d97706 */
+    --primary-700: 180 83 9;     /* #b45309 */
+    --primary-800: 146 64 14;    /* #92400e */
+    --primary-900: 120 53 15;    /* #78350f */
+    --primary-950: 69 26 3;      /* #451a03 */
+
+    /* Anillo de foco (focus ring) */
+    --ring: 245 158 11;          /* amber-500 */
+
+    /* Curvas de easing para micro-interacciones */
+    --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .dark {
+    --ring: 251 191 36;          /* amber-400: mejor contraste en oscuro */
+  }
+
   html {
     scroll-behavior: smooth;
   }
-  
+
   body {
     @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
   }

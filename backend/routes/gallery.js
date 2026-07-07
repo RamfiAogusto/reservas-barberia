@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { authenticateToken } = require('../middleware/auth')
-const { upload, handleUploadErrors } = require('../middleware/uploadMiddleware')
+const { upload, handleUploadErrors, validateFileSignature } = require('../middleware/uploadMiddleware')
 const cloudinaryService = require('../services/cloudinaryService')
 const { prisma } = require('../lib/prisma')
 const { emitToSalon } = require('../services/socketService')
@@ -69,7 +69,7 @@ router.get('/featured', async (req, res) => {
 })
 
 // POST /api/gallery - Subir una nueva imagen
-router.post('/', upload.single('image'), handleUploadErrors, async (req, res) => {
+router.post('/', upload.single('image'), handleUploadErrors, validateFileSignature, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({

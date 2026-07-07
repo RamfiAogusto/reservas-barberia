@@ -139,6 +139,8 @@ class QueueService {
       }
 
       // Preparar datos para el email
+      // El recordatorio se envía 2 horas antes de la cita (ver scheduleReminder más abajo),
+      // por lo que el texto debe reflejar "hoy"/"en 2 horas" y no asumir "mañana".
       const salonOwner = appointment.user;
       const bookingData = {
         clientName: appointment.clientName,
@@ -148,7 +150,8 @@ class QueueService {
         date: format(appointment.date, 'PPP', { locale: es }),
         time: appointment.time,
         salonAddress: salonOwner.address || 'Dirección no especificada',
-        salonPhone: salonOwner.phone || 'Teléfono no especificado'
+        salonPhone: salonOwner.phone || 'Teléfono no especificado',
+        timeframeLabel: 'en 2 horas'
       };
 
       // Enviar el recordatorio

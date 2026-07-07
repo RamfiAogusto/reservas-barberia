@@ -1,29 +1,33 @@
+/**
+ * Aplica las migraciones de Prisma pendientes contra DATABASE_URL.
+ * Reemplaza al antiguo bootstrap manual de tablas (raw SQL), que quedaba
+ * desincronizado del schema.prisma real y fue eliminado de lib/prisma.js.
+ * El despliegue depende de `prisma migrate deploy` (ver PRODUCTION-SETUP.md).
+ */
+const { execSync } = require('child_process');
 const { PrismaClient } = require('@prisma/client');
-const { createTablesIfNotExist } = require('./lib/prisma');
-
-const prisma = new PrismaClient();
 
 const forceMigrate = async () => {
+  console.log('🚀 Aplicando migraciones de Prisma (prisma migrate deploy)...');
+  console.log('🌍 NODE_ENV:', process.env.NODE_ENV);
+  console.log('🗄️ DATABASE_URL configurada:', process.env.DATABASE_URL ? 'Sí' : 'No');
+
   try {
-    console.log('🚀 Iniciando migración forzada de base de datos...');
-    console.log('🌍 NODE_ENV:', process.env.NODE_ENV);
-    console.log('🗄️ DATABASE_URL configurada:', process.env.DATABASE_URL ? 'Sí' : 'No');
-    
-    // Conectar a la base de datos
+    execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+    console.log('🎉 Migraciones aplicadas exitosamente');
+  } catch (error) {
+    console.error('❌ Error aplicando migraciones:', error.message);
+    process.exit(1);
+  }
+
+  // Verificación rápida de conectividad post-migración
+  const prisma = new PrismaClient();
+  try {
     await prisma.$connect();
-    console.log('✅ Conectado a PostgreSQL');
-    
-    // Ejecutar migraciones
-    await createTablesIfNotExist();
-    
-    console.log('🎉 Migración completada exitosamente');
-    
-    // Verificar que las tablas existen
     const userCount = await prisma.user.count();
     console.log(`✅ Tabla 'users' verificada (${userCount} usuarios encontrados)`);
-    
   } catch (error) {
-    console.error('❌ Error durante la migración:', error);
+    console.error('❌ Error verificando la base de datos tras migrar:', error.message);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

@@ -4,6 +4,7 @@ const cors = require('cors')
 const helmet = require('helmet')
 const rateLimit = require('express-rate-limit')
 const { checkConnection } = require('./lib/prisma')
+const paymentGateway = require('./services/paymentGatewayService')
 // Configuración de zona horaria para República Dominicana
 process.env.TZ = 'America/Santo_Domingo'
 
@@ -56,17 +57,26 @@ const publicLimiter = rateLimit({
 })
 
 // CORS - Configuración mejorada
+// FRONTEND_URL (env) es la fuente canónica del origen permitido en producción.
+// Los dos dominios legacy de abajo (Vercel + Netlify) se mantienen temporalmente
+// por compatibilidad mientras se confirma la topología final de despliegue
+// (ver nota "Topología de despliegue" en PRODUCTION-SETUP.md) — un humano debe
+// confirmar cuál(es) retirar.
+const LEGACY_PROD_ORIGINS = [
+  'https://reservas-barberia-ruddy.vercel.app',
+  'https://frontreservas.netlify.app'
+]
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Permitir requests sin origin (mobile apps, etc) en desarrollo
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
-      'https://reservas-barberia-ruddy.vercel.app',
-      'https://frontreservas.netlify.app',
-      process.env.FRONTEND_URL
+      process.env.FRONTEND_URL,
+      ...LEGACY_PROD_ORIGINS
     ].filter(Boolean)
-    
+
     console.log('🌐 CORS check - Origin:', origin)
     console.log('🌐 CORS check - Allowed origins:', allowedOrigins)
     
@@ -128,12 +138,45 @@ app.use('/api/gallery', galleryRoutes)
 app.use('/api/barbers', barbersRoutes)
 app.use('/api/public', publicLimiter, publicRoutes)
 
-// Ruta de salud
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+// Ruta de salud — reporta conectividad de dependencias sin lanzar excepciones.
+// Se mantiene rápida: la verificación de DB usa un SELECT 1 (ver lib/prisma.js)
+// y el resto son lecturas de estado en memoria (no hacen I/O de red).
+app.get('/api/health', async (req, res) => {
+  let dbConnected = false
+  try {
+    dbConnected = await checkConnection()
+  } catch (error) {
+    console.error('❌ Health check - error verificando DB:', error.message)
+  }
+
+  let queueStatus = { initialized: false, redisAvailable: false, queueActive: false, workerActive: false }
+  try {
+    queueStatus = queueService.getStatus()
+  } catch (error) {
+    console.error('❌ Health check - error verificando cola:', error.message)
+  }
+
+  const emailConfigured = !!process.env.RESEND_API_KEY
+  const paymentGatewayConfigured = (() => {
+    try {
+      return paymentGateway.isConfigured()
+    } catch {
+      return false
+    }
+  })()
+
+  const isHealthy = dbConnected
+
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'OK' : 'DEGRADED',
     message: 'API de Reservas Barbería funcionando correctamente',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    dependencies: {
+      database: { connected: dbConnected },
+      queue: queueStatus,
+      email: { configured: emailConfigured },
+      paymentGateway: { configured: paymentGatewayConfigured, note: 'Pasarela simulada (mock) hasta integrar un proveedor real' }
+    }
   })
 })
 

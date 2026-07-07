@@ -9,9 +9,25 @@ Este documento detalla la implementación del sistema de emails de confirmación
 ## 🎯 **Funcionalidades Implementadas**
 
 ### 1. **Sistema de Emails Automáticos**
-- ✅ **Confirmación de Citas**: Email automático al crear una reserva
-- ✅ **Cancelación de Citas**: Email automático al cancelar una cita
-- ✅ **Recordatorios**: Templates listos para recordatorios (funcionalidad base)
+
+`services/emailService.js` implementa **9 tipos de email**, todos con plantilla
+HTML propia y envío vía Resend:
+
+| # | Método | Cuándo se envía |
+|---|--------|------------------|
+| 1 | `sendBookingConfirmation` | Cita confirmada directamente (modo LIBRE / sin aprobación manual) |
+| 2 | `sendBookingReminder` | Recordatorio automático, programado por BullMQ **2 horas antes** de la cita (ver README-RECORDATORIOS.md — SÍ está en producción) |
+| 3 | `sendBookingRequest` | Solicitud de reserva recibida, pendiente de revisión del salón (modo PAGO_POST_APROBACION) |
+| 4 | `sendOwnerNotification` | Notificación al dueño del salón cuando entra una reserva nueva |
+| 5 | `sendBookingModification` | El salón modifica una reserva existente (fecha/hora/servicio) |
+| 6 | `sendCancellationEmail` | Cita cancelada |
+| 7 | `sendPaymentRequired` | El salón aprueba una solicitud y el cliente debe pagar el depósito dentro de una ventana de tiempo (hold) |
+| 8 | `sendHoldExpired` | El cliente no pagó a tiempo y el hold expiró (horario liberado) |
+| 9 | `sendBookingRejection` | El salón rechaza una solicitud de reserva |
+
+Todos son "fire-and-forget" (no bloquean la respuesta HTTP); ver
+`backend/utils/sendAndLog.js` para el patrón usado en varias rutas para
+loguear éxito/fallo de estos envíos sin propagar el error al cliente.
 
 ### 2. **Política de No-Show Visible**
 - ✅ **En el Proceso de Reserva**: Advertencia clara en el paso 4
@@ -97,7 +113,7 @@ frontend/src/app/
 ### **Variables de Entorno Requeridas**
 ```bash
 # Email Configuration (Resend)
-RESEND_API_KEY=re_BM7CX92n_FfzX6zbHosaL35uNFSsPhSZm
+RESEND_API_KEY=re_XXXXXXXXXXXXXXXXXXXX
 FROM_EMAIL=onboarding@resend.dev
 ```
 
@@ -193,11 +209,14 @@ node test-email-simple.js
 
 ## 🔮 **Próximas Mejoras (Opcionales)**
 
-### **Recordatorios Automáticos**
-- Cron job para enviar recordatorios 24h antes
-- Sistema de notificaciones SMS
+> **Corrección:** los recordatorios automáticos **YA ESTÁN implementados y en
+> producción** vía BullMQ + Redis (2 horas antes de la cita) — ver
+> `README-RECORDATORIOS.md`, que es la fuente correcta sobre este tema. Esta
+> sección anteriormente decía que los recordatorios eran una mejora futura;
+> eso era incorrecto y quedó desactualizado tras implementarse `queueService.js`.
 
-### **Emails Personalizados**
+### **Mejoras pendientes reales**
+- Notificaciones SMS (no implementado)
 - Templates editables desde dashboard
 - Branding personalizable por salón
 

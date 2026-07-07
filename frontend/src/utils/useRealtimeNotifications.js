@@ -86,16 +86,22 @@ export function useRealtimeNotifications() {
     }))
 
     cleanups.push(on('appointment:responded', (data) => {
-      const { appointment, paymentMode, holdMinutes } = data
-      if (paymentMode === 'IN_PERSON') {
-        toast.success('Cita Confirmada', {
-          description: `${appointment.clientName} — pago en persona`,
+      const { appointment, action, holdMinutes } = data
+      if (action === 'RECHAZAR') {
+        toast.error('Cita Rechazada', {
+          description: `${appointment.clientName} — reserva rechazada`,
           duration: 5000,
         })
-      } else {
+      } else if (appointment.status === 'ESPERANDO_PAGO') {
+        // Solo mostrar "Esperando Pago" cuando la cita realmente entró a ese estado
         toast.warning('Esperando Pago', {
-          description: `${appointment.clientName} tiene ${holdMinutes} min para pagar`,
+          description: `${appointment.clientName} tiene ${holdMinutes || 15} min para pagar`,
           duration: 8000,
+        })
+      } else {
+        toast.success('Cita Confirmada', {
+          description: `${appointment.clientName} — cita confirmada`,
+          duration: 5000,
         })
       }
     }))

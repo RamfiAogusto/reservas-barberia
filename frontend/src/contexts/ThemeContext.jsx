@@ -18,18 +18,20 @@ export const useTheme = () => {
 }
 
 export const ThemeProvider = ({ children }) => {
+  // El script inline del layout raíz ya aplicó la clase `dark` antes de la
+  // hidratación; aquí solo leemos ese estado (post-hidratación, para no
+  // provocar un mismatch con el HTML del servidor). No hay flash porque la
+  // clase ya está puesta en <html> y no se toca hasta que mounted === true.
   const [isDark, setIsDark] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setIsDark(document.documentElement.classList.contains('dark'))
     setMounted(true)
-    const stored = localStorage.getItem(STORAGE_KEY)
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = stored === 'dark' || (!stored && prefersDark)
-    setIsDark(shouldBeDark)
   }, [])
 
-  // Apply dark class on <html> — only while dashboard is mounted
+  // Sincronizar la clase en <html> y persistir la preferencia.
+  // Sin cleanup: el tema es global y debe sobrevivir a la navegación.
   useEffect(() => {
     if (!mounted) return
     const root = document.documentElement
@@ -38,11 +40,10 @@ export const ThemeProvider = ({ children }) => {
     } else {
       root.classList.remove('dark')
     }
-    localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light')
-
-    // Cleanup: remove dark class when leaving dashboard
-    return () => {
-      root.classList.remove('dark')
+    try {
+      localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light')
+    } catch (e) {
+      // localStorage no disponible
     }
   }, [isDark, mounted])
 

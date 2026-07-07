@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Inicio', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Citas', href: '/dashboard/appointments', icon: Calendar },
   { name: 'Servicios', href: '/dashboard/services', icon: Scissors },
   { name: 'Horarios', href: '/dashboard/schedules', icon: Clock },
@@ -24,9 +24,8 @@ const navigation = [
   { name: 'Guía', href: '/dashboard/guide', icon: BookOpen },
 ]
 
-export default function Sidebar({ user, onLogout }) {
+export default function Sidebar({ user, onLogout, collapsed, onCollapsedChange }) {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -157,7 +156,7 @@ export default function Sidebar({ user, onLogout }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => onCollapsedChange?.(!collapsed)}
             className="w-full"
             aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
           >
@@ -170,12 +169,13 @@ export default function Sidebar({ user, onLogout }) {
 
   return (
     <>
-      {/* Mobile toggle */}
+      {/* Mobile toggle — alineado con la fila del topbar sticky (py-2 + botón h-10)
+          para no flotar sobre el contenido de la página */}
       <Button
         variant="outline"
         size="icon"
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50"
+        className="lg:hidden fixed top-2 left-4 z-40"
         aria-label="Abrir menú"
       >
         <Menu className="w-5 h-5" />

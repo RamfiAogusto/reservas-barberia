@@ -1,83 +1,25 @@
-import { useState, useEffect, useCallback } from 'react'
-import { cachedRequest, invalidateCache } from './cache'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { cachedRequest } from './cache'
 import { useDebounce } from './useDebounce'
-
-// Estado global para datos del salón
-let globalSalonData = new Map()
-let globalLoadingStates = new Map()
-
-export const useSalonData = (username) => {
-  const [salon, setSalon] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  const fetchSalonData = useCallback(async () => {
-    if (!username) return
-
-    // Verificar si ya tenemos los datos en memoria
-    if (globalSalonData.has(username)) {
-      setSalon(globalSalonData.get(username))
-      setLoading(false)
-      return
-    }
-
-    // Verificar si ya está cargando
-    if (globalLoadingStates.has(username)) {
-      return // Ya se está cargando, no hacer otra llamada
-    }
-
-    try {
-      globalLoadingStates.set(username, true)
-      setLoading(true)
-      setError('')
-
-      const data = await cachedRequest(`/public/salon/${username}`)
-      
-      if (data.success) {
-        // Guardar en estado global
-        globalSalonData.set(username, data.data)
-        setSalon(data.data)
-      } else {
-        setError(data.message || 'Salón no encontrado')
-      }
-    } catch (error) {
-      console.error('Error al cargar perfil:', error)
-      setError('Error al cargar la información del salón')
-    } finally {
-      setLoading(false)
-      globalLoadingStates.delete(username)
-    }
-  }, [username])
-
-  // Función para invalidar caché del salón
-  const invalidateSalonCache = useCallback(() => {
-    if (username) {
-      invalidateCache(`/public/salon/${username}`)
-      globalSalonData.delete(username)
-    }
-  }, [username])
-
-  useEffect(() => {
-    fetchSalonData()
-  }, [fetchSalonData])
-
-  return {
-    salon,
-    loading,
-    error,
-    refetch: fetchSalonData,
-    invalidateCache: invalidateSalonCache
-  }
-}
+import { API_URL } from './config'
 
 // Hook para disponibilidad de días
 export const useDaysStatus = (username, selectedService) => {
   const [daysStatus, setDaysStatus] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const abortControllerRef = useRef(null)
 
   const fetchDaysStatus = useCallback(async () => {
     if (!selectedService || !username) return
+
+    // Cancelar petición anterior si sigue en curso para evitar
+    // que una respuesta fuera de orden sobrescriba el estado más reciente
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
 
     try {
       setLoading(true)
@@ -93,7 +35,9 @@ export const useDaysStatus = (username, selectedService) => {
       const data = await cachedRequest(`/public/salon/${username}/days-status`, {
         startDate,
         endDate
-      }, 2 * 60 * 1000) // 2 minutos de caché para disponibilidad
+      }, 2 * 60 * 1000, { signal: abortController.signal }) // 2 minutos de caché para disponibilidad
+
+      if (abortController.signal.aborted) return
 
       if (data.success) {
         setDaysStatus(data.data.days)
@@ -102,16 +46,24 @@ export const useDaysStatus = (username, selectedService) => {
         setDaysStatus([])
       }
     } catch (error) {
+      if (error.name === 'AbortError') return
       console.error('Error cargando días:', error)
       setError('Error al cargar disponibilidad')
       setDaysStatus([])
     } finally {
-      setLoading(false)
+      if (!abortController.signal.aborted) {
+        setLoading(false)
+      }
     }
   }, [selectedService, username])
 
   useEffect(() => {
     fetchDaysStatus()
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
   }, [fetchDaysStatus])
 
   return {
@@ -128,6 +80,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
   const [allSlots, setAllSlots] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const abortControllerRef = useRef(null)
 
   // Usar debounce para evitar llamadas excesivas
   const debouncedDate = useDebounce(selectedDate, 300) // 300ms de debounce
@@ -137,6 +90,14 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
 
   const fetchAvailableSlots = useCallback(async () => {
     if (!debouncedDate || !debouncedService || !username) return
+
+    // Cancelar petición anterior si sigue en curso para evitar
+    // que una respuesta fuera de orden sobrescriba el estado más reciente
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
 
     try {
       setLoading(true)
@@ -154,7 +115,9 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
         params.totalDuration = debouncedDuration
       }
 
-      const data = await cachedRequest(`/public/salon/${username}/availability/advanced`, params, 1 * 60 * 1000) // 1 minuto de caché para slots
+      const data = await cachedRequest(`/public/salon/${username}/availability/advanced`, params, 1 * 60 * 1000, { signal: abortController.signal }) // 1 minuto de caché para slots
+
+      if (abortController.signal.aborted) return
 
       if (data.success) {
         if (data.data.isBusinessDay) {
@@ -171,17 +134,25 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
         setAllSlots([])
       }
     } catch (error) {
+      if (error.name === 'AbortError') return
       console.error('Error cargando slots:', error)
       setError('Error al cargar horarios')
       setAvailableSlots([])
       setAllSlots([])
     } finally {
-      setLoading(false)
+      if (!abortController.signal.aborted) {
+        setLoading(false)
+      }
     }
   }, [debouncedDate, debouncedService, debouncedBarber, debouncedDuration, username])
 
   useEffect(() => {
     fetchAvailableSlots()
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
   }, [fetchAvailableSlots])
 
   // Función para verificar disponibilidad en tiempo real (sin caché)
@@ -189,7 +160,7 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
     if (!selectedDate || !selectedService || !username) return false
 
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id || selectedService.id}`
+      let url = `${API_URL}/public/salon/${username}/availability/advanced?date=${selectedDate}&serviceId=${selectedService._id || selectedService.id}`
       if (barberId) {
         url += `&barberId=${barberId}`
       }
@@ -221,9 +192,3 @@ export const useAvailableSlots = (username, selectedDate, selectedService, barbe
     setError
   }
 }
-
-// Función para limpiar todo el estado global
-export const clearGlobalSalonData = () => {
-  globalSalonData.clear()
-  globalLoadingStates.clear()
-} 

@@ -1,5 +1,47 @@
 # 🚀 Configuración para Producción - ReservasBarberia
 
+## 🗄️ Migraciones de base de datos
+
+El esquema de la base de datos (tablas, enums, índices) se gestiona **exclusivamente**
+con Prisma Migrate. `lib/prisma.js` ya NO contiene un bootstrap manual de creación de
+tablas (el antiguo fallback de ~400 líneas de `CREATE TABLE IF NOT EXISTS` fue eliminado
+por estar desincronizado con `schema.prisma` y ser peligroso si llegaba a ejecutarse en
+una base de datos nueva).
+
+Antes de desplegar (o como parte del pipeline de deploy) ejecutar:
+
+```bash
+npx prisma migrate deploy
+```
+
+`npm run build` ya invoca esto vía `force-migrate.js`, que ahora corre
+`prisma migrate deploy` en lugar de crear tablas a mano. Si `DATABASE_URL` no tiene
+las migraciones aplicadas, el servidor arrancará pero las queries de Prisma fallarán.
+
+## 🌐 Topología de despliegue (pendiente de confirmación humana)
+
+**Estado real detectado en el código (no asumir sin confirmar con el owner):**
+- El backend corre en **Render** (ver `DATABASE_URL` de ejemplo y el dominio
+  `reservas-barberia-backend.onrender.com` usado en `netlify.toml`).
+- El frontend de producción vigente parece ser el dominio de **Vercel**
+  (`reservas-barberia-ruddy.vercel.app`), pero además existen dos configuraciones
+  de Netlify (`netlify.toml` en la raíz y en `frontend/`) apuntando a un tercer
+  dominio (`cosmic-maamoul-8661f7.netlify.app`), y el `netlify.toml` de `frontend/`
+  tiene un redirect estilo CRA (`/index.html`) que es incorrecto para Next.js App Router.
+- `backend/server.js` mantiene ambos orígenes (Vercel + Netlify) en la allowlist de CORS
+  junto con `FRONTEND_URL`, con un comentario explicando que es temporal.
+
+**Acción requerida (humano):** confirmar cuál es la topología canónica
+(recomendado: Vercel para frontend + Render para backend) y, una vez confirmado:
+1. Eliminar los `netlify.toml` (raíz y `frontend/`) si Netlify ya no se usa.
+2. Quitar los dominios legacy de la allowlist de CORS en `server.js`.
+3. Dejar `FRONTEND_URL` como única fuente de verdad para CORS, enlaces de email y
+   redirecciones de pago.
+
+Esto **no se hizo automáticamente** porque implica borrar configuración de
+despliegue y tomar una decisión irreversible de hosting — requiere confirmación
+del owner.
+
 ## 📋 **Checklist de Preparación**
 
 ### ✅ **Ya Configurado y Funcionando:**
@@ -30,7 +72,7 @@ JWT_SECRET=jwt_secret_muy_seguro_para_produccion
 FRONTEND_URL=https://tu-dominio.com
 
 # Emails (YA FUNCIONA)
-RESEND_API_KEY=re_BM7CX92n_FfzX6zbHosaL35uNFSsPhSZm
+RESEND_API_KEY=re_XXXXXXXXXXXXXXXXXXXX
 FROM_EMAIL=onboarding@resend.dev
 
 # Cloudinary (CONFIGURAR)
@@ -38,7 +80,7 @@ CLOUDINARY_CLOUD_NAME=tu_cloud_name
 CLOUDINARY_API_KEY=tu_api_key
 CLOUDINARY_API_SECRET=tu_api_secret
 
-# Stripe (OPCIONAL)
+# Stripe (OPCIONAL — ver nota abajo: la pasarela sigue siendo un mock)
 STRIPE_SECRET_KEY=sk_live_tu_clave
 STRIPE_WEBHOOK_SECRET=whsec_tu_webhook
 
@@ -47,6 +89,16 @@ REDIS_HOST=tu_redis_host
 REDIS_PORT=6379
 REDIS_PASSWORD=tu_redis_pass
 ```
+
+> **Nota sobre Stripe:** configurar estas variables NO habilita pagos reales.
+> `services/paymentGatewayService.js` es actualmente un mock (`isConfigured()`
+> devuelve `false` de forma fija y ningún método llama a un proveedor real).
+> `check-production-readiness.js` ya no reporta "Stripe listo" solo por la
+> presencia de las keys — ver P6-1 en el plan de remediación para la integración real.
+
+Ver también `backend/env.example` para la lista completa de variables
+(incluye `PGUSER`/`PGPASSWORD`/`PGHOST`/`PGPORT`, usadas solo por
+`scripts/setup-local-db.js` al crear una base de datos PostgreSQL local).
 
 ---
 
@@ -134,33 +186,33 @@ REDIS_PASSWORD=tu_password_redis
 
 ---
 
-## 🌐 **Opciones de Hosting Recomendadas**
+## 🌐 **Opciones de Hosting**
+
+> **Nota:** el host real en uso actualmente es **Render** (ver `DATABASE_URL` de
+> ejemplo y el dominio `*.onrender.com` referenciado en `netlify.toml`). Railway
+> no está en uso — se deja como alternativa documentada solamente.
 
 ### **Backend (API):**
-1. **Railway.app** ⭐ (Recomendado)
-   - Gratuito hasta $5/mes
-   - Deploy automático desde GitHub
-   - Include Redis gratuito
-
-2. **Render.com**
+1. **Render.com** ⭐ (En uso actualmente)
    - Plan gratuito disponible
    - Fácil configuración
+   - Host real del backend de este proyecto
 
-3. **Vercel** (para APIs)
-   - Gratuito para proyectos pequeños
+2. **Railway.app** (alternativa, no usada actualmente)
+   - Gratuito hasta $5/mes
+   - Deploy automático desde GitHub
 
 ### **Base de Datos:**
-1. **PostgreSQL** (Railway/Render) ⭐ (Recomendado)
+1. **PostgreSQL en Render** ⭐ (En uso actualmente)
    - Base de datos relacional robusta
-   - Ya está siendo usado con Prisma
+   - Usada con Prisma; el esquema se aplica con `prisma migrate deploy`
 
 ### **Frontend:**
-1. **Vercel** ⭐ (Recomendado para Next.js)
+1. **Vercel** ⭐ (Ver nota de topología arriba — a confirmar como canónico)
    - Gratuito para proyectos personales
    - Deploy automático
 
-2. **Netlify**
-   - También excelente para React/Next.js
+2. **Netlify** (configuración presente en el repo, pendiente de confirmar si sigue vigente — ver "Topología de despliegue" arriba)
 
 ---
 

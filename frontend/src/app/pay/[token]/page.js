@@ -139,7 +139,7 @@ export default function PaymentPage() {
       }
 
       // Pasarela no configurada — confirmar pago directamente (simulación)
-      const confirmRes = await fetch(`${API_BASE}/appointments/${appointment.appointmentId}/confirm-payment`, {
+      const confirmRes = await fetch(`${API_BASE}/payments/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentToken: token })
@@ -181,7 +181,7 @@ export default function PaymentPage() {
         {/* ─── Loading ─── */}
         {pageState === PAGE_STATES.LOADING && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 text-center">
-            <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4" />
+            <Loader2 className="w-10 h-10 animate-spin text-primary-500 mx-auto mb-4" />
             <p className="text-gray-600 dark:text-gray-400">Cargando información de pago...</p>
           </div>
         )}
@@ -262,7 +262,7 @@ export default function PaymentPage() {
                 setPageState(PAGE_STATES.LOADING)
                 fetchAppointment()
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-[background-color,transform] duration-150 active:scale-[0.98] text-sm"
             >
               Intentar de nuevo
             </button>
@@ -273,9 +273,9 @@ export default function PaymentPage() {
         {pageState === PAGE_STATES.AWAITING_PAYMENT && appointment && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 text-white">
+            <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-5 text-white">
               <h1 className="text-lg font-bold">{appointment.salonName}</h1>
-              <p className="text-blue-100 text-sm mt-1">Completar pago de depósito</p>
+              <p className="text-primary-100 text-sm mt-1">Completar pago de depósito</p>
             </div>
 
             {/* Timer */}
@@ -317,7 +317,7 @@ export default function PaymentPage() {
                   </div>
                   <div className="flex justify-between text-sm font-medium border-t border-gray-200 dark:border-gray-700 pt-2">
                     <span className="text-gray-900 dark:text-white">Depósito a pagar ahora</span>
-                    <span className="text-lg text-blue-600 dark:text-blue-400 font-bold">
+                    <span className="text-lg text-primary-700 dark:text-primary-400 font-bold">
                       ${appointment.depositAmount?.toFixed(2) || '0.00'}
                     </span>
                   </div>
@@ -341,7 +341,7 @@ export default function PaymentPage() {
               {/* Pay button */}
               <button
                 onClick={handleConfirmPayment}
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-semibold text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25"
+                className="w-full py-3.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 active:scale-[0.98] text-white rounded-xl font-semibold text-base transition-[background-color,transform] duration-150 flex items-center justify-center gap-2 shadow-lg shadow-primary-600/25 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
                 <CreditCard className="w-5 h-5" />
                 Pagar ${appointment.depositAmount?.toFixed(2) || '0.00'}
@@ -353,7 +353,7 @@ export default function PaymentPage() {
         {/* ─── Processing overlay ─── */}
         {pageState === PAGE_STATES.PROCESSING && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 text-center">
-            <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4" />
+            <Loader2 className="w-10 h-10 animate-spin text-primary-500 mx-auto mb-4" />
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Procesando pago...</h2>
             <p className="text-gray-500 dark:text-gray-400 text-sm">No cierres esta ventana.</p>
           </div>

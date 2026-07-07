@@ -102,9 +102,17 @@ export const authAPI = {
   }
 }
 
+// Notifica a la app (p. ej. al SocketProvider) que la sesión cambió.
+const notifyAuthChanged = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('auth:changed'))
+  }
+}
+
 // Función para guardar token en localStorage
 export const saveAuthToken = (token) => {
   localStorage.setItem('authToken', token)
+  notifyAuthChanged()
 }
 
 // Función para obtener token de localStorage
@@ -132,6 +140,7 @@ export const getUserData = () => {
 export const clearAuthData = () => {
   localStorage.removeItem('authToken')
   localStorage.removeItem('user')
+  notifyAuthChanged()
 }
 
 // Función para manejar errores de autenticación globalmente

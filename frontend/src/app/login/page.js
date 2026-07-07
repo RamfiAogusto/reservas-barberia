@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authAPI, saveAuthToken, saveUserData } from '@/utils/api'
@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+const REMEMBERED_EMAIL_KEY = 'rememberedEmail'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -23,6 +24,21 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
+  const [showForgotHint, setShowForgotHint] = useState(false)
+
+  // "Recordarme": prellenar el email guardado en localStorage
+  useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY)
+      if (savedEmail) {
+        setFormData(prev => ({ ...prev, email: savedEmail }))
+        setRememberMe(true)
+      }
+    } catch (e) {
+      // localStorage no disponible
+    }
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -44,6 +60,15 @@ export default function LoginPage() {
       if (data.success) {
         saveAuthToken(data.token)
         saveUserData(data.user)
+        try {
+          if (rememberMe) {
+            localStorage.setItem(REMEMBERED_EMAIL_KEY, formData.email)
+          } else {
+            localStorage.removeItem(REMEMBERED_EMAIL_KEY)
+          }
+        } catch (e) {
+          // localStorage no disponible
+        }
         setSuccess('¡Login exitoso! Redirigiendo...')
         setTimeout(() => {
           router.push('/dashboard')
@@ -132,18 +157,37 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="remember-me" disabled={isLoading} />
-                  <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">
-                    Recordarme
-                  </Label>
-                </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remember-me"
+                      disabled={isLoading}
+                      checked={rememberMe}
+                      onCheckedChange={(checked) => setRememberMe(checked === true)}
+                    />
+                    <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">
+                      Recordarme
+                    </Label>
+                  </div>
 
-                <div className="text-sm">
-                  <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
-                    ¿Olvidaste tu contraseña?
-                  </a>
+                  <div className="text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotHint(prev => !prev)}
+                      aria-expanded={showForgotHint}
+                      className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </div>
+                </div>
+                <div aria-live="polite">
+                  {showForgotHint && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-right">
+                      Función próximamente. Contacta a soporte si necesitas recuperar tu cuenta.
+                    </p>
+                  )}
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   format,
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -52,13 +52,31 @@ function getBarberInitials(name) {
     : name.slice(0, 2).toUpperCase()
 }
 
-// ─── Time-slot rows for week view (8am–21pm) ───
-const HOUR_SLOTS = Array.from({ length: 14 }, (_, i) => i + 8)
+// ─── Time-slot rows for week/day views ───
+// Baseline 8am–9pm, extended dynamically (±1h padding) when visible
+// appointments start earlier or end later so nothing clips.
+const DEFAULT_FIRST_HOUR = 8
+const DEFAULT_LAST_HOUR = 22 // exclusive: last row rendered is 21:00
 
 function timeToDecimal(time) {
   if (!time) return 8
   const [h, m] = time.split(':').map(Number)
   return h + (m || 0) / 60
+}
+
+function getHourSlots(appointments) {
+  let first = DEFAULT_FIRST_HOUR
+  let last = DEFAULT_LAST_HOUR
+  appointments.forEach(apt => {
+    if (!apt.time) return
+    const start = timeToDecimal(apt.time)
+    const duration = (apt.service?.duration || apt.totalDuration || 30) / 60
+    first = Math.min(first, Math.floor(start) - 1)
+    last = Math.max(last, Math.ceil(start + duration) + 1)
+  })
+  first = Math.max(0, first)
+  last = Math.min(24, last)
+  return Array.from({ length: last - first }, (_, i) => i + first)
 }
 
 function computeOverlapColumns(appointments) {
@@ -128,7 +146,17 @@ export default function AppointmentCalendar({
   const [view, setView] = useState('week')
   const [internalSelectedDate, setInternalSelectedDate] = useState(new Date())
 
+  // Below `sm` the time-grid week view is unusable: default to day view.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      setView('day')
+    }
+  }, [])
+
   const selectedDate = controlledSelectedDate || internalSelectedDate
+
+  // Hour rows derived from the visible appointments (see getHourSlots)
+  const hourSlots = useMemo(() => getHourSlots(appointments), [appointments])
 
   const goNext = () => setCurrentDate(prev =>
     view === 'month' ? addMonths(prev, 1) : view === 'week' ? addWeeks(prev, 1) : addDays(prev, 1)
@@ -294,13 +322,14 @@ export default function AppointmentCalendar({
         />
       ) : view === 'week' ? (
         <WeekView
-          days={days} selectedDate={selectedDate}
+          days={days} selectedDate={selectedDate} hourSlots={hourSlots}
           appointmentsByDate={appointmentsByDate} barberColorMap={barberColorMap}
           onDayClick={handleDayClick} onSelectAppointment={onSelectAppointment}
         />
       ) : (
         <DayView
           date={currentDate}
+          hourSlots={hourSlots}
           appointmentsByDate={appointmentsByDate}
           barberColorMap={barberColorMap}
           barberLegend={barberLegend}
@@ -335,9 +364,22 @@ function MonthView({ days, currentDate, selectedDate, appointmentsByDate, barber
           const selected = isSameDay(day, selectedDate)
 
           return (
-            <div key={dateStr} onClick={() => onDayClick(day)}
+            // role="button" instead of <button>: the cell contains appointment
+            // buttons and nesting real buttons is invalid HTML.
+            <div key={dateStr}
+              role="button"
+              tabIndex={0}
+              aria-label={format(day, "d 'de' MMMM yyyy", { locale: es })}
+              onClick={() => onDayClick(day)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onDayClick(day)
+                }
+              }}
               className={cn(
                 'bg-white dark:bg-gray-900 min-h-[90px] p-1.5 cursor-pointer transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500',
                 !inMonth && 'bg-gray-50 dark:bg-gray-900/50',
                 selected && 'ring-2 ring-inset ring-primary-500',
                 'hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -356,13 +398,13 @@ function MonthView({ days, currentDate, selectedDate, appointmentsByDate, barber
                     <button key={apt.id}
                       onClick={(e) => { e.stopPropagation(); onSelectAppointment?.(apt) }}
                       className={cn(
-                        'flex items-center gap-1 w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-80',
+                        'flex items-center gap-1 w-full text-left rounded px-1 py-0.5 text-[11px] leading-tight truncate transition-opacity hover:opacity-80',
                         bColor ? bColor.bg : 'bg-gray-100 dark:bg-gray-800'
                       )}>
                       <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', stCfg.dotClass)} />
                       {hasMultipleBarbers && bColor && (
                         <span className={cn(
-                          'w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-white',
+                          'w-5 h-4 rounded flex-shrink-0 flex items-center justify-center text-[11px] font-bold leading-none text-white',
                           bColor.stripe
                         )}>
                           {getBarberInitials(apt.barber?.name)}
@@ -375,7 +417,7 @@ function MonthView({ days, currentDate, selectedDate, appointmentsByDate, barber
                   )
                 })}
                 {dayAppts.length > 3 && (
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 pl-1">+{dayAppts.length - 3} más</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-1">+{dayAppts.length - 3} más</p>
                 )}
               </div>
             </div>
@@ -390,11 +432,11 @@ function MonthView({ days, currentDate, selectedDate, appointmentsByDate, barber
 // ─────────────────────────────────────
 // WEEK VIEW (Time-grid)
 // ─────────────────────────────────────
-function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDayClick, onSelectAppointment }) {
+function WeekView({ days, selectedDate, hourSlots, appointmentsByDate, barberColorMap, onDayClick, onSelectAppointment }) {
   const hasMultipleBarbers = Object.keys(barberColorMap).length > 1
   const ROW_HEIGHT = 52
-  const FIRST_HOUR = HOUR_SLOTS[0]
-  const totalHeight = HOUR_SLOTS.length * ROW_HEIGHT
+  const FIRST_HOUR = hourSlots[0]
+  const totalHeight = hourSlots.length * ROW_HEIGHT
 
   const dayPositioned = useMemo(() => {
     const result = {}
@@ -416,9 +458,11 @@ function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDa
             const today = isToday(day)
             const selected = isSameDay(day, selectedDate)
             return (
-              <div key={day.toISOString()} onClick={() => onDayClick(day)}
+              <button key={day.toISOString()} type="button" onClick={() => onDayClick(day)}
+                aria-label={format(day, "EEEE d 'de' MMMM", { locale: es })}
                 className={cn(
                   'px-2 py-3 text-center cursor-pointer border-r border-gray-200 dark:border-gray-700 last:border-r-0 transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500',
                   selected && 'bg-primary-50 dark:bg-primary-900/20',
                   'hover:bg-gray-50 dark:hover:bg-gray-800'
                 )}>
@@ -430,7 +474,7 @@ function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDa
                   today && 'bg-primary-600 text-white',
                   !today && 'text-gray-900 dark:text-gray-100'
                 )}>{format(day, 'd')}</div>
-              </div>
+              </button>
             )
           })}
         </div>
@@ -438,14 +482,14 @@ function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDa
         {/* Time grid with appointment overlay */}
         <div className="relative" style={{ height: totalHeight }}>
           {/* Hour grid lines (background) */}
-          {HOUR_SLOTS.map((hour, idx) => (
+          {hourSlots.map((hour, idx) => (
             <div
               key={hour}
               className="absolute w-full grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-100 dark:border-gray-800"
               style={{ top: idx * ROW_HEIGHT, height: ROW_HEIGHT }}
             >
               <div className="border-r border-gray-200 dark:border-gray-700 text-right pr-2 py-1">
-                <span className="text-[11px] text-gray-400 dark:text-gray-500 -mt-2 block">
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 -mt-2 block">
                   {formatTime12h(`${hour.toString().padStart(2, '0')}:00`)}
                 </span>
               </div>
@@ -501,7 +545,7 @@ function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDa
                           <div className="flex items-center gap-1 min-w-0">
                             {hasMultipleBarbers && bColor && (
                               <span className={cn(
-                                'flex-shrink-0 w-4 h-4 rounded text-[8px] font-bold text-white flex items-center justify-center leading-none',
+                                'flex-shrink-0 w-5 h-4 rounded text-[11px] font-bold text-white flex items-center justify-center leading-none',
                                 bColor.stripe
                               )}>
                                 {getBarberInitials(apt.barber?.name)}
@@ -511,12 +555,17 @@ function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDa
                               {apt.clientName}
                             </p>
                           </div>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate leading-tight">
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate leading-tight">
                             {formatTime12h(apt.time)}{!isOverlap && ` · ${apt.service?.name || 'Servicio'}`}
                           </p>
                           {!isOverlap && hasMultipleBarbers && apt.barber?.name && (
-                            <p className="text-[9px] text-gray-400 dark:text-gray-500 truncate leading-tight">
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate leading-tight">
                               {apt.barber.name}
+                            </p>
+                          )}
+                          {duration >= 45 && (
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate leading-tight">
+                              {stCfg.label}
                             </p>
                           )}
                         </div>
@@ -537,7 +586,7 @@ function WeekView({ days, selectedDate, appointmentsByDate, barberColorMap, onDa
 // ─────────────────────────────────────
 // DAY VIEW (one column per barber)
 // ─────────────────────────────────────
-function DayView({ date, appointmentsByDate, barberColorMap, barberLegend, onSelectAppointment }) {
+function DayView({ date, hourSlots, appointmentsByDate, barberColorMap, barberLegend, onSelectAppointment }) {
   const dateStr = format(date, 'yyyy-MM-dd')
   const dayAppts = appointmentsByDate[dateStr] || []
 
@@ -567,8 +616,8 @@ function DayView({ date, appointmentsByDate, barberColorMap, barberLegend, onSel
   }, [apptsByBarber, barbers])
 
   const ROW_H = 64
-  const FIRST_HOUR = HOUR_SLOTS[0]
-  const totalHeight = HOUR_SLOTS.length * ROW_H
+  const FIRST_HOUR = hourSlots[0]
+  const totalHeight = hourSlots.length * ROW_H
 
   return (
     <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
@@ -600,14 +649,14 @@ function DayView({ date, appointmentsByDate, barberColorMap, barberLegend, onSel
 
         <div className="relative" style={{ height: totalHeight }}>
           {/* Hour grid lines */}
-          {HOUR_SLOTS.map((hour, idx) => (
+          {hourSlots.map((hour, idx) => (
             <div
               key={hour}
               className="absolute w-full grid border-b border-gray-100 dark:border-gray-800"
               style={{ top: idx * ROW_H, height: ROW_H, gridTemplateColumns: `60px repeat(${barberCount}, 1fr)` }}
             >
               <div className="border-r border-gray-200 dark:border-gray-700 text-right pr-2 py-1">
-                <span className="text-[11px] text-gray-400 dark:text-gray-500 -mt-2 block">
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 -mt-2 block">
                   {formatTime12h(`${hour.toString().padStart(2, '0')}:00`)}
                 </span>
               </div>
@@ -662,7 +711,7 @@ function DayView({ date, appointmentsByDate, barberColorMap, barberLegend, onSel
                             {formatTime12h(apt.time)} · {apt.service?.name || 'Servicio'}
                           </p>
                           {duration >= 45 && (
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate leading-tight mt-0.5">
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
                               {stCfg.label} · {duration} min
                             </p>
                           )}

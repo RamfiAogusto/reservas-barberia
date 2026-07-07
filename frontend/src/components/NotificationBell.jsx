@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
+import * as PopoverPrimitive from '@radix-ui/react-popover'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,21 +19,6 @@ const ICON_MAP = {
 const NotificationBell = () => {
   const { notifications, unreadCount, markAllRead, clearNotifications } = useNotifications()
   const [open, setOpen] = useState(false)
-  const panelRef = useRef(null)
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
-        setOpen(false)
-      }
-    }
-    if (open) document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open])
-
-  const handleToggle = () => {
-    setOpen(prev => !prev)
-  }
 
   const handleMarkAllRead = () => {
     markAllRead()
@@ -56,25 +42,31 @@ const NotificationBell = () => {
   }
 
   return (
-    <div className="relative" ref={panelRef}>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleToggle}
-        className="relative"
-        aria-label={`Notificaciones${unreadCount > 0 ? `, ${unreadCount} sin leer` : ''}`}
-        tabIndex={0}
-      >
-        <Bell className={cn("w-5 h-5", unreadCount > 0 && "text-primary-600 dark:text-primary-400")} />
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-gray-900 animate-in zoom-in-50">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </Button>
+    // Radix Popover handles aria-expanded/aria-haspopup on the trigger,
+    // Escape-to-close, and moving focus into the panel / back to the trigger.
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Trigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={`Notificaciones${unreadCount > 0 ? `, ${unreadCount} sin leer` : ''}`}
+        >
+          <Bell className={cn("w-5 h-5", unreadCount > 0 && "text-primary-600 dark:text-primary-400")} />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-gray-900 animate-in zoom-in-50">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </Button>
+      </PopoverPrimitive.Trigger>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in-0 slide-in-from-top-2 duration-200">
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          align="end"
+          sideOffset={8}
+          className="w-80 sm:w-96 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden focus-visible:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-200"
+        >
           <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800/50">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               Notificaciones
@@ -135,9 +127,9 @@ const NotificationBell = () => {
               })
             )}
           </div>
-        </div>
-      )}
-    </div>
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   )
 }
 

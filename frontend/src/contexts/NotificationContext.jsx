@@ -1,22 +1,15 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
+import { createContext, useContext, useState, useCallback } from 'react'
 
 const NotificationContext = createContext(null)
-
-const NOTIFICATION_SOUND_URL = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgir+8n2FEMS9markup-audio'
 
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [persistentBanners, setPersistentBanners] = useState([])
-  const audioRef = useRef(null)
 
-  useEffect(() => {
-    audioRef.current = new Audio()
-    audioRef.current.volume = 0.5
-  }, [])
-
+  // Sonido de notificación generado con Web Audio API (sin archivo de audio externo)
   const playNotificationSound = useCallback(() => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)()

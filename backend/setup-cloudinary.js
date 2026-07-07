@@ -194,7 +194,7 @@ DATABASE_URL=postgresql://username:password@localhost:5432/reservas
 JWT_SECRET=tu_jwt_secret_super_seguro_aqui
 
 # Emails (ya funcionando)
-RESEND_API_KEY=re_BM7CX92n_FfzX6zbHosaL35uNFSsPhSZm
+RESEND_API_KEY=re_XXXXXXXXXXXXXXXXXXXX
 FROM_EMAIL=onboarding@resend.dev
 
 # Cloudinary (reemplazar con tus valores)

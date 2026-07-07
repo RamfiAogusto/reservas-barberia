@@ -1,3 +1,5 @@
+import { API_URL } from './config'
+
 // Sistema de caché para optimizar llamadas al API
 class APICache {
   constructor() {
@@ -88,26 +90,32 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null, fetchOpti
   if (!isModifyingRequest) {
     const cachedData = apiCache.get(key)
     if (cachedData) {
-      console.log(`📦 Cache hit: ${endpoint}`)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`📦 Cache hit: ${endpoint}`)
+      }
       return cachedData
     }
   }
 
   // Si no está en caché o es petición modificadora, hacer la petición
-  console.log(`🌐 API call: ${endpoint} (${method})`)
-  console.log(`🔧 NEXT_PUBLIC_API_URL:`, process.env.NEXT_PUBLIC_API_URL)
-  
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
-  
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`🌐 API call: ${endpoint} (${method})`)
+    console.log(`🔧 NEXT_PUBLIC_API_URL:`, API_URL)
+  }
+
+  const baseURL = API_URL
+
   // Construir URL correctamente para evitar que se elimine /api
-  const fullURL = endpoint.startsWith('/') 
+  const fullURL = endpoint.startsWith('/')
     ? `${baseURL}${endpoint}`
     : `${baseURL}/${endpoint}`
-  
+
   const url = new URL(fullURL)
-  
-  console.log(`🔗 URL construida:`, url.toString())
-  
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`🔗 URL construida:`, url.toString())
+  }
+
   // Agregar parámetros a la URL solo para peticiones GET
   if (!isModifyingRequest) {
     Object.keys(params).forEach(key => {
@@ -116,8 +124,10 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null, fetchOpti
   }
 
   try {
-    console.log(`📡 Haciendo petición ${method} a:`, url.toString())
-    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`📡 Haciendo petición ${method} a:`, url.toString())
+    }
+
     // Configurar opciones de fetch
     const fetchConfig = {
       method: method,
@@ -132,8 +142,10 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null, fetchOpti
     const requestURL = isModifyingRequest ? fullURL : url.toString()
     
     const response = await fetch(requestURL, fetchConfig)
-    console.log(`📥 Respuesta del servidor:`, response.status, response.statusText)
-    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`📥 Respuesta del servidor:`, response.status, response.statusText)
+    }
+
     const data = await response.json()
 
     if (!response.ok) {
@@ -156,13 +168,17 @@ export const cachedRequest = async (endpoint, params = {}, ttl = null, fetchOpti
 export const invalidateCache = (endpoint, params = {}) => {
   const key = apiCache.generateKey(endpoint, params)
   apiCache.delete(key)
-  console.log(`🗑️ Cache invalidated: ${endpoint}`)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`🗑️ Cache invalidated: ${endpoint}`)
+  }
 }
 
 // Función para limpiar todo el caché
 export const clearCache = () => {
   apiCache.clear()
-  console.log('🧹 Cache cleared')
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🧹 Cache cleared')
+  }
 }
 
 // Función para obtener estadísticas del caché

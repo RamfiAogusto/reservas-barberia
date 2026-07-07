@@ -19,33 +19,26 @@ export function SocketProvider({ children }) {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
     const baseUrl = apiUrl.replace('/api', '')
 
+    // El socket requiere un JWT válido en el handshake. Los visitantes
+    // públicos (sin token) simplemente no abren conexión — las páginas
+    // públicas no consumen eventos en tiempo real del salón.
     const newSocket = io(baseUrl, {
       transports: ['websocket', 'polling'],
-      autoConnect: true,
+      autoConnect: false,
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
+      // Se evalúa en cada intento de conexión, tomando el token vigente.
+      auth: (cb) => cb({ token: localStorage.getItem('authToken') }),
     })
 
     newSocket.on('connect', () => {
       console.log('🔌 WebSocket conectado:', newSocket.id)
       setIsConnected(true)
-
-      // Re-unirse a salas después de reconexión
-      const storedUser = localStorage.getItem('user')
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser)
-          if (user?.id) {
-            newSocket.emit('join:salon', user.id)
-            newSocket.emit('join:user', user.id)
-          }
-        } catch (e) {
-          // Ignorar error de parse
-        }
-      }
+      // El servidor une automáticamente a las salas del usuario a partir
+      // del token verificado; el cliente ya no envía join:salon/join:user.
     })
 
     newSocket.on('disconnect', (reason) => {
@@ -58,22 +51,35 @@ export function SocketProvider({ children }) {
       setIsConnected(false)
     })
 
+    // Conectar solo si hay token; re-evaluar cuando cambia la sesión.
+    const syncConnection = () => {
+      const hasToken = !!localStorage.getItem('authToken')
+      if (hasToken && !newSocket.connected) {
+        newSocket.connect()
+      } else if (!hasToken && newSocket.connected) {
+        newSocket.disconnect()
+      }
+    }
+
+    syncConnection()
+    // 'auth:changed' lo dispara api.js en login/logout; 'storage' cubre otras pestañas.
+    window.addEventListener('auth:changed', syncConnection)
+    window.addEventListener('storage', syncConnection)
+
     setSocket(newSocket)
 
     return () => {
+      window.removeEventListener('auth:changed', syncConnection)
+      window.removeEventListener('storage', syncConnection)
       newSocket.close()
     }
   }, [])
 
   /**
-   * Unirse a la sala del salón (llamar después del login)
+   * Compat: la unión a salas ahora es automática en el servidor a partir
+   * del token verificado. Se mantiene como no-op para no romper llamadas.
    */
-  const joinSalon = useCallback((ownerId) => {
-    if (socket && ownerId) {
-      socket.emit('join:salon', ownerId)
-      socket.emit('join:user', ownerId)
-    }
-  }, [socket])
+  const joinSalon = useCallback(() => {}, [])
 
   /**
    * Registrar un listener para un evento. Devuelve función de cleanup.

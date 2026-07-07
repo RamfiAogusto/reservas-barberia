@@ -1,11 +1,25 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Toaster as SonnerToaster } from 'sonner'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export function Toaster({ ...props }) {
+  const { isDark } = useTheme()
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const update = () => setIsMobile(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+
   return (
     <SonnerToaster
-      position="top-right"
+      position={isMobile ? 'top-center' : 'top-right'}
+      theme={isDark ? 'dark' : 'light'}
       expand={false}
       richColors
       closeButton

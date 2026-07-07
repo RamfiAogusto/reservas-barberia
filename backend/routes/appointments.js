@@ -6,8 +6,10 @@ const emailService = require('../services/emailService')
 const queueService = require('../services/queueService')
 const { format } = require('date-fns')
 const { es } = require('date-fns/locale')
-const { checkTimeOverlap } = require('../utils/availabilityUtils')
+const { createAppointmentWithOverlapCheck, updateAppointmentWithOverlapCheck, normalizeDate } = require('../utils/availabilityUtils')
 const { emitToSalon } = require('../services/socketService')
+const { APPOINTMENT_STATUSES, PAYMENT_METHODS } = require('../utils/constants')
+const sendAndLog = require('../utils/sendAndLog')
 const router = express.Router()
 
 /**
@@ -77,7 +79,7 @@ router.use(authenticateToken)
 // GET /api/appointments - Obtener citas del usuario con filtros
 router.get('/', [
   query('date').optional().isISO8601().withMessage('Formato de fecha inválido'),
-  query('status').optional().isIn(['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO']).withMessage('Status inválido'),
+  query('status').optional().isIn(APPOINTMENT_STATUSES).withMessage('Status inválido'),
   query('startDate').optional().isISO8601().withMessage('Formato de fecha de inicio inválido'),
   query('endDate').optional().isISO8601().withMessage('Formato de fecha de fin inválido')
 ], async (req, res) => {
@@ -343,27 +345,11 @@ router.post('/', [
       }
     }
 
-    // Verificar solapamiento de horario (considerando duración del servicio)
-    const hasOverlap = await checkTimeOverlap({
-      userId: req.user.id,
-      date: date,
-      time: time,
-      serviceDuration: service.duration,
-      barberId: barberId || null
-    })
-
-    if (hasOverlap) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya existe una cita que se cruza con este horario'
-      })
-    }
-
     // Verificar que la fecha no sea en el pasado
     const appointmentDate = new Date(date)
     const [hours, minutes] = time.split(':')
     appointmentDate.setHours(parseInt(hours), parseInt(minutes))
-    
+
     if (appointmentDate < new Date()) {
       return res.status(400).json({
         success: false,
@@ -371,23 +357,37 @@ router.post('/', [
       })
     }
 
-    // Crear nueva cita
-    const newAppointment = await prisma.appointment.create({
-      data: {
-        userId: req.user.id,
-        serviceId: serviceId,
-        clientName: clientName,
-        clientEmail: clientEmail,
-        clientPhone: clientPhone,
-        date: new Date(date),
-        time: time,
-        notes: notes,
-        staffMember: staffMember,
-        barberId: barberId || null,
-        totalAmount: service.price,
-        status: 'PENDIENTE'
+    // Verificar solapamiento y crear la cita en una transacción atómica
+    // (evita condiciones de carrera entre la verificación y la escritura)
+    let newAppointment
+    try {
+      newAppointment = await createAppointmentWithOverlapCheck({
+        appointmentData: {
+          userId: req.user.id,
+          serviceId: serviceId,
+          clientName: clientName,
+          clientEmail: clientEmail,
+          clientPhone: clientPhone,
+          date: normalizeDate(date),
+          time: time,
+          notes: notes,
+          staffMember: staffMember,
+          barberId: barberId || null,
+          totalAmount: service.price,
+          status: 'PENDIENTE'
+        },
+        serviceDuration: service.duration,
+        barberId: barberId || null
+      })
+    } catch (overlapError) {
+      if (overlapError.message === 'OVERLAP_CONFLICT') {
+        return res.status(409).json({
+          success: false,
+          message: 'Ya existe una cita que se cruza con este horario'
+        })
       }
-    })
+      throw overlapError
+    }
 
     // Obtener datos del servicio para la respuesta
     const serviceData = await prisma.service.findFirst({
@@ -420,34 +420,19 @@ router.post('/', [
       }
 
       // Enviar correo de confirmación (no bloqueante)
-      emailService.sendBookingConfirmation(bookingData)
-        .then(result => {
-          if (result.success) {
-            console.log('Email de confirmación enviado exitosamente')
-          } else {
-            console.error('Error enviando email de confirmación:', result.error)
-          }
-        })
-        .catch(error => {
-          console.error('Error en envío de email:', error)
-        })
+      sendAndLog(emailService.sendBookingConfirmation(bookingData), `Email de confirmación (cita ${newAppointment.id})`)
 
       // Programar recordatorio (no bloqueante)
-      queueService.scheduleReminder({
-        appointmentId: newAppointment.id.toString(),
-        appointmentDate: date,
-        appointmentTime: time,
-        clientEmail,
-        clientName
-      }).then(result => {
-        if (result.success) {
-          console.log(`📅 Recordatorio programado para: ${clientName} - ${result.reminderTime}`)
-        } else {
-          console.log(`⚠️ No se pudo programar recordatorio: ${result.message}`)
-        }
-      }).catch(error => {
-        console.error('Error programando recordatorio:', error)
-      })
+      sendAndLog(
+        queueService.scheduleReminder({
+          appointmentId: newAppointment.id.toString(),
+          appointmentDate: date,
+          appointmentTime: time,
+          clientEmail,
+          clientName
+        }),
+        `Recordatorio programado (cita ${newAppointment.id})`
+      )
 
     } catch (emailError) {
       console.error('Error preparando email de confirmación:', emailError)
@@ -508,7 +493,7 @@ router.put('/:id', [
     .withMessage('Formato de hora inválido (HH:MM)'),
   body('status')
     .optional()
-    .isIn(['PENDIENTE', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO'])
+    .isIn(APPOINTMENT_STATUSES)
     .withMessage('Status inválido'),
   body('notes')
     .optional()
@@ -528,7 +513,7 @@ router.put('/:id', [
     .withMessage('El monto pagado debe ser mayor o igual a 0'),
   body('paymentMethod')
     .optional()
-    .isIn(['efectivo', 'tarjeta', 'transferencia', 'stripe', 'paypal'])
+    .isIn(PAYMENT_METHODS)
     .withMessage('Método de pago inválido'),
   body('cancelReason')
     .optional()
@@ -569,34 +554,6 @@ router.put('/:id', [
       })
     }
 
-    // Si se está cambiando la fecha/hora, verificar disponibilidad
-    if ((req.body.date || req.body.time) && appointment.status !== 'CANCELADA') {
-      const newDate = req.body.date ? new Date(req.body.date) : appointment.date
-      const newTime = req.body.time || appointment.time
-
-      // Obtener duración del servicio
-      const appointmentService = await prisma.service.findFirst({
-        where: { id: req.body.serviceId || appointment.serviceId },
-        select: { duration: true }
-      })
-
-      const hasOverlap = await checkTimeOverlap({
-        userId: req.user.id,
-        date: newDate,
-        time: newTime,
-        serviceDuration: appointmentService?.duration || 30,
-        barberId: req.body.barberId || appointment.barberId || null,
-        excludeAppointmentId: appointment.id
-      })
-
-      if (hasOverlap) {
-        return res.status(400).json({
-          success: false,
-          message: 'Ya existe una cita que se cruza con este horario'
-        })
-      }
-    }
-
     // Si se está cancelando, agregar fecha de cancelación
     if (req.body.status === 'CANCELADA' && appointment.status !== 'CANCELADA') {
       req.body.cancelledAt = new Date()
@@ -618,20 +575,61 @@ router.put('/:id', [
       }
     })
 
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id: req.params.id },
-      data: updateData,
-      include: {
-        service: {
-          select: {
-            name: true,
-            duration: true,
-            price: true,
-            category: true
-          }
+    const includeService = {
+      service: {
+        select: {
+          name: true,
+          duration: true,
+          price: true,
+          category: true
         }
       }
-    })
+    }
+
+    const isRescheduling = (req.body.date || req.body.time) && appointment.status !== 'CANCELADA'
+
+    let updatedAppointment
+    if (isRescheduling) {
+      // Cambia fecha/hora: verificar solapamiento y actualizar en una transacción
+      // atómica (evita condiciones de carrera entre la verificación y la escritura)
+      const newDate = req.body.date ? normalizeDate(req.body.date) : appointment.date
+      const newTime = req.body.time || appointment.time
+
+      // Obtener duración del servicio
+      const appointmentService = await prisma.service.findFirst({
+        where: { id: req.body.serviceId || appointment.serviceId },
+        select: { duration: true }
+      })
+
+      // Asegurar que la fecha/hora persistida coincida con la usada en la verificación
+      updateData.date = newDate
+      updateData.time = newTime
+
+      try {
+        updatedAppointment = await updateAppointmentWithOverlapCheck({
+          appointmentId: appointment.id,
+          updateData,
+          userId: req.user.id,
+          serviceDuration: appointmentService?.duration || 30,
+          barberId: req.body.barberId || appointment.barberId || null,
+          include: includeService
+        })
+      } catch (overlapError) {
+        if (overlapError.message === 'OVERLAP_CONFLICT') {
+          return res.status(409).json({
+            success: false,
+            message: 'Ya existe una cita que se cruza con este horario'
+          })
+        }
+        throw overlapError
+      }
+    } else {
+      updatedAppointment = await prisma.appointment.update({
+        where: { id: req.params.id },
+        data: updateData,
+        include: includeService
+      })
+    }
 
     // Si cambia de estado y la cita tiene groupId, propagar a todo el grupo
     if (req.body.status && appointment.groupId) {
@@ -966,7 +964,7 @@ router.get('/stats/summary', async (req, res) => {
 // PUT /api/appointments/:id/status - Actualizar solo el estado de una cita
 router.put('/:id/status', [
   body('status')
-    .isIn(['PENDIENTE', 'ESPERANDO_PAGO', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO', 'EXPIRADA'])
+    .isIn(APPOINTMENT_STATUSES)
     .withMessage('Status inválido'),
   body('cancelReason')
     .optional()
@@ -1175,7 +1173,7 @@ router.put('/:id/status', [
 // PUT /api/appointments/:id/respond - Barbero responde a reserva (pago en persona o pago online)
 router.put('/:id/respond', [
   body('action')
-    .isIn(['CONFIRMAR', 'RECHAZAR', 'IN_PERSON', 'ONLINE'])
+    .isIn(['CONFIRMAR', 'RECHAZAR'])
     .withMessage('Acción inválida. Debe ser CONFIRMAR o RECHAZAR')
 ], async (req, res) => {
   try {
@@ -1184,11 +1182,7 @@ router.put('/:id/respond', [
       return res.status(400).json({ success: false, message: 'Datos inválidos', errors: errors.array() })
     }
 
-    // Compatibilidad: aceptar paymentMode legacy o action nuevo
-    let action = req.body.action
-    if (!action && req.body.paymentMode) {
-      action = req.body.paymentMode === 'IN_PERSON' ? 'CONFIRMAR' : 'CONFIRMAR'
-    }
+    const action = req.body.action
     const appointmentId = req.params.id
 
     // Buscar la cita
@@ -1331,11 +1325,7 @@ router.put('/:id/respond', [
         paymentToken,
         paymentUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/pay/${paymentToken}`
       }
-      emailService.sendPaymentRequired(paymentEmailData)
-        .then(r => r.success
-          ? console.log('✅ Email de pago requerido enviado a:', bookingData.clientEmail)
-          : console.error('❌ Error email pago:', r.error)
-        ).catch(e => console.error('❌ Error email:', e))
+      sendAndLog(emailService.sendPaymentRequired(paymentEmailData), `Email de pago requerido (${bookingData.clientEmail})`)
 
       // Emitir evento
       emitToSalon(req.user.id, 'appointment:responded', {
@@ -1413,145 +1403,8 @@ router.put('/:id/respond', [
   }
 })
 
-// POST /api/appointments/:id/confirm-payment - Confirmar pago (pasarela; futuro: webhook real)
-router.post('/:id/confirm-payment', async (req, res) => {
-  try {
-    const { paymentToken } = req.body
-    const appointmentId = req.params.id
-
-    // Buscar la cita por ID y token
-    const appointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId },
-      include: {
-        service: { select: { name: true, duration: true, price: true } },
-        barber: { select: { name: true } },
-        user: { select: { 
-          salonName: true, username: true, email: true, address: true, phone: true, 
-          depositAmount: true, bookingMode: true 
-        } }
-      }
-    })
-
-    if (!appointment) {
-      return res.status(404).json({ success: false, message: 'Reserva no encontrada' })
-    }
-
-    // Verificar token
-    if (appointment.paymentToken !== paymentToken) {
-      return res.status(403).json({ success: false, message: 'Token de pago inválido' })
-    }
-
-    // Verificar que esté en ESPERANDO_PAGO
-    if (appointment.status !== 'ESPERANDO_PAGO') {
-      const msg = appointment.status === 'EXPIRADA'
-        ? 'Esta reserva ha expirado. El tiempo para pagar ha finalizado.'
-        : 'Esta reserva ya no está en espera de pago. Estado: ' + appointment.status
-      return res.status(400).json({ success: false, message: msg })
-    }
-
-    // Verificar que no haya expirado
-    if (appointment.holdExpiresAt && new Date() > new Date(appointment.holdExpiresAt)) {
-      const expireData = { status: 'EXPIRADA', holdExpiresAt: null, paymentToken: null }
-      if (appointment.groupId) {
-        await prisma.appointment.updateMany({ where: { groupId: appointment.groupId }, data: expireData })
-      } else {
-        await prisma.appointment.update({ where: { id: appointmentId }, data: expireData })
-      }
-      return res.status(410).json({
-        success: false,
-        message: 'El tiempo para pagar ha expirado. La reserva fue liberada.'
-      })
-    }
-
-    // ──── Determinar estado post-pago según modo ────
-    const owner = appointment.user
-    const bookingMode = owner.bookingMode || 'LIBRE'
-    const nextStatus = 'CONFIRMADA'
-    const responseMessage = '¡Pago confirmado! Tu reserva está asegurada.'
-    // Tanto PREPAGO como PAGO_POST_APROBACION: al pagar → CONFIRMADA siempre
-
-    const confirmData = {
-      status: nextStatus,
-      paymentStatus: 'COMPLETO',
-      paidAmount: owner.depositAmount || appointment.totalAmount,
-      holdExpiresAt: null,
-      paymentToken: null
-    }
-
-    if (appointment.groupId) {
-      await prisma.appointment.updateMany({ where: { groupId: appointment.groupId }, data: confirmData })
-    }
-
-    const confirmed = await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: confirmData,
-      include: { service: { select: { name: true, duration: true, price: true, category: true } } }
-    })
-
-    // Preparar datos de email
-    let allServices = [appointment.service]
-    let totalDuration = appointment.service?.duration || 0
-
-    if (appointment.groupId) {
-      const groupAppts = await prisma.appointment.findMany({
-        where: { groupId: appointment.groupId },
-        include: { service: { select: { name: true, duration: true, price: true } } },
-        orderBy: { time: 'asc' }
-      })
-      allServices = groupAppts.map(a => a.service).filter(Boolean)
-      totalDuration = allServices.reduce((sum, s) => sum + (s.duration || 0), 0)
-    }
-
-    const serviceName = allServices.length > 1
-      ? allServices.map(s => s.name).join(' + ')
-      : (appointment.service?.name || 'Servicio')
-
-    const bookingData = {
-      clientName: appointment.clientName,
-      clientEmail: appointment.clientEmail,
-      salonName: owner.salonName || owner.username,
-      serviceName,
-      services: allServices,
-      totalDuration,
-      barberName: appointment.barber?.name || null,
-      date: format(appointment.date, 'PPP', { locale: es }),
-      time: appointment.time,
-      price: appointment.totalAmount,
-      depositAmount: owner.depositAmount ?? 0,
-      salonAddress: owner.address || 'Dirección no especificada',
-      salonPhone: owner.phone || 'Teléfono no especificado',
-      bookingId: appointment.id.toString()
-    }
-
-    // Enviar email de confirmación
-    emailService.sendBookingConfirmation(bookingData)
-      .catch(e => console.error('Error email confirmación post-pago:', e))
-
-    console.log(`✅ Pago confirmado para cita: ${appointmentId} → ${nextStatus}`)
-
-    // Emitir evento real-time al salón
-    emitToSalon(appointment.userId, 'appointment:paymentConfirmed', {
-      appointment: confirmed,
-      bookingMode,
-      nextStatus,
-      message: `💳 ${appointment.clientName} completó el pago`
-    })
-
-    res.json({
-      success: true,
-      message: responseMessage,
-      data: confirmed,
-      bookingMode,
-      status: nextStatus
-    })
-  } catch (error) {
-    console.error('Error confirmando pago:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
-    })
-  }
-})
+// NOTA: la confirmación de pago se movió a routes/payments.js (POST /api/payments/confirm),
+// una ruta pública identificada por paymentToken. El cliente que paga es anónimo, por lo
+// que no puede pasar el JWT de dueño que exige este router.
 
 module.exports = router 

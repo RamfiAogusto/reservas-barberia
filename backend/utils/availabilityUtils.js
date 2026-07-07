@@ -126,6 +126,56 @@ async function createAppointmentWithOverlapCheck({ appointmentData, serviceDurat
 }
 
 /**
+ * Verifica solapamiento y actualiza la cita en una transacciÃ³n atÃ³mica.
+ * Usado para evitar condiciones de carrera al reprogramar (cambiar fecha/hora/barbero)
+ * una cita ya existente desde el dashboard.
+ *
+ * @param {Object} params
+ * @param {string} params.appointmentId - ID de la cita a actualizar
+ * @param {Object} params.updateData - Datos a persistir (incluye date/time normalizados)
+ * @param {string} params.userId - ID del dueÃ±o del salÃ³n
+ * @param {number} params.serviceDuration - DuraciÃ³n del servicio (minutos)
+ * @param {string|null} params.barberId - ID del barbero (null = verificar todos)
+ * @param {Object} [params.include] - RelaciÃ³n a incluir en la respuesta de Prisma
+ * @returns {Promise<Object>} La cita actualizada
+ * @throws {Error} 'OVERLAP_CONFLICT' si hay conflicto de horario
+ */
+async function updateAppointmentWithOverlapCheck({ appointmentId, updateData, userId, serviceDuration, barberId = null, include = undefined }) {
+  return await prisma.$transaction(async (tx) => {
+    const where = {
+      userId,
+      date: updateData.date,
+      status: { notIn: ['CANCELADA', 'EXPIRADA'] },
+      NOT: { id: appointmentId }
+    }
+
+    if (barberId) {
+      where.barberId = barberId
+    }
+
+    const existingAppointments = await tx.appointment.findMany({
+      where,
+      include: { service: { select: { duration: true } } }
+    })
+
+    const newStart = timeToMinutes(updateData.time)
+    const newEnd = newStart + serviceDuration
+
+    if (hasOverlapWithAppointments(existingAppointments, newStart, newEnd)) {
+      throw new Error('OVERLAP_CONFLICT')
+    }
+
+    const updatedAppointment = await tx.appointment.update({
+      where: { id: appointmentId },
+      data: updateData,
+      ...(include ? { include } : {})
+    })
+
+    return updatedAppointment
+  })
+}
+
+/**
  * Auto-asigna un barbero disponible y crea la cita atÃ³micamente.
  * Usado cuando el cliente elige "cualquier barbero disponible".
  * 
@@ -339,6 +389,7 @@ async function createMultiServiceAppointments({ services, baseData, barberId, is
 module.exports = {
   checkTimeOverlap,
   createAppointmentWithOverlapCheck,
+  updateAppointmentWithOverlapCheck,
   createAppointmentWithAutoAssign,
   createMultiServiceAppointments,
   getAvailableBarbersForSlot,

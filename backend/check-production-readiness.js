@@ -84,6 +84,11 @@ ${colors.reset}`)
     log.error('DATABASE_URL no configurado - CRÍTICO')
     criticalIssues++
   } else {
+    const isLocalDbUrl = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL)
+    if (isLocalDbUrl && process.env.NODE_ENV === 'production') {
+      log.warning('DATABASE_URL apunta a localhost pero NODE_ENV=production - revisa la configuración')
+      warnings++
+    }
     try {
       log.info('Verificando conexión a PostgreSQL...')
       await prisma.$connect()
@@ -148,17 +153,18 @@ ${colors.reset}`)
 
   const hasStripeConfig = process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET
 
+  // IMPORTANTE: la presencia de las keys NO significa que los pagos estén operativos.
+  // services/paymentGatewayService.js es actualmente un mock: isConfigured() devuelve
+  // `false` de forma fija y ningún método llama a un proveedor real. No reportar
+  // "Stripe listo" solo por tener las variables de entorno configuradas.
   if (hasStripeConfig) {
     const isLiveKey = process.env.STRIPE_SECRET_KEY.startsWith('sk_live_')
-    if (isLiveKey) {
-      log.success('Stripe configurado con claves de producción')
-    } else {
-      log.warning('Stripe configurado con claves de prueba - Cambiar para producción')
-      warnings++
-    }
+    log.warning(`Claves de Stripe presentes (${isLiveKey ? 'producción' : 'prueba'}), pero la pasarela de pago sigue siendo un MOCK — no procesa pagos reales todavía`)
+    log.info('Ver services/paymentGatewayService.js: falta implementar la integración real (P6-1)')
+    warnings++
   } else {
     log.warning('Stripe no configurado - Solo pagos en efectivo disponibles')
-    log.info('Sistema funciona perfectamente sin Stripe')
+    log.info('Sistema funciona perfectamente sin Stripe (y aunque se configure, el gateway sigue siendo mock)')
     optionalFeatures++
   }
 

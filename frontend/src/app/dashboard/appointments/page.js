@@ -8,6 +8,7 @@ import TimeInput12h from '@/components/TimeInput12h'
 import { useSocketEvent } from '@/contexts/SocketContext'
 import { toast } from 'sonner'
 import AppointmentCalendar from '@/components/AppointmentCalendar'
+import AppointmentDetailCard from '@/components/AppointmentDetailCard'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import {
-  Loader2, Plus, Pencil, Trash2, Calendar, Check, CreditCard,
+  Loader2, Plus, Pencil, Trash2, Calendar, Check,
   UserCheck, X as XIcon, Filter, RotateCcw, List, CalendarDays,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -58,6 +59,7 @@ const AppointmentsPage = () => {
   const [showModal, setShowModal] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState(null)
   const [viewMode, setViewMode] = useState('list')
+  const [selectedCalendarId, setSelectedCalendarId] = useState(null)
   const [filters, setFilters] = useState({ status: '', date: '', startDate: '', endDate: '' })
   const [formData, setFormData] = useState({
     serviceId: '', clientName: '', clientEmail: '', clientPhone: '',
@@ -85,7 +87,7 @@ const AppointmentsPage = () => {
   const handleLoadAppointments = async () => {
     try {
       const params = new URLSearchParams()
-      if (filters.status) params.append('status', filters.status)
+      if (filters.status && filters.status !== 'all') params.append('status', filters.status)
       if (filters.date) params.append('date', filters.date)
       if (filters.startDate && filters.endDate) {
         params.append('startDate', filters.startDate)
@@ -130,13 +132,15 @@ const AppointmentsPage = () => {
   }, []))
   useSocketEvent('appointment:responded', useCallback((data) => {
     if (data.appointment) {
-      const newStatus = data.paymentMode === 'IN_PERSON' ? 'CONFIRMADA' : 'ESPERANDO_PAGO'
+      // El backend ya envía el estado real en data.appointment.status
+      // (CANCELADA / ESPERANDO_PAGO / CONFIRMADA); no reconstruirlo desde `action`.
+      const newStatus = data.appointment.status
       setAppointments(prev => prev.map(apt => {
         if (apt.id === data.appointment.id) {
-          return { ...apt, ...data.appointment, status: newStatus, holdExpiresAt: data.holdExpiresAt }
+          return { ...apt, ...data.appointment, holdExpiresAt: data.appointment.holdExpiresAt ?? data.holdExpiresAt ?? null }
         }
         if (apt.groupId && data.appointment.groupId && apt.groupId === data.appointment.groupId) {
-          return { ...apt, status: newStatus, holdExpiresAt: data.holdExpiresAt }
+          return { ...apt, status: newStatus, holdExpiresAt: data.appointment.holdExpiresAt ?? data.holdExpiresAt ?? null }
         }
         return apt
       }))
@@ -164,6 +168,12 @@ const AppointmentsPage = () => {
       return createdB - createdA
     })
   }, [appointments])
+
+  // Derived from the list so the detail card stays fresh after status changes
+  const selectedCalendarAppointment = useMemo(() => {
+    if (!selectedCalendarId) return null
+    return appointments.find(a => (a.id || a._id) === selectedCalendarId) || null
+  }, [appointments, selectedCalendarId])
 
   const handleFilterChange = (name, value) => {
     setFilters(prev => ({ ...prev, [name]: value }))
@@ -306,11 +316,11 @@ const AppointmentsPage = () => {
     }
   }
 
-  const handleRespondToBooking = async (appointmentId, paymentMode) => {
+  const handleRespondToBooking = async (appointmentId, action) => {
     try {
-      const response = await api.put(`/appointments/${appointmentId}/respond`, { paymentMode })
+      const response = await api.put(`/appointments/${appointmentId}/respond`, { action })
       if (response.success) {
-        const newStatus = paymentMode === 'IN_PERSON' ? 'CONFIRMADA' : 'ESPERANDO_PAGO'
+        const newStatus = response.data?.status || (action === 'RECHAZAR' ? 'CANCELADA' : 'CONFIRMADA')
         setAppointments(prev => prev.map(appointment => {
           const matchesId = (appointment.id === appointmentId || appointment._id === appointmentId)
           const matchesGroup = appointment.groupId && response.data?.groupId && appointment.groupId === response.data.groupId
@@ -319,10 +329,12 @@ const AppointmentsPage = () => {
           }
           return appointment
         }))
-        if (paymentMode === 'IN_PERSON') {
-          toast.success('Cita confirmada. El cliente pagará al llegar.')
+        if (action === 'RECHAZAR') {
+          toast.success('Cita rechazada')
+        } else if (newStatus === 'ESPERANDO_PAGO') {
+          toast.info(`Reserva aprobada. El cliente tiene ${response.holdMinutes || response.data?.holdMinutes || 15} min para pagar.`)
         } else {
-          toast.info(`Reserva temporal. El cliente tiene ${response.data?.holdMinutes || 15} min para pagar.`)
+          toast.success('Cita confirmada')
         }
       } else {
         toast.error('Error al responder a la reserva: ' + (response.error || ''))
@@ -346,6 +358,61 @@ const AppointmentsPage = () => {
   const handleClearFilters = () => {
     setFilters({ status: '', date: '', startDate: '', endDate: '' })
   }
+
+  const getServiceLabel = (appointment) =>
+    appointment.services && appointment.services.length > 1
+      ? appointment.services.map(s => s.name).join(' + ')
+      : (appointment.service?.name || appointment.serviceId?.name)
+
+  // Shared between the md+ table and the mobile card list
+  const renderRowActions = (appointment) => (
+    <div className="flex flex-wrap justify-end gap-1">
+      {appointment.status === 'PENDIENTE' && (
+        <>
+          <Button variant="ghost" size="sm" className="text-xs text-green-600 hover:text-green-700 dark:text-green-400" onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'CONFIRMAR')} title="Confirmar cita">
+            <UserCheck className="w-3.5 h-3.5 mr-1" />Confirmar
+          </Button>
+          <Button variant="ghost" size="sm" className="text-xs text-red-600 hover:text-red-700 dark:text-red-400" onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'RECHAZAR')} title="Rechazar cita">
+            <XIcon className="w-3.5 h-3.5 mr-1" />Rechazar
+          </Button>
+        </>
+      )}
+      {appointment.status === 'ESPERANDO_PAGO' && (
+        <Button variant="ghost" size="sm" className="text-xs text-green-600 dark:text-green-400" onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'CONFIRMADA')}>
+          <Check className="w-3.5 h-3.5 mr-1" />Confirmar
+        </Button>
+      )}
+      {appointment.status === 'CONFIRMADA' && (
+        <Button variant="ghost" size="sm" className="text-xs text-blue-600 dark:text-blue-400" onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'COMPLETADA')}>
+          <Check className="w-3.5 h-3.5 mr-1" />Completar
+        </Button>
+      )}
+      <Button variant="ghost" size="icon" onClick={() => handleEdit(appointment)} aria-label="Editar cita">
+        <Pencil className="w-4 h-4" />
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700 dark:text-red-400" aria-label="Eliminar cita">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar cita?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará la cita de {appointment.clientName}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleDelete(appointment.id || appointment._id)} className="bg-red-600 hover:bg-red-700 text-white">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
 
   if (loading) {
     return (
@@ -399,11 +466,11 @@ const AppointmentsPage = () => {
       {viewMode === 'list' && (
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-wrap items-end gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] items-end gap-4">
               <div className="space-y-2">
-                <Label>Estado</Label>
+                <Label htmlFor="filter-status">Estado</Label>
                 <Select value={filters.status} onValueChange={(val) => handleFilterChange('status', val)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger id="filter-status" className="w-full">
                     <SelectValue placeholder="Todos los estados" />
                   </SelectTrigger>
                   <SelectContent>
@@ -419,18 +486,18 @@ const AppointmentsPage = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Fecha específica</Label>
-                <Input type="date" name="date" value={filters.date} onChange={(e) => handleFilterChange('date', e.target.value)} className="w-[180px]" />
+                <Label htmlFor="filter-date">Fecha específica</Label>
+                <Input id="filter-date" type="date" name="date" value={filters.date} onChange={(e) => handleFilterChange('date', e.target.value)} className="w-full" />
               </div>
               <div className="space-y-2">
-                <Label>Desde</Label>
-                <Input type="date" name="startDate" value={filters.startDate} onChange={(e) => handleFilterChange('startDate', e.target.value)} className="w-[180px]" />
+                <Label htmlFor="filter-startDate">Desde</Label>
+                <Input id="filter-startDate" type="date" name="startDate" value={filters.startDate} onChange={(e) => handleFilterChange('startDate', e.target.value)} className="w-full" />
               </div>
               <div className="space-y-2">
-                <Label>Hasta</Label>
-                <Input type="date" name="endDate" value={filters.endDate} onChange={(e) => handleFilterChange('endDate', e.target.value)} className="w-[180px]" />
+                <Label htmlFor="filter-endDate">Hasta</Label>
+                <Input id="filter-endDate" type="date" name="endDate" value={filters.endDate} onChange={(e) => handleFilterChange('endDate', e.target.value)} className="w-full" />
               </div>
-              <Button variant="outline" onClick={handleClearFilters}>
+              <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Limpiar
               </Button>
@@ -441,14 +508,30 @@ const AppointmentsPage = () => {
 
       {/* Vista de calendario */}
       {viewMode === 'calendar' && (
-        <Card className="overflow-hidden">
-          <CardContent className="p-4 sm:p-6">
-            <AppointmentCalendar
-              appointments={appointments}
-              onSelectAppointment={handleEdit}
-            />
-          </CardContent>
-        </Card>
+        <div className={cn(
+          'grid grid-cols-1 gap-6',
+          selectedCalendarAppointment && 'xl:grid-cols-[1fr_360px]'
+        )}>
+          <Card className="overflow-hidden">
+            <CardContent className="p-4 sm:p-6">
+              <AppointmentCalendar
+                appointments={appointments}
+                onSelectAppointment={(apt) => setSelectedCalendarId(apt.id || apt._id)}
+              />
+            </CardContent>
+          </Card>
+          {selectedCalendarAppointment && (
+            <div>
+              <AppointmentDetailCard
+                appointment={selectedCalendarAppointment}
+                onClose={() => setSelectedCalendarId(null)}
+                onUpdateStatus={handleUpdateStatus}
+                onRespond={handleRespondToBooking}
+                onEdit={handleEdit}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Vista de lista */}
@@ -474,6 +557,38 @@ const AppointmentsPage = () => {
                 <CardTitle className="text-base">Citas programadas ({sortedAppointments.length})</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
+                {/* Lista de tarjetas en móvil */}
+                <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+                  {sortedAppointments.map((appointment) => {
+                    const st = getStatus(appointment.status)
+                    return (
+                      <div key={appointment.id || appointment._id} className="p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{appointment.clientName}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{getServiceLabel(appointment)}</p>
+                          </div>
+                          <Badge variant={st.variant} className="flex-shrink-0">{st.label}</Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-300">
+                            {new Date(appointment.date).toLocaleDateString('es-ES')} · {formatTime12h(appointment.time)}
+                          </span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">${appointment.totalAmount}</span>
+                        </div>
+                        {appointment.status === 'ESPERANDO_PAGO' && appointment.holdExpiresAt && (
+                          <p className="text-xs text-orange-600 dark:text-orange-400">
+                            Expira: {new Date(appointment.holdExpiresAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
+                        {renderRowActions(appointment)}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Tabla en pantallas md+ */}
+                <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -528,58 +643,14 @@ const AppointmentsPage = () => {
                           </TableCell>
                           <TableCell className="font-medium text-gray-900 dark:text-gray-100">${appointment.totalAmount}</TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              {appointment.status === 'PENDIENTE' && (
-                                <>
-                                  <Button variant="ghost" size="sm" className="text-xs text-green-600 hover:text-green-700 dark:text-green-400" onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'IN_PERSON')} title="Pago en persona">
-                                    <UserCheck className="w-3.5 h-3.5 mr-1" />En persona
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="text-xs text-orange-600 hover:text-orange-700 dark:text-orange-400" onClick={() => handleRespondToBooking(appointment.id || appointment._id, 'ONLINE')} title="Pago online">
-                                    <CreditCard className="w-3.5 h-3.5 mr-1" />Online
-                                  </Button>
-                                </>
-                              )}
-                              {appointment.status === 'ESPERANDO_PAGO' && (
-                                <Button variant="ghost" size="sm" className="text-xs text-green-600 dark:text-green-400" onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'CONFIRMADA')}>
-                                  <Check className="w-3.5 h-3.5 mr-1" />Confirmar
-                                </Button>
-                              )}
-                              {appointment.status === 'CONFIRMADA' && (
-                                <Button variant="ghost" size="sm" className="text-xs text-blue-600 dark:text-blue-400" onClick={() => handleUpdateStatus(appointment.id || appointment._id, 'COMPLETADA')}>
-                                  <Check className="w-3.5 h-3.5 mr-1" />Completar
-                                </Button>
-                              )}
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(appointment)} aria-label="Editar cita">
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700 dark:text-red-400" aria-label="Eliminar cita">
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Eliminar cita?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción no se puede deshacer. Se eliminará la cita de {appointment.clientName}.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(appointment.id || appointment._id)} className="bg-red-600 hover:bg-red-700 text-white">
-                                      Eliminar
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
+                            {renderRowActions(appointment)}
                           </TableCell>
                         </TableRow>
                       )
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           )}
