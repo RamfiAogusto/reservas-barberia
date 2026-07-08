@@ -1,0 +1,2 @@
+release: node force-migrate.js
+web: node server.js
